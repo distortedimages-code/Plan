@@ -60,7 +60,8 @@
     if (S.sel && S.sel.wall != null && App.wallHandle) { const h = App.wallHandle; if (G.dist(h, sp) < 24 || G.distPointSeg(sp, h.s0, h.s1) < 11) return { t: 'wmove', id: S.sel.id, i: S.sel.wall }; }
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh };
+      if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
@@ -98,6 +99,7 @@
       if (S.pending && !(h && h.t === 'wmove')) { App.walls.cancel(); App.toast('Déplacement annulé'); act = null; return; }
       if (h && (h.t === 'opmove' || h.t === 'opend')) { const f = App.ops.find(h.oid); act.kind = h.t; App.begin(); act.began = true; act.f = f; act.g0 = App.ops.geo(f.room, f.o); act.u0 = G.dot(G.sub(App.s2w(p), act.g0.a), act.g0.d); if (touch) S.loupe = p; }
       else if (h && h.t === 'wmove') { act.kind = 'wmove'; const r = App.byId(h.id); act.W = App.ops.wall(r, h.i); act.w0 = App.s2w(p); act.base = S.pending ? S.pending.delta : 0; if (S.pending && !(S.pending.id === h.id && S.pending.i === h.i)) { App.walls.cancel(true); act.base = 0; act.W = App.ops.wall(App.byId(h.id), h.i); } }
+      else if (h && h.t === 'resize') { act.kind = 'resize'; App.begin(); act.began = true; const s0 = App.byId(h.id); act.orig = G.clone(s0.pts); act.ops = s0.openings ? JSON.parse(JSON.stringify(s0.openings)) : null; if (touch) S.loupe = p; }
       else if (h && h.t === 'vertex') { act.kind = 'vertex'; App.begin(); act.began = true; S.dragV = h.i; if (touch) S.loupe = p; }
       else if (h && h.t === 'edge') { const s0 = App.byId(h.id); act.kind = 'edge'; App.begin(); act.began = true; S.dragE = h.i; act.orig = G.clone(s0.pts); act.partners = App.feat.partners(s0, h.i).map((q) => ({ s: q.s, j: q.j, orig: G.clone(q.s.pts) })); act.w0 = App.s2w(p); const a0 = s0.pts[h.i], b0 = s0.pts[(h.i + 1) % s0.pts.length]; act.nin = G.perp(G.norm(G.sub(b0, a0))); act.mid = G.lerp(a0, b0, 0.5); }
       else if (h && h.t === 'move') { act.kind = 'move'; App.begin(); act.began = true; act.orig = G.clone(App.byId(h.id).pts); act.w0 = App.s2w(p); act.openOrig = null; }
@@ -160,6 +162,7 @@
       if (G.area(np) > 0 && !G.isSelfIntersecting(np)) { s.pts = np; act.partners.forEach((q) => { const pp = App.feat.moveEdgePts(q.orig, q.j, -delta); if (G.area(pp) > 0 && !G.isSelfIntersecting(pp)) q.s.pts = pp; }); }
       S.edgeInfo = { delta, p: G.add(act.mid, G.mul(act.nin, delta)) }; S.calc = {}; App.render(); return;
     }
+    if (act.kind === 'resize') { const s = App.byId(act.h.id); const info = App.resize.apply(s, act.orig, act.ops, act.h.h, App.s2w(p)); S.opInfo = { p: G.centroid(s.pts), txt: App.resize.label(s, info) }; if (S.loupe) S.loupe = p; S.calc = {}; App.render(); return; }
     if (act.kind === 'move' && App.byId(act.h.id).kind !== 'piece') {
       const s = App.byId(act.h.id); const r = App.guides.solve(s, act.orig, G.sub(App.s2w(p), act.w0));
       s.pts = r.Q; S.guides = r; S.snapMark = null; S.calc = {}; App.render(); return;
@@ -189,6 +192,7 @@
     if (!act) return;
     const a = act; act = null; S.loupe = null; S.dragV = null;
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
+    if (a.kind === 'resize') { S.opInfo = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');

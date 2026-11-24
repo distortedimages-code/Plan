@@ -92,7 +92,7 @@
     if (S.step && showCal) drawStep();
     const sel = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     if (sel && sel.pts && sel.kind !== 'piece' && S.layers.cotes) drawDims(sel, true);
-    if (sel && sel.kind === 'piece' && !ctxSel) drawDims(sel, true);
+    if (sel && sel.kind === 'piece' && !ctxSel && !(App.resize && App.resize.active(sel))) drawDims(sel, true);
     // mesures
     for (const m of App.measuresOn(fid)) drawMeasure(m, S.sel && S.sel.id === m.id);
     // électricité
@@ -524,8 +524,26 @@
     path(s.pts); ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.setLineDash(s.locked ? [5, 4] : []); ctx.stroke(); ctx.setLineDash([]);
     if (s.locked) { const c = App.w2s(G.centroid(s.pts)); ctx.fillStyle = C.red; text('Verrouillé', c.x, c.y + 34, 700, 10, C.red); return; }
     App.edgeHandles = [];
-    for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+    if (App.resize && App.resize.active(s)) drawResizeBox(s);
+    else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
     if (S.tool === 'select') { const c = App.w2s(G.centroid(s.pts)); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
+  }
+
+  /* cadre de redimensionnement : réglettes (cotes du cadre), coins et points au milieu des bords */
+  function drawResizeBox(s) {
+    const H = App.resize.handles(s), b = H.b; const W = (x, y) => App.w2s(b.fr.from({ x, y }));
+    const c = [W(b.x0, b.y0), W(b.x1, b.y0), W(b.x1, b.y1), W(b.x0, b.y1)];
+    ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); c.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+    // réglettes : largeur sous le cadre, hauteur à droite
+    const off = 40 / S.view.z;
+    const ruler = (p0, p1, nrm, v) => { const a = App.w2s(G.add(p0, G.mul(nrm, off))), e = App.w2s(G.add(p1, G.mul(nrm, off))), u = G.norm(G.sub(e, a)), t = { x: -u.y, y: u.x };
+      ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(e.x, e.y); for (const q of [a, e]) { ctx.moveTo(q.x + t.x * 6, q.y + t.y * 6); ctx.lineTo(q.x - t.x * 6, q.y - t.y * 6); } ctx.stroke();
+      const m = G.lerp(a, e, 0.5); pill(App.fmtCm(v, 0) + ' cm', m.x, m.y, false); };
+    const P = (x, y) => b.fr.from({ x, y }); const dn = G.norm(G.sub(P(0, -1), P(0, 0))), rt = G.norm(G.sub(P(1, 0), P(0, 0)));
+    ruler(P(b.x0, b.y0), P(b.x1, b.y0), dn, b.w); ruler(P(b.x1, b.y0), P(b.x1, b.y1), rt, b.h);
+    for (const h of H.list) { const q = App.w2s(h.w);
+      if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+      else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }
   }
 
   function drawDraft() {

@@ -2341,7 +2341,7 @@ details[open] summary::after{content:"–"}
     if (S.step && showCal) drawStep();
     const sel = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     if (sel && sel.pts && sel.kind !== 'piece' && S.layers.cotes) drawDims(sel, true);
-    if (sel && sel.kind === 'piece' && !ctxSel) drawDims(sel, true);
+    if (sel && sel.kind === 'piece' && !ctxSel && !(App.resize && App.resize.active(sel))) drawDims(sel, true);
     // mesures
     for (const m of App.measuresOn(fid)) drawMeasure(m, S.sel && S.sel.id === m.id);
     // électricité
@@ -2773,8 +2773,26 @@ details[open] summary::after{content:"–"}
     path(s.pts); ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.setLineDash(s.locked ? [5, 4] : []); ctx.stroke(); ctx.setLineDash([]);
     if (s.locked) { const c = App.w2s(G.centroid(s.pts)); ctx.fillStyle = C.red; text('Verrouillé', c.x, c.y + 34, 700, 10, C.red); return; }
     App.edgeHandles = [];
-    for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+    if (App.resize && App.resize.active(s)) drawResizeBox(s);
+    else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
     if (S.tool === 'select') { const c = App.w2s(G.centroid(s.pts)); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
+  }
+
+  /* cadre de redimensionnement : réglettes (cotes du cadre), coins et points au milieu des bords */
+  function drawResizeBox(s) {
+    const H = App.resize.handles(s), b = H.b; const W = (x, y) => App.w2s(b.fr.from({ x, y }));
+    const c = [W(b.x0, b.y0), W(b.x1, b.y0), W(b.x1, b.y1), W(b.x0, b.y1)];
+    ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); c.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+    // réglettes : largeur sous le cadre, hauteur à droite
+    const off = 40 / S.view.z;
+    const ruler = (p0, p1, nrm, v) => { const a = App.w2s(G.add(p0, G.mul(nrm, off))), e = App.w2s(G.add(p1, G.mul(nrm, off))), u = G.norm(G.sub(e, a)), t = { x: -u.y, y: u.x };
+      ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(e.x, e.y); for (const q of [a, e]) { ctx.moveTo(q.x + t.x * 6, q.y + t.y * 6); ctx.lineTo(q.x - t.x * 6, q.y - t.y * 6); } ctx.stroke();
+      const m = G.lerp(a, e, 0.5); pill(App.fmtCm(v, 0) + ' cm', m.x, m.y, false); };
+    const P = (x, y) => b.fr.from({ x, y }); const dn = G.norm(G.sub(P(0, -1), P(0, 0))), rt = G.norm(G.sub(P(1, 0), P(0, 0)));
+    ruler(P(b.x0, b.y0), P(b.x1, b.y0), dn, b.w); ruler(P(b.x1, b.y0), P(b.x1, b.y1), rt, b.h);
+    for (const h of H.list) { const q = App.w2s(h.w);
+      if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+      else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }
   }
 
   function drawDraft() {
@@ -2874,7 +2892,8 @@ details[open] summary::after{content:"–"}
     if (S.sel && S.sel.wall != null && App.wallHandle) { const h = App.wallHandle; if (G.dist(h, sp) < 24 || G.distPointSeg(sp, h.s0, h.s1) < 11) return { t: 'wmove', id: S.sel.id, i: S.sel.wall }; }
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh };
+      if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
@@ -2912,6 +2931,7 @@ details[open] summary::after{content:"–"}
       if (S.pending && !(h && h.t === 'wmove')) { App.walls.cancel(); App.toast('Déplacement annulé'); act = null; return; }
       if (h && (h.t === 'opmove' || h.t === 'opend')) { const f = App.ops.find(h.oid); act.kind = h.t; App.begin(); act.began = true; act.f = f; act.g0 = App.ops.geo(f.room, f.o); act.u0 = G.dot(G.sub(App.s2w(p), act.g0.a), act.g0.d); if (touch) S.loupe = p; }
       else if (h && h.t === 'wmove') { act.kind = 'wmove'; const r = App.byId(h.id); act.W = App.ops.wall(r, h.i); act.w0 = App.s2w(p); act.base = S.pending ? S.pending.delta : 0; if (S.pending && !(S.pending.id === h.id && S.pending.i === h.i)) { App.walls.cancel(true); act.base = 0; act.W = App.ops.wall(App.byId(h.id), h.i); } }
+      else if (h && h.t === 'resize') { act.kind = 'resize'; App.begin(); act.began = true; const s0 = App.byId(h.id); act.orig = G.clone(s0.pts); act.ops = s0.openings ? JSON.parse(JSON.stringify(s0.openings)) : null; if (touch) S.loupe = p; }
       else if (h && h.t === 'vertex') { act.kind = 'vertex'; App.begin(); act.began = true; S.dragV = h.i; if (touch) S.loupe = p; }
       else if (h && h.t === 'edge') { const s0 = App.byId(h.id); act.kind = 'edge'; App.begin(); act.began = true; S.dragE = h.i; act.orig = G.clone(s0.pts); act.partners = App.feat.partners(s0, h.i).map((q) => ({ s: q.s, j: q.j, orig: G.clone(q.s.pts) })); act.w0 = App.s2w(p); const a0 = s0.pts[h.i], b0 = s0.pts[(h.i + 1) % s0.pts.length]; act.nin = G.perp(G.norm(G.sub(b0, a0))); act.mid = G.lerp(a0, b0, 0.5); }
       else if (h && h.t === 'move') { act.kind = 'move'; App.begin(); act.began = true; act.orig = G.clone(App.byId(h.id).pts); act.w0 = App.s2w(p); act.openOrig = null; }
@@ -2974,6 +2994,7 @@ details[open] summary::after{content:"–"}
       if (G.area(np) > 0 && !G.isSelfIntersecting(np)) { s.pts = np; act.partners.forEach((q) => { const pp = App.feat.moveEdgePts(q.orig, q.j, -delta); if (G.area(pp) > 0 && !G.isSelfIntersecting(pp)) q.s.pts = pp; }); }
       S.edgeInfo = { delta, p: G.add(act.mid, G.mul(act.nin, delta)) }; S.calc = {}; App.render(); return;
     }
+    if (act.kind === 'resize') { const s = App.byId(act.h.id); const info = App.resize.apply(s, act.orig, act.ops, act.h.h, App.s2w(p)); S.opInfo = { p: G.centroid(s.pts), txt: App.resize.label(s, info) }; if (S.loupe) S.loupe = p; S.calc = {}; App.render(); return; }
     if (act.kind === 'move' && App.byId(act.h.id).kind !== 'piece') {
       const s = App.byId(act.h.id); const r = App.guides.solve(s, act.orig, G.sub(App.s2w(p), act.w0));
       s.pts = r.Q; S.guides = r; S.snapMark = null; S.calc = {}; App.render(); return;
@@ -3003,6 +3024,7 @@ details[open] summary::after{content:"–"}
     if (!act) return;
     const a = act; act = null; S.loupe = null; S.dragV = null;
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
+    if (a.kind === 'resize') { S.opInfo = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
@@ -3281,8 +3303,9 @@ details[open] summary::after{content:"–"}
   }
 
   /* ---------- sélection ---------- */
+  let lastSel = null;
   ui.onSelect = (again) => {
-    const s = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
+    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
     if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {
@@ -3392,7 +3415,7 @@ details[open] summary::after{content:"–"}
     let h = back + `<div class="field" style="border-top:1px solid var(--ink)"><label>Nom</label><input data-live="name" data-c="name" value="${esc(s.name || '')}"></div>
       <div class="field"><label>Type</label><select data-c="kind">${Object.entries(KIND).map(([k, v]) => `<option value="${k}" ${s.kind === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
       <div class="kpis"><div><b>${App.fmtM2(area)}</b><span>m² au sol</span></div><div><b>${fmt(G.perimeter(s.pts) / 1000, 2)}</b><span>m de périmètre</span></div><div><b>${n}</b><span>côtés</span></div></div>
-      <div class="row"><button class="btn sm ${s.locked ? 'primary' : ''}" data-a="lockpos">${s.locked ? 'Verrouillé sur le plan' : 'Verrouiller sur le plan'}</button><button class="btn sm" data-a="zoom">Zoomer</button><button class="btn sm" data-a="dup">Dupliquer</button><button class="btn sm ghost" data-a="del">Supprimer</button></div>`;
+      <div class="row"><button class="btn sm ${s.locked ? 'primary' : ''}" data-a="lockpos">${s.locked ? 'Verrouillé sur le plan' : 'Verrouiller sur le plan'}</button><button class="btn sm" data-a="zoom">Zoomer</button>${s.kind === 'piece' && !s.locked ? `<button class="btn sm ${S.resizeRoom === s.id ? 'primary' : ''}" data-x="rsz">Redimensionner</button>` : ''}<button class="btn sm" data-a="dup">Dupliquer</button><button class="btn sm ghost" data-a="del">Supprimer</button></div>`;
     if (s.kind === 'piece') {
       const hab = App.feat.habitable(s); const nb = App.feat.neighbours(s);
       if (hab.low > 0) h += `<p style="margin-top:10px">Surface à plus de 1,80 m : <b style="color:var(--ink)">${App.fmtM2(hab.SH)} m²</b>${s.areaSH ? ' (plan : ' + s.areaSH.toLocaleString('fr-FR') + ' m²)' : ''}</p>`;
@@ -4697,12 +4720,15 @@ details[open] summary::after{content:"–"}
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'piece' && !App.selected().locked) {
+      const r = App.selected(); const on = S.resizeRoom === r.id;
+      h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
       const st = App.selected(), cands = App.stairs.candidates(st);
-      h = `<button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
-      h = `<button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
       const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
       h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
@@ -4777,6 +4803,8 @@ details[open] summary::after{content:"–"}
       case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
       case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
       case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
+      case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
+      case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'skok': App.sketch.validate(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
@@ -5281,6 +5309,74 @@ details[open] summary::after{content:"–"}
     App.toast(`Escalier ${St.kindName(s).toLowerCase()} — touchez « Inverser » si le départ n'est pas au bon bout`); return true;
   };
   St.flip = (s) => { const lay = St.layout(s); if (!lay) return; App.mutate(() => { s.stair = Object.assign({}, s.stair, { start: lay.fr.from(lay.path[lay.path.length - 1]), userSet: true }); }); };
+})();
+
+/* Calepin — redimensionner un objet ou une pièce d'un geste, sans toucher les points un par un.
+   Cadre aligné sur la forme : les points au milieu des bords étirent dans un sens, les coins dans les deux.
+   Les angles sont gardés : une forme d'équerre reste d'équerre ; une forme avec des angles quelconques
+   est agrandie ou réduite en gardant ses proportions. */
+(function () {
+  const PL = globalThis.PL, G = PL.geom, O = PL.ortho, App = globalThis.App, S = App.state;
+  const R = (App.resize = {});
+  const MIN = 100;
+
+  R.active = (s) => !!(s && s.pts && s.pts.length >= 3 && !s.locked && s.kind !== 'elec' && !s.a && !S.editPts && (s.kind !== 'piece' || S.resizeRoom === s.id));
+  R.frameOf = (s) => {
+    const th = s.kind === 'meuble' && s.pts.length >= 2 ? Math.atan2(s.pts[1].y - s.pts[0].y, s.pts[1].x - s.pts[0].x) : O.angleOf(s.pts);
+    return O.frame(th);
+  };
+  R.box = (s, pts = s.pts) => {
+    const fr = R.frameOf(s); const P = pts.map(fr.to); const b = G.bbox(P);
+    const sq = O.square(P); const ortho = !!sq && sq.every((q, i) => G.dist(q, P[i]) < 3);
+    return { fr, x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1, w: b.w, h: b.h, ortho };
+  };
+  R.handles = (s) => {
+    const b = R.box(s); const pt = (x, y) => b.fr.from({ x, y }); const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; const out = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) out.push({ kind: 'corner', sx, sy, w: pt(sx < 0 ? b.x0 : b.x1, sy < 0 ? b.y0 : b.y1) });
+    out.push({ kind: 'edge', sx: -1, sy: 0, w: pt(b.x0, my) }, { kind: 'edge', sx: 1, sy: 0, w: pt(b.x1, my) }, { kind: 'edge', sx: 0, sy: -1, w: pt(mx, b.y0) }, { kind: 'edge', sx: 0, sy: 1, w: pt(mx, b.y1) });
+    return { b, list: out };
+  };
+  R.hit = (s, sp) => {
+    if (!R.active(s)) return null; const H = R.handles(s); let best = null;
+    for (const h of H.list) { const q = App.w2s(h.w); const d = G.dist(q, sp); if (d < (h.kind === 'edge' ? 20 : 18) && (!best || d < best.d)) best = { d, h }; }
+    return best ? best.h : null;
+  };
+
+  /* nouveau contour depuis l'état de départ (orig), la poignée tenue et la position du doigt (monde) */
+  R.apply = (s, orig, origOps, h, w) => {
+    const b = R.box(s, orig); const fr = b.fr; const p = fr.to(w);
+    const ax = h.sx > 0 ? b.x0 : b.x1, ay = h.sy > 0 ? b.y0 : b.y1; // côté fixe (opposé à la poignée)
+    const cx = h.sx > 0 ? b.x1 : b.x0, cy = h.sy > 0 ? b.y1 : b.y0;
+    const snapLen = (L) => Math.max(MIN, Math.round(L / 10) * 10);
+    let kx = 1, ky = 1;
+    if (h.sx) kx = snapLen(Math.abs(p.x - ax)) / Math.max(1, b.w); if (h.sy) ky = snapLen(Math.abs(p.y - ay)) / Math.max(1, b.h);
+    if (h.sx && Math.sign(p.x - ax) !== Math.sign(cx - ax)) kx = MIN / Math.max(1, b.w);
+    if (h.sy && Math.sign(p.y - ay) !== Math.sign(cy - ay)) ky = MIN / Math.max(1, b.h);
+    let uniform = !b.ortho;
+    if (uniform) { // angles quelconques : on garde les proportions (et donc tous les angles)
+      const k = h.sx && h.sy ? Math.max(kx, ky) : h.sx ? kx : ky; kx = ky = k;
+    }
+    const oxp = h.sx ? ax : (b.x0 + b.x1) / 2, oyp = h.sy ? ay : (b.y0 + b.y1) / 2; // en proportionnel par un bord, on reste centré sur l'autre axe
+    const T = (q) => { const f = fr.to(q); return fr.from({ x: oxp + (f.x - oxp) * kx, y: oyp + (f.y - oyp) * ky }); };
+    s.pts = orig.map(T);
+    if (s.kind === 'piece' && origOps) {
+      s.openings = origOps.map((o0) => {
+        const o = Object.assign({}, o0); const n = orig.length; if (o.wall >= n) return o;
+        const a0 = orig[o.wall], b0 = orig[(o.wall + 1) % n], d0 = G.norm(G.sub(b0, a0)); const c0 = G.add(a0, G.mul(d0, o.pos + o.width / 2));
+        const a1 = s.pts[o.wall], b1 = s.pts[(o.wall + 1) % n], el = G.dist(a1, b1), d1 = G.norm(G.sub(b1, a1)); const c1 = T(c0);
+        o.width = Math.min(o.width, Math.max(300, el - 20)); o.pos = Math.max(0, Math.min(el - o.width, G.dot(G.sub(c1, a1), d1) - o.width / 2));
+        return o;
+      });
+    }
+    const nb = R.box(s); return { w: nb.w, h: nb.h, uniform, k: kx };
+  };
+  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}`;
+  /* après coup : les longueurs verrouillées qui ont changé ne le sont plus (les angles restent) */
+  R.finish = (s, orig) => {
+    if (!s.locks) return; const n = s.pts.length;
+    s.locks = s.locks.map((lk, i) => { const L0 = G.dist(orig[i], orig[(i + 1) % n]), L1 = G.dist(s.pts[i], s.pts[(i + 1) % n]); return Math.abs(L1 - L0) > 1 ? Object.assign({}, lk, { L: false }) : lk; });
+    s.locks = PL.solver.syncLocks(s.pts, s.locks);
+  };
 })();
 
 /* Calepin — démarrage. */

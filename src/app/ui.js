@@ -183,8 +183,9 @@
   }
 
   /* ---------- sélection ---------- */
+  let lastSel = null;
   ui.onSelect = (again) => {
-    const s = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
+    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
     if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {
@@ -294,7 +295,7 @@
     let h = back + `<div class="field" style="border-top:1px solid var(--ink)"><label>Nom</label><input data-live="name" data-c="name" value="${esc(s.name || '')}"></div>
       <div class="field"><label>Type</label><select data-c="kind">${Object.entries(KIND).map(([k, v]) => `<option value="${k}" ${s.kind === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
       <div class="kpis"><div><b>${App.fmtM2(area)}</b><span>m² au sol</span></div><div><b>${fmt(G.perimeter(s.pts) / 1000, 2)}</b><span>m de périmètre</span></div><div><b>${n}</b><span>côtés</span></div></div>
-      <div class="row"><button class="btn sm ${s.locked ? 'primary' : ''}" data-a="lockpos">${s.locked ? 'Verrouillé sur le plan' : 'Verrouiller sur le plan'}</button><button class="btn sm" data-a="zoom">Zoomer</button><button class="btn sm" data-a="dup">Dupliquer</button><button class="btn sm ghost" data-a="del">Supprimer</button></div>`;
+      <div class="row"><button class="btn sm ${s.locked ? 'primary' : ''}" data-a="lockpos">${s.locked ? 'Verrouillé sur le plan' : 'Verrouiller sur le plan'}</button><button class="btn sm" data-a="zoom">Zoomer</button>${s.kind === 'piece' && !s.locked ? `<button class="btn sm ${S.resizeRoom === s.id ? 'primary' : ''}" data-x="rsz">Redimensionner</button>` : ''}<button class="btn sm" data-a="dup">Dupliquer</button><button class="btn sm ghost" data-a="del">Supprimer</button></div>`;
     if (s.kind === 'piece') {
       const hab = App.feat.habitable(s); const nb = App.feat.neighbours(s);
       if (hab.low > 0) h += `<p style="margin-top:10px">Surface à plus de 1,80 m : <b style="color:var(--ink)">${App.fmtM2(hab.SH)} m²</b>${s.areaSH ? ' (plan : ' + s.areaSH.toLocaleString('fr-FR') + ' m²)' : ''}</p>`;
