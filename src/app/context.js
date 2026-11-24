@@ -208,6 +208,7 @@
       case 'snapwalls': S.p.snapWalls = S.p.snapWalls === false; App.save(); App.ui.refresh(); App.toast(S.p.snapWalls === false ? 'Aimant aux murs désactivé' : 'Aimant aux murs activé'); break;
       case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
+      case 'theme': App.setTheme(v); App.ui.refresh(true); break;
       case 'skok': App.sketch.validate(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;

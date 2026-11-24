@@ -5,7 +5,7 @@ PICTURE Le plan lui-même, plein écran, avec les lames de parquet dessinées un
 COLOUR  Blanc, noir, rouge signal, chêne pour les lames. Rien d'autre.
 TYPE    Inter Tight : 200 pour les grandes valeurs, 600–700 pour les titres, 400 pour le texte. Grille, fer à gauche.
 */
-:root{color-scheme:light dark;
+:root{color-scheme:light;
   --paper:light-dark(#ffffff,#0e0e0e);--ink:light-dark(#111111,#f2f2f2);--red:light-dark(#e2400c,#ff6a3d);--oak:light-dark(#d9bd94,#a8865b);
   --ink-2:color-mix(in srgb,var(--ink) 62%,var(--paper));--ink-3:color-mix(in srgb,var(--ink) 38%,var(--paper));--ink-4:color-mix(in srgb,var(--ink) 18%,var(--paper));--ink-5:color-mix(in srgb,var(--ink) 6%,var(--paper));
   --oak-cut:color-mix(in srgb,var(--oak) 62%,var(--red));--oak-reuse:color-mix(in srgb,var(--oak) 80%,var(--ink));--oak-line:color-mix(in srgb,var(--oak) 55%,var(--paper));
@@ -15,7 +15,7 @@ TYPE    Inter Tight : 200 pour les grandes valeurs, 600–700 pour les titres, 4
   --sans:"Inter Tight","Helvetica Neue",Helvetica,Arial,sans-serif;
   --top:52px;--sheetw:392px;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
 }
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}:root[data-theme=auto]{color-scheme:light dark}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%;margin:0;overscroll-behavior:none}
 body{background:var(--paper);color:var(--ink);font:400 15px/1.45 var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-tap-highlight-color:transparent}

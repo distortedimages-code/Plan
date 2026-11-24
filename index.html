@@ -13,7 +13,7 @@ PICTURE Le plan lui-même, plein écran, avec les lames de parquet dessinées un
 COLOUR  Blanc, noir, rouge signal, chêne pour les lames. Rien d'autre.
 TYPE    Inter Tight : 200 pour les grandes valeurs, 600–700 pour les titres, 400 pour le texte. Grille, fer à gauche.
 */
-:root{color-scheme:light dark;
+:root{color-scheme:light;
   --paper:light-dark(#ffffff,#0e0e0e);--ink:light-dark(#111111,#f2f2f2);--red:light-dark(#e2400c,#ff6a3d);--oak:light-dark(#d9bd94,#a8865b);
   --ink-2:color-mix(in srgb,var(--ink) 62%,var(--paper));--ink-3:color-mix(in srgb,var(--ink) 38%,var(--paper));--ink-4:color-mix(in srgb,var(--ink) 18%,var(--paper));--ink-5:color-mix(in srgb,var(--ink) 6%,var(--paper));
   --oak-cut:color-mix(in srgb,var(--oak) 62%,var(--red));--oak-reuse:color-mix(in srgb,var(--oak) 80%,var(--ink));--oak-line:color-mix(in srgb,var(--oak) 55%,var(--paper));
@@ -23,7 +23,7 @@ TYPE    Inter Tight : 200 pour les grandes valeurs, 600–700 pour les titres, 4
   --sans:"Inter Tight","Helvetica Neue",Helvetica,Arial,sans-serif;
   --top:52px;--sheetw:392px;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
 }
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}:root[data-theme=auto]{color-scheme:light dark}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%;margin:0;overscroll-behavior:none}
 body{background:var(--paper);color:var(--ink);font:400 15px/1.45 var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-tap-highlight-color:transparent}
@@ -3596,6 +3596,7 @@ details[open] summary::after{content:"–"}
     const cloud = App.cloud && App.cloud.ready;
     return `<h2>Projet</h2>
       <div class="field" style="border-top:1px solid var(--ink)"><label>Nom du projet</label><input data-c="pname" value="${esc(S.p.name || '')}"></div>
+      <h3>Apparence</h3><div class="seg">${[['light', 'Claire'], ['dark', 'Sombre'], ['auto', 'Comme l\'appareil']].map(([k, v]) => `<button data-x="theme" data-v="${k}" aria-pressed="${App.theme() === k}">${v}</button>`).join('')}</div>
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
       <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
@@ -4812,6 +4813,7 @@ details[open] summary::after{content:"–"}
       case 'snapwalls': S.p.snapWalls = S.p.snapWalls === false; App.save(); App.ui.refresh(); App.toast(S.p.snapWalls === false ? 'Aimant aux murs désactivé' : 'Aimant aux murs activé'); break;
       case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
+      case 'theme': App.setTheme(v); App.ui.refresh(true); break;
       case 'skok': App.sketch.validate(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
@@ -5511,7 +5513,7 @@ details[open] summary::after{content:"–"}
     App.load();
     if (S.p.seeded) { S.mode = 'calepinage'; S.tab = 'calepinage'; }
     const cv = document.getElementById('cv');
-    App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init(); App.ctx.init();
+    App.applyTheme(); App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init(); App.ctx.init();
     // pièces simples d'abord : une fois par projet, les décrochements de moins de 30 cm sont redressés (annulable)
     if (!S.p.simpleRooms) {
       const all = S.p.floors.flatMap((f) => App.rooms(f.id)); const todo = all.filter((r) => App.walls.countFixable(r));
@@ -5525,6 +5527,10 @@ details[open] summary::after{content:"–"}
     setTimeout(() => App.cloud.init(), 50);
     window.addEventListener('pagehide', () => App.save());
   }
+  /* apparence : claire par défaut ; sombre ou selon l'appareil au choix (réglage propre à chaque appareil) */
+  App.theme = () => { try { return localStorage.getItem('calepin.theme') || 'light'; } catch (e) { return 'light'; } };
+  App.applyTheme = (t = App.theme()) => { document.documentElement.dataset.theme = t; };
+  App.setTheme = (t) => { try { localStorage.setItem('calepin.theme', t); } catch (e) { /* stockage indisponible */ } App.applyTheme(t); App.render(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 
