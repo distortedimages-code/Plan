@@ -98,6 +98,9 @@
     // électricité
     if (S.layers.elec || S.mode === 'elec') for (const p of App.pointsOn(fid)) drawElec(p, S.sel && S.sel.id === p.id);
     // sélection
+    // décrochements à simplifier : repères sur le plan, zone et tracé proposé pour celui qui est ouvert
+    App.simpMarks = [];
+    if (S.mode === 'plan' && !S.sketch && !S.skPlan && !S.pending) { const sps = App.walls.spots(); for (const x of sps) drawSimp(x, S.simpFocus === x.key); }
     App.wallHandle = null; App.tipHandles = [];
     if (S.skPlan && S.skPlan.handle) { const w = App.sketch.tipPoint(); if (w) drawTip(w, S.skPlan.handle, `+ ${App.fmtCm(S.skPlan.len, 0)} cm`); }
     else if (S.pending) drawPending();
@@ -189,6 +192,15 @@
     for (const [tip, sg] of [[a1, 1], [a2, -1]]) { const b = G.sub(tip, G.mul(ns, 4 * sg)); ctx.moveTo(b.x + t.x * 4, b.y + t.y * 4); ctx.lineTo(tip.x, tip.y); ctx.lineTo(b.x - t.x * 4, b.y - t.y * 4); }
     ctx.stroke();
     App.wallHandle = { x: hpos.x, y: hpos.y, s0, s1 };
+  }
+  function drawSimp(x, on) {
+    if (on) {
+      path([x.A].concat(x.chain, [x.B])); ctx.fillStyle = C.red; ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.red; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.setLineDash([7, 5]); ctx.lineWidth = 3; ctx.strokeStyle = C.red; segLine(x.A, x.B); ctx.setLineDash([]);
+    }
+    const c = App.w2s(x.center), r = on ? 12 : 10; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fillStyle = on ? C.red : C.paper; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = on ? C.paper : C.red; ctx.font = font(800, 13); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', c.x, c.y + 0.5);
+    App.simpMarks.push({ sp: c, key: x.key });
   }
   /* poignée « prolonger » au bout libre d'une cloison : flèche dans l'axe */
   function drawTip(w, h, label) {

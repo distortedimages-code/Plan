@@ -95,6 +95,9 @@
     act = { start: p, last: p, moved: false, touch, button: e.button };
     if (e.button === 1 || e.button === 2) { act.kind = 'pan'; act.view = Object.assign({}, S.view); return; }
     const tool = S.tool;
+    const sm = tool === 'select' && (App.simpMarks || []).find((q) => G.dist(q.sp, p) < 18);
+    if (sm) { S.simpFocus = sm.key; S.sel = null; act.kind = 'pan'; act.view = Object.assign({}, S.view); App.ui.refresh(); App.render(); return; }
+    if (S.simpFocus && tool === 'select') { S.simpFocus = null; App.ui.refresh(); }
     const th = (App.tipHandles || []).find((q) => G.dist(q.sp, p) < 24);
     if (th && (tool === 'select' || tool === 'sketch')) { act.kind = 'wtip'; act.th = th.h; if (touch) S.loupe = p; return; }
     if (S.skPlan && S.skPlan.handle && tool === 'select') App.sketch.cancel(true);

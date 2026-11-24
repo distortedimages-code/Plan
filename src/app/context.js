@@ -117,6 +117,7 @@
     const P = S.pending; const f = App.ops.selected();
     if (S.skPlan && S.skPlan.handle) { const p = S.skPlan, full = p.kind === 'line'; h = `<span class="ob-v">${full ? 'Jusqu\'au mur' : 'Prolonger'}</span>${full ? `<span class="ob-n">${App.esc(App.sketch.summary())}</span>` : `<label class="ob-len">+<input data-obx="sklen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label>${p.canClose ? '<button data-ob="skclose">Jusqu\'au mur</button>' : ''}`}<button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
     else if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
+    else if (S.simpFocus && App.walls.spots().some((x) => x.key === S.simpFocus)) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); h = `<span class="ob-v">Décrochement</span><span class="ob-n">${App.esc(x.name)} · ${App.fmtCm(x.depth, 0)} cm${x.width > 1 ? ' × ' + App.fmtCm(x.width, 0) + ' cm' : ''}</span><button data-ob="simpx">Fermer</button><button data-ob="simpign" data-v="${App.esc(x.key)}">Ignorer</button><button data-ob="simpok" data-v="${App.esc(x.key)}" class="ok">Simplifier</button>`; }
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
@@ -143,6 +144,7 @@
     const bar = $('opbar'); if (!bar || bar.hidden) return; let p = null;
     const P = S.pending; const f = App.ops.selected();
     if (S.skPlan) { const pts = (S.skPlan.zone || S.skPlan.strips.flat()).map(App.w2s); const top = Math.min(...pts.map((q) => q.y)); const cx = pts.reduce((a, q) => a + q.x, 0) / pts.length; p = App.s2w({ x: cx, y: top - 10 }); }
+    else if (S.simpFocus) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); if (x) { const sp = x.chain.concat([x.A, x.B]).map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); p = App.s2w({ x: sp.reduce((a, q) => a + q.x, 0) / sp.length, y: top - 14 }); } }
     else if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
@@ -205,6 +207,11 @@
       case 'dstraight': {
         const rc = f && X.recessAt(f); if (!rc) return; App.mutate(() => { App.walls.straighten(rc.room, rc.wall); }); App.toast(`${rc.room.name || 'Pièce'} : mur redressé, l'ouverture prend toute la largeur du trou`); App.ui.refresh(); break;
       }
+      case 'simpgo': { const sp = App.walls.spots().find((x) => x.key === v); if (!sp) return; S.simpFocus = v; S.sel = null; App.ui.onSelect && App.ui.onSelect(); X.focus(sp.center); App.ui.refresh(); App.render(); break; }
+      case 'simpok': { const n = App.walls.acceptSpot(v); S.simpFocus = null; App.toast(n ? 'Décrochement simplifié — Annuler pour revenir' : 'Ce décrochement ne peut plus être simplifié tel quel'); App.ui.refresh(); App.render(); break; }
+      case 'simpign': { App.walls.ignoreSpot(v); S.simpFocus = null; App.toast('Ignoré : il ne sera plus proposé (« Reproposer les ignorés » pour revenir)'); App.ui.refresh(); App.render(); break; }
+      case 'simpreset': App.walls.resetIgnored(); App.ui.refresh(); App.render(); break;
+      case 'simpx': S.simpFocus = null; App.ui.refresh(); App.render(); break;
       case 'fixall': {
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }

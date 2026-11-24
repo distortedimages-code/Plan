@@ -56,7 +56,9 @@
     const pts = [A, B].concat(keep.map((m) => P[m]));
     if (pts.length < 3 || G.isSelfIntersecting(pts) || !(G.area(pts) > 0)) return null;
     const a0 = Math.abs(G.area(P)), a1 = Math.abs(G.area(pts)); if (Math.abs(a1 - a0) > 0.15 * a0) return null;
-    return { pts, j, k, A, B, ex: ex.map((e) => ({ t0: e.t0 - tt(A), t1: e.t1 - tt(A) })), removed: k - j + 1 - 2, chainEdges: Array.from({ length: k - j }, (_, q) => ix(j + q)), keep, da: a1 - a0, agree: Math.abs(first.off - last.off) <= ON };
+    const bv = []; for (let q = j; q <= k; q++) { const v = at(q); if (Math.abs(off(v)) > ON) bv.push({ x: v.x, y: v.y }); }
+    const chain = []; for (let q = j; q <= k; q++) chain.push({ x: at(q).x, y: at(q).y });
+    return { pts, j, k, A, B, i, chain, bumps: bv, depth: Math.max(0, ...chain.map((v) => Math.abs(off(v)))), ex: ex.map((e) => ({ t0: e.t0 - tt(A), t1: e.t1 - tt(A) })), removed: k - j + 1 - 2, chainEdges: Array.from({ length: k - j }, (_, q) => ix(j + q)), keep, da: a1 - a0, agree: Math.abs(first.off - last.off) <= ON };
   };
   /* recale les ouvertures sur le nouveau tracé (projection, même sens de mur), puis élargit au trou */
   function reproject(room, oldPts, plan, T) {
@@ -94,21 +96,46 @@
     room.locks = PL.solver.syncLocks(room.pts, room.locks);
     if (room.cal && room.cal.start != null && room.cal.start !== 'auto') room.cal.start = 'auto';
   };
-  /* pièce entière : on redresse tant qu'il reste des décrochements (murs les plus longs d'abord) */
-  Wm.simplify = (room) => {
-    if (!room.pts || room.pts.length < 5 || room.locked) return 0; let total = 0;
+  /* décrochements ignorés : coins du creux (au cm), par pièce — le même creux n'est plus proposé */
+  const vk = (v) => Math.round(v.x / 10) + ',' + Math.round(v.y / 10);
+  const ignoredFor = (room) => new Set(((S.p.simpIgnore || {})[room.id]) || []);
+  const isIgnored = (room, plan, ign) => plan.bumps.some((v) => ign.has(vk(v)));
+  Wm.spotKey = (room, plan) => room.id + '|' + plan.bumps.map(vk).sort().join(';');
+  /* pièce entière : on redresse tant qu'il reste des décrochements (murs les plus longs d'abord).
+     opts.only : ne redresser que ce décrochement ; opts.record : liste des décrochements rencontrés */
+  Wm.simplify = (room, opts = {}) => {
+    if (!room.pts || room.pts.length < 5 || room.locked) return 0; let total = 0; const ign = ignoredFor(room);
+    const want = opts.only ? new Set(opts.only.split('|')[1].split(';')) : null;
     for (let g = 0; g < 24; g++) {
       const order = room.pts.map((_, i) => i).sort((x, y) => App.ops.wall(room, y).el - App.ops.wall(room, x).el); let done = false;
       // d'abord les murs dont les deux bouts sont d'accord (sans ambiguïté), ensuite les autres
       for (const strict of [true, false]) {
-        for (const i of order) { if (Wm.isLocked(room, i)) continue; const plan = Wm.chainPlan(room, i); if (!plan || (strict && !plan.agree) || plan.chainEdges.some((e) => Wm.isLocked(room, e))) continue; Wm.applyPlan(room, plan); total += Math.max(1, plan.removed); done = true; break; }
+        for (const i of order) {
+          if (Wm.isLocked(room, i)) continue; const plan = Wm.chainPlan(room, i);
+          if (!plan || (strict && !plan.agree) || plan.chainEdges.some((e) => Wm.isLocked(room, e)) || isIgnored(room, plan, ign)) continue;
+          if (want && !plan.bumps.some((v) => want.has(vk(v)))) continue;
+          if (opts.record) opts.record.push({ key: Wm.spotKey(room, plan), roomId: room.id, A: plan.A, B: plan.B, chain: plan.chain, depth: plan.depth, width: plan.ex.reduce((a, e) => a + (e.t1 - e.t0), 0) });
+          Wm.applyPlan(room, plan); total += Math.max(1, plan.removed); done = true; break;
+        }
         if (done) break;
       }
-      if (!done) break;
+      if (!done || (want && total)) break;
     }
     return total;
   };
   Wm.countFixable = (room) => { const c = JSON.parse(JSON.stringify(room)); return Wm.simplify(c) ? 1 : 0; };
+  /* liste des décrochements à simplifier sur un étage (mise en cache jusqu'à la prochaine modification) */
+  let spotCache = { k: null, v: [] };
+  Wm.spots = (fid = S.p.floorId) => {
+    const k = (S.p.updatedAt || 0) + '|' + fid; if (spotCache.k === k) return spotCache.v;
+    const out = [];
+    for (const r of App.rooms(fid)) { const c = JSON.parse(JSON.stringify(r)); const rec = []; Wm.simplify(c, { record: rec }); for (const sp of rec) { const ctr = G.centroid(sp.chain.concat([sp.A, sp.B])); let wi = 0, bd = Infinity; r.pts.forEach((p, i) => { const d = G.distPointSeg(ctr, p, r.pts[(i + 1) % r.pts.length]); if (d < bd) { bd = d; wi = i; } }); out.push(Object.assign(sp, { name: r.name || 'Pièce', wall: Wm.name(r, wi), center: ctr })); } }
+    spotCache = { k, v: out }; return out;
+  };
+  Wm.acceptSpot = (key) => { const sp = Wm.spots().find((x) => x.key === key); const room = sp && App.byId(sp.roomId); if (!room) return 0; let n = 0; App.mutate(() => { n = Wm.simplify(room, { only: key }); }); return n; };
+  Wm.ignoreSpot = (key) => { const sp = Wm.spots().find((x) => x.key === key); if (!sp) return; App.mutate((P) => { const m = Object.assign({}, P.simpIgnore || {}); m[sp.roomId] = [...new Set((m[sp.roomId] || []).concat(key.split('|')[1].split(';')))]; P.simpIgnore = m; }); };
+  Wm.ignoredCount = (fid = S.p.floorId) => App.rooms(fid).reduce((a, r) => a + (((S.p.simpIgnore || {})[r.id] || []).length ? 1 : 0), 0);
+  Wm.resetIgnored = (fid = S.p.floorId) => { App.mutate((P) => { const m = Object.assign({}, P.simpIgnore || {}); for (const r of App.rooms(fid)) delete m[r.id]; P.simpIgnore = m; }); };
   Wm.fixRecesses = Wm.simplify;
   /* ouverture dans un renfoncement : la face du mur autour est plus loin dans la pièce */
   Wm.recessBase = (room, e) => {
