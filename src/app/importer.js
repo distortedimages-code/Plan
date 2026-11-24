@@ -171,8 +171,8 @@
     const stairs = (det.stairs || []).map((s, i) => App.makeShape('escalier', s.pts, { name: 'Escalier' + (det.stairs.length > 1 ? ' ' + (i + 1) : ''), floor: fid, imported: true, stair: { dir: s.mark || 'monte', steps: s.steps } }));
     const zones = (det.zones || []).map((z) => App.makeShape('plafond', z.pts, { name: z.name || 'Sous 1,80 m', floor: fid, imported: true, hmin: z.hmin, hmax: z.hmax }));
     rooms.forEach((r) => { r.locks = r.pts.map(() => ({ L: false, A: false })); const m = PL.solver.measure(r.pts); r.locks = r.locks.map((l, i) => ({ L: false, A: Math.abs(G.deg(m.A[i]) - 90) < 0.05 || Math.abs(G.deg(m.A[i]) - 270) < 0.05 })); r.locks = PL.solver.syncLocks(r.pts, r.locks); });
-    rooms.forEach((r) => { try { App.walls.fixRecesses(r); } catch (e) { console.error(e); } }); // embrasures de portes : murs redressés
-    S.p.shapes.push(...rooms, ...stairs, ...zones);
+    rooms.forEach((r) => { try { App.walls.simplify(r); } catch (e) { console.error(e); } }); // pièces simples : décrochements < 30 cm redressés
+    S.p.shapes.push(...rooms, ...stairs, ...zones); S.p.simpleRooms = 1;
     return { rooms, stairs: stairs.length, openings, zones: zones.length };
   };
 

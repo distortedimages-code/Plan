@@ -71,7 +71,7 @@
 
   X.recessAt = (f) => {
     const tw = App.ops.twin(f.room, f.o);
-    for (const x of [f, tw]) { if (!x) continue; const b = App.walls.recessBase(x.room, x.o.wall); if (b != null && App.walls.chainPlan(x.room, b)) { const W = App.ops.wall(x.room, x.o.wall), V = App.ops.wall(x.room, b); return { room: x.room, wall: x.o.wall, off: G.dot(G.sub(V.a, W.a), W.nin) }; } }
+    for (const x of [f, tw]) { if (!x) continue; const b = App.walls.recessBase(x.room, x.o.wall); if (b != null && App.walls.chainPlan(x.room, x.o.wall)) { const W = App.ops.wall(x.room, x.o.wall), V = App.ops.wall(x.room, b); return { room: x.room, wall: x.o.wall, off: G.dot(G.sub(V.a, W.a), W.nin) }; } }
     return null;
   };
 
@@ -92,7 +92,7 @@
         <div class="row"><button class="btn sm ghost" data-x="pcancel">Annuler</button><button class="btn sm red" data-x="pok" ${P.valid ? '' : 'disabled'}>Valider</button></div></div>`;
     }
     h += `<div class="row" style="margin:12px 0 4px"><button class="btn sm ${locked ? 'primary' : ''}" data-x="wlock">${LOCK}${locked ? 'Cloison verrouillée' : 'Verrouiller la cloison'}</button>${parts.length ? '<button class="btn sm ghost" data-x="wmerge">Supprimer la cloison</button>' : ''}${App.walls.canStraighten(room, i) ? '<button class="btn sm" data-x="wstraight">Redresser</button>' : ''}</div>
-      ${App.walls.canStraighten(room, i) ? '<p class="hint2">Redresser : supprime les petits décrochements (moins de 30 cm) le long de ce mur et l\'aligne d\'un seul trait ; les portes et fenêtres suivent.</p>' : ''}
+      ${App.walls.canStraighten(room, i) ? '<p class="hint2">Redresser : supprime les décrochements de moins de 30 cm le long de ce mur (embrasures, châssis…) et l\'aligne d\'un seul trait sur ses deux bouts ; une fenêtre ou une porte en renfoncement prend toute la largeur du trou.</p>' : ''}
       <h3>Longueur</h3>
       <div class="field"><label>Longueur ${App.walls.name(room, i)}</label><div class="unit"><input data-xc="wlen" inputmode="decimal" value="${fmt(W.el / 10)}" ${locked ? '' : ''}><span>cm</span></div></div>
       <div class="seg"><button data-x="wend" data-v="A" aria-pressed="${end === 'A'}">Allonger côté ${L(i)}</button><button data-x="wend" data-v="B" aria-pressed="${end === 'B'}">Allonger côté ${L((i + 1) % n)}</button></div>
@@ -186,10 +186,10 @@
         App.toast(n ? `Mur redressé : ${before - r.pts.length} angle${before - r.pts.length > 1 ? 's' : ''} en moins` : 'Rien à redresser ici'); break;
       }
       case 'dstraight': {
-        const rc = f && X.recessAt(f); if (!rc) return; App.mutate(() => { App.walls.straighten(rc.room, rc.wall); }); App.toast(`${rc.room.name || 'Pièce'} : mur redressé, l'ouverture suit`); App.ui.refresh(); break;
+        const rc = f && X.recessAt(f); if (!rc) return; App.mutate(() => { App.walls.straighten(rc.room, rc.wall); }); App.toast(`${rc.room.name || 'Pièce'} : mur redressé, l'ouverture prend toute la largeur du trou`); App.ui.refresh(); break;
       }
       case 'fixall': {
-        let n = 0; App.mutate(() => { for (const r of App.rooms()) n += App.walls.fixRecesses(r); }); App.toast(n ? `${n} décrochement${n > 1 ? 's' : ''} redressé${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Aucun décrochement trouvé'); break;
+        let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;

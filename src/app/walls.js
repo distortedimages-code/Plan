@@ -24,85 +24,100 @@
   Wm.thickness = (s, i) => { const p = Wm.partners(s, i); return p.length ? Math.min(...p.map((x) => x.off)) : null; };
   Wm.toggleLock = (s, i) => { const v = !Wm.isLocked(s, i); App.mutate(() => { s.locks[i] = Object.assign({}, s.locks[i], { P: v }); Wm.partners(s, i).forEach((p) => { p.room.locks[p.j] = Object.assign({}, p.room.locks[p.j], { P: v }); }); }); return v; };
 
-  /* ---------- redresser un mur : décrochements (embrasure de porte, vantail coulissant lu comme un mur…) ---------- */
+  /* ---------- pièces simples : un mur = un trait ----------
+     Les décrochements de moins de 30 cm (embrasure de fenêtre ou de porte, châssis, vantail coulissant lu comme
+     une cloison…) sont supprimés. La ligne retenue est celle des deux bouts du mur (là où il rejoint les murs
+     voisins) ; l'ouverture qui était dans le renfoncement prend toute la largeur du trou. */
+  const BAND = 300, ON = 40;
   const lineX = (p, d, q, e) => { const den = G.cross(d, e); if (Math.abs(den) < 1e-6) return null; const t = G.cross(G.sub(q, p), e) / den; return G.add(p, G.mul(d, t)); };
-  /* chaîne de sommets à moins de T de la ligne du mur i ; renvoie le nouveau tracé et la correspondance des côtés */
-  Wm.chainPlan = (room, i, T = 300) => {
-    const P = room.pts, n = P.length; if (n < 5) return null; const at = (k) => P[((k % n) + n) % n];
-    const W = App.ops.wall(room, i); if (W.el < 20) return null; const dist = (v) => Math.abs(G.dot(G.sub(v, W.a), W.nin));
+  Wm.chainPlan = (room, i, T = BAND) => {
+    const P = room.pts, n = P.length; if (n < 5) return null; const at = (k) => P[((k % n) + n) % n]; const ix = (k) => ((k % n) + n) % n;
+    const W0 = App.ops.wall(room, i); if (W0.el < 20) return null; const off0 = (v) => G.dot(G.sub(v, W0.a), W0.nin);
     let k = i + 1, j = i;
-    while (k - j < n - 3 && dist(at(k + 1)) <= T) k++;
-    while (k - j < n - 3 && dist(at(j - 1)) <= T) j--;
-    if (k - j <= 1 && dist(at(j)) < 1 && dist(at(k)) < 1) return null;
-    const A = lineX(W.a, W.d, at(j - 1), G.sub(at(j), at(j - 1))) || G.add(W.a, G.mul(W.d, G.dot(G.sub(at(j), W.a), W.d)));
-    const B = lineX(W.a, W.d, at(k), G.sub(at(k + 1), at(k))) || G.add(W.a, G.mul(W.d, G.dot(G.sub(at(k), W.a), W.d)));
-    if (G.dot(G.sub(B, A), W.d) < 100) return null;
-    const keep = []; for (let m = k + 1; m <= j - 1 + n; m++) keep.push(((m % n) + n) % n); // de k+1 à j-1 (sens du tracé)
+    while (k - j < n - 3 && Math.abs(off0(at(k + 1))) <= T) k++;
+    while (k - j < n - 3 && Math.abs(off0(at(j - 1))) <= T) j--;
+    if (k - j <= 1) return null;
+    // ligne du mur : celle des premiers et derniers segments parallèles de la chaîne (les bouts du mur)
+    const par = []; for (let q = j; q < k; q++) { const V = App.ops.wall(room, ix(q)); if (V.el >= 20 && G.dot(V.d, W0.d) > 0.999) par.push({ q, V, off: off0(V.a) }); }
+    if (!par.length) return null; const first = par[0], last = par[par.length - 1];
+    let base = Math.abs(first.off - last.off) <= ON ? (first.off < last.off ? first : last) : (first.V.el >= last.V.el ? first : last); // les deux bouts d'accord : la plus extérieure
+    const B0 = G.add(W0.a, G.mul(W0.nin, base.off)), d = W0.d, nin = W0.nin; const off = (v) => G.dot(G.sub(v, B0), nin), tt = (v) => G.dot(G.sub(v, B0), d);
+    const A = lineX(B0, d, at(j - 1), G.sub(at(j), at(j - 1))) || G.add(B0, G.mul(d, tt(at(j))));
+    const B = lineX(B0, d, at(k), G.sub(at(k + 1), at(k))) || G.add(B0, G.mul(d, tt(at(k))));
+    if (tt(B) - tt(A) < 500) return null; // un vrai mur, pas le bout d'une cloison mince
+    // ne pas empiéter sur une pièce voisine
+    for (const o of App.shapesOn(room.floor)) { if (o === room || o.id === room.id || o.kind !== 'piece') continue; for (const p of [A, B, G.lerp(A, B, 0.5)]) if (G.pointInPoly(p, o.pts) && G.distPointPoly(p, o.pts) > 30) return null; }
+    let bumps = 0; for (let q = j; q <= k; q++) if (Math.abs(off(at(q))) > 1) bumps++;
+    if (k - j <= 1 && bumps === 0) return null;
+    // renfoncements : sommets hors de la ligne, regroupés ; leur étendue = la largeur du trou dans le mur
+    const ex = []; let cur = null;
+    for (let q = j; q <= k; q++) { const v = at(q); if (Math.abs(off(v)) > ON) { const t = tt(v); if (!cur) ex.push((cur = { t0: t, t1: t })); cur.t0 = Math.min(cur.t0, t); cur.t1 = Math.max(cur.t1, t); } else cur = null; }
+    const keep = []; for (let m = k + 1; m <= j - 1 + n; m++) keep.push(ix(m));
     const pts = [A, B].concat(keep.map((m) => P[m]));
     if (pts.length < 3 || G.isSelfIntersecting(pts) || !(G.area(pts) > 0)) return null;
-    return { pts, j, k, A, B, removed: k - j + 1 - 2, chainEdges: Array.from({ length: k - j }, (_, q) => ((j + q) % n + n) % n), keep };
+    const a0 = Math.abs(G.area(P)), a1 = Math.abs(G.area(pts)); if (Math.abs(a1 - a0) > 0.15 * a0) return null;
+    return { pts, j, k, A, B, ex: ex.map((e) => ({ t0: e.t0 - tt(A), t1: e.t1 - tt(A) })), removed: k - j + 1 - 2, chainEdges: Array.from({ length: k - j }, (_, q) => ix(j + q)), keep, da: a1 - a0, agree: Math.abs(first.off - last.off) <= ON };
   };
-  /* recale les ouvertures sur le nouveau tracé (projection, même sens de mur) */
-  function reproject(room, oldPts, newPts, chainEdges, T) {
-    const out = [];
+  /* recale les ouvertures sur le nouveau tracé (projection, même sens de mur), puis élargit au trou */
+  function reproject(room, oldPts, plan, T) {
+    const out = []; const newPts = plan.pts;
     for (const o of room.openings || []) {
       const m = oldPts.length; if (o.wall >= m) continue; const a = oldPts[o.wall], b = oldPts[(o.wall + 1) % m], d = G.norm(G.sub(b, a));
-      const p0 = G.add(a, G.mul(d, o.pos)), p1 = G.add(p0, G.mul(d, o.width)), mid = G.lerp(p0, p1, 0.5); const tol = chainEdges.includes(o.wall) ? T + 20 : 40;
+      const p0 = G.add(a, G.mul(d, o.pos)), p1 = G.add(p0, G.mul(d, o.width)), mid = G.lerp(p0, p1, 0.5); const tol = plan.chainEdges.includes(o.wall) ? T + 20 : 40;
       let best = null;
       for (let e = 0; e < newPts.length; e++) {
         const c = newPts[e], f = newPts[(e + 1) % newPts.length], el = G.dist(c, f); if (el < 50) continue; const u = G.mul(G.sub(f, c), 1 / el); if (G.dot(u, d) < 0.999) continue;
         const off = Math.abs(G.cross(G.sub(mid, c), u)); if (off > tol) continue; const t0 = G.dot(G.sub(p0, c), u), t1 = G.dot(G.sub(p1, c), u); const lo = Math.max(0, Math.min(t0, t1)), hi = Math.min(el, Math.max(t0, t1));
         if (hi - lo < 100) continue; if (!best || off < best.off) best = { off, wall: e, pos: lo, width: hi - lo };
       }
-      if (best) out.push(Object.assign(o, { wall: best.wall, pos: Math.round(best.pos), width: Math.round(best.width) }));
+      if (best) out.push(Object.assign(o, { wall: best.wall, pos: best.pos, width: best.width }));
     }
+    // une ou plusieurs ouvertures dans un même renfoncement : une seule, de la largeur du trou
+    const el0 = G.dist(newPts[0], newPts[1]);
+    for (const e of plan.ex) {
+      const w = e.t1 - e.t0; if (w < 300) continue;
+      const inside = out.filter((o) => o.wall === 0 && !o.link && o.pos + o.width / 2 > e.t0 - 50 && o.pos + o.width / 2 < e.t1 + 50); if (!inside.length) continue; // fenêtres (ouvertures sur l'extérieur)
+      const cover = inside.reduce((s2, o) => s2 + o.width, 0); if (cover < 0.6 * w) continue;
+      const keepO = inside.slice().sort((x, y) => (y.sw !== 0) - (x.sw !== 0) || y.width - x.width)[0];
+      keepO.pos = Math.max(0, e.t0); keepO.width = Math.min(el0, e.t1) - keepO.pos;
+      for (const o of inside) if (o !== keepO) out.splice(out.indexOf(o), 1);
+    }
+    out.forEach((o) => { o.pos = Math.round(o.pos); o.width = Math.round(o.width); });
     return out;
   }
-  Wm.applyPlan = (room, plan, T = 300) => {
-    const old = room.pts; const n = old.length;
-    room.openings = reproject(room, old, plan.pts, plan.chainEdges, T);
+  Wm.applyPlan = (room, plan, T = BAND) => {
+    const old = room.pts;
+    room.openings = reproject(room, old, plan, T);
     const oldLocks = room.locks || []; room.pts = plan.pts;
     room.locks = [{ L: false, A: false }, { L: false, A: false }].concat(plan.keep.map((m) => Object.assign({}, oldLocks[m] || {})));
-    if (room.locks.length) { room.locks[room.locks.length - 1] = Object.assign({}, room.locks[room.locks.length - 1], { L: false }); }
+    room.locks[room.locks.length - 1] = Object.assign({}, room.locks[room.locks.length - 1], { L: false });
     room.locks = PL.solver.syncLocks(room.pts, room.locks);
     if (room.cal && room.cal.start != null && room.cal.start !== 'auto') room.cal.start = 'auto';
   };
-  /* décrochements autour d'une ouverture : la face du mur est un peu plus loin dans la pièce, de part et d'autre */
-  Wm.recessBase = (room, e) => {
-    const n = room.pts.length, W = App.ops.wall(room, e); const cands = [];
-    for (let s = -4; s <= 4; s++) {
-      if (!s) continue; const f = ((e + s) % n + n) % n; const V = App.ops.wall(room, f); if (V.el < 25 || G.dot(V.d, W.d) < 0.999) continue;
-      const off = G.dot(G.sub(V.a, W.a), W.nin); if (off < 40 || off > 300) continue; cands.push({ f, off, el: V.el });
-    }
-    if (!cands.length) return null; const mx = Math.max(...cands.map((c) => c.el));
-    return cands.filter((c) => c.el >= 0.4 * mx).sort((a, b) => a.off - b.off)[0].f;
-  };
-  Wm.recesses = (room) => { const out = []; const seen = new Set(); for (const o of room.openings || []) { if (seen.has(o.wall)) continue; seen.add(o.wall); const b = Wm.recessBase(room, o.wall); if (b != null) out.push({ e: o.wall, base: b }); } return out; };
-  /* aligne le mur i (ou, s'il porte une ouverture en retrait, la face du mur autour) ; renvoie le nombre de sommets retirés */
-  Wm.straighten = (room, i) => {
-    const base = Wm.recessBase(room, i); const plan = Wm.chainPlan(room, base != null ? base : i); if (!plan) return 0;
-    Wm.applyPlan(room, plan); return plan.removed;
-  };
-  /* un décrochement n'est redressé d'office que s'il rapproche la surface de celle écrite sur le plan
-     (sans surface connue : seulement si la face du mur autour est plus longue que l'ouverture en retrait) */
-  Wm.suggest = (room, r) => {
-    const plan = Wm.chainPlan(room, r.base); if (!plan || !plan.chainEdges.includes(r.e)) return null;
-    if (room.areaLabel) { const L = room.areaLabel * 1e6, a0 = Math.abs(G.area(room.pts)), a1 = Math.abs(G.area(plan.pts)); return Math.abs(a1 - L) < Math.abs(a0 - L) - 1e4 ? plan : null; }
-    const B = App.ops.wall(room, r.base), E = App.ops.wall(room, r.e); let base = 0;
-    for (const e of plan.chainEdges) { const V = App.ops.wall(room, e); if (G.dot(V.d, B.d) > 0.999 && Math.abs(G.dot(G.sub(V.a, B.a), B.nin)) < 40) base += V.el; }
-    return base >= E.el ? plan : null;
-  };
-  Wm.fixRecesses = (room) => {
-    let total = 0; const no = new Set(); const key = (r) => ((room.openings || []).find((o) => o.wall === r.e) || {}).oid || r.e;
-    for (let g = 0; g < 16; g++) {
-      const r = Wm.recesses(room).find((x) => !no.has(key(x))); if (!r) break;
-      const plan = Wm.suggest(room, r); if (!plan) { no.add(key(r)); continue; }
-      Wm.applyPlan(room, plan); total++;
+  /* pièce entière : on redresse tant qu'il reste des décrochements (murs les plus longs d'abord) */
+  Wm.simplify = (room) => {
+    if (!room.pts || room.pts.length < 5 || room.locked) return 0; let total = 0;
+    for (let g = 0; g < 24; g++) {
+      const order = room.pts.map((_, i) => i).sort((x, y) => App.ops.wall(room, y).el - App.ops.wall(room, x).el); let done = false;
+      // d'abord les murs dont les deux bouts sont d'accord (sans ambiguïté), ensuite les autres
+      for (const strict of [true, false]) {
+        for (const i of order) { if (Wm.isLocked(room, i)) continue; const plan = Wm.chainPlan(room, i); if (!plan || (strict && !plan.agree) || plan.chainEdges.some((e) => Wm.isLocked(room, e))) continue; Wm.applyPlan(room, plan); total += Math.max(1, plan.removed); done = true; break; }
+        if (done) break;
+      }
+      if (!done) break;
     }
     return total;
   };
-  Wm.countFixable = (room) => { const c = JSON.parse(JSON.stringify(room)); return Wm.fixRecesses(c); };
-  Wm.canStraighten = (room, i) => { const base = Wm.recessBase(room, i); return !!Wm.chainPlan(room, base != null ? base : i); };
+  Wm.countFixable = (room) => { const c = JSON.parse(JSON.stringify(room)); return Wm.simplify(c) ? 1 : 0; };
+  Wm.fixRecesses = Wm.simplify;
+  /* ouverture dans un renfoncement : la face du mur autour est plus loin dans la pièce */
+  Wm.recessBase = (room, e) => {
+    const n = room.pts.length, W = App.ops.wall(room, e);
+    for (let s2 = -4; s2 <= 4; s2++) { if (!s2) continue; const f = ((e + s2) % n + n) % n; const V = App.ops.wall(room, f); if (V.el < 25 || G.dot(V.d, W.d) < 0.999) continue; const off = G.dot(G.sub(V.a, W.a), W.nin); if (off >= ON && off <= BAND) return f; }
+    return null;
+  };
+  Wm.straighten = (room, i) => { const plan = Wm.chainPlan(room, i); if (!plan) return 0; Wm.applyPlan(room, plan); return Math.max(1, plan.removed); };
+  Wm.canStraighten = (room, i) => !!Wm.chainPlan(room, i);
 
   /* ---------- déplacement en aperçu ---------- */
   const preserveOpenings = (room, origPts) => {
