@@ -80,5 +80,27 @@
     S.sel = { id: s.id }; App.ui.refresh();
     App.toast(`Escalier ${St.kindName(s).toLowerCase()} — touchez « Inverser » si le départ n'est pas au bon bout`); return true;
   };
+  /* ---------- changer de forme : droit, en L ou en U, en gardant le départ, la largeur et la longueur de foulée ---------- */
+  St.current = (s) => {
+    const lay = St.layout(s); if (!lay) return null;
+    // largeur de volée : celle de la case de départ, en travers du sens de montée
+    const p0 = lay.path[0], d0 = G.sub(lay.path[1], p0); const c0 = lay.cells.find((c) => p0.x >= c.x0 - 2 && p0.x <= c.x1 + 2 && p0.y >= c.y0 - 2 && p0.y <= c.y1 + 2) || lay.cells[0];
+    const w = Math.abs(d0.x) > Math.abs(d0.y) ? c0.y1 - c0.y0 : c0.x1 - c0.x0;
+    const turns = lay.path.slice(1, -1).map((p, k) => Math.sign(G.cross(G.sub(p, lay.path[k]), G.sub(lay.path[k + 2], p))));
+    const side = turns.length ? (turns[0] > 0 ? 'g' : 'd') : null;
+    return { lay, w, side, shape: lay.corners.length === 0 ? 'droit' : lay.corners.length === 1 ? 'L' : 'U' };
+  };
+  St.setShape = (s, shape, side) => {
+    const cur = St.current(s); if (!cur) { App.toast('Forme d\'escalier non reconnue'); return; }
+    const { lay, w } = cur; const S0 = lay.fr.from(lay.path[0]); const d = G.norm(G.sub(lay.fr.from(lay.path[1]), S0)); const nl = G.perp(d); const L = lay.L, jour = 150;
+    let uv;
+    if (shape === 'droit') uv = [[0, -w / 2], [L, -w / 2], [L, w / 2], [0, w / 2]];
+    else if (shape === 'L') { const a = Math.max(300, (L - w) / 2), b = Math.max(300, L - w - a); uv = [[0, -w / 2], [a + w, -w / 2], [a + w, w / 2 + b], [a, w / 2 + b], [a, w / 2], [0, w / 2]]; }
+    else { const a = Math.max(400, (L - 2 * w - jour) / 2); uv = [[0, -w / 2], [a + w, -w / 2], [a + w, 1.5 * w + jour], [0, 1.5 * w + jour], [0, w / 2 + jour], [a, w / 2 + jour], [a, w / 2], [0, w / 2]]; }
+    if (side === 'd') uv = uv.map(([u, v]) => [u, -v]);
+    const pts = G.ensureCCW(uv.map(([u, v]) => G.add(S0, G.add(G.mul(d, u), G.mul(nl, v)))));
+    App.mutate(() => { s.pts = pts; s.locks = pts.map(() => ({ L: false, A: false })); s.stair = Object.assign({ dir: 'monte' }, s.stair, { start: S0 }); });
+    App.toast(shape === 'droit' ? 'Escalier droit' : `Escalier ${shape === 'L' ? 'quart tournant' : 'demi-tournant'} ${side === 'd' ? 'à droite' : 'à gauche'} : ajustez-le avec le cadre (points au milieu des bords)`);
+  };
   St.flip = (s) => { const lay = St.layout(s); if (!lay) return; App.mutate(() => { s.stair = Object.assign({}, s.stair, { start: lay.fr.from(lay.path[lay.path.length - 1]), userSet: true }); }); };
 })();

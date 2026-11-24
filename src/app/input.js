@@ -62,7 +62,7 @@
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
       const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh };
       if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
-      if (S.tool === 'select' && ['meuble', 'poteau', 'forme'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
+      if (S.tool === 'select' && ['meuble', 'poteau', 'forme', 'escalier'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
     for (const l of App.labelRects) if (G.dist(l, sp) < l.r) return { t: l.ang ? 'angle' : 'dim', id: l.id, i: l.i, x: l.x, y: l.y };

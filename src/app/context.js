@@ -200,6 +200,7 @@
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
       case 'wjoin': { const r = App.selected(); if (!r || S.sel.wall == null) return; App.sketch.joinWall(r, S.sel.wall); break; }
+      case 'stshape': { const st = App.selected(); if (st && st.kind === 'escalier') { const [sh, sd] = String(v).split(':'); App.stairs.setShape(st, sh, sd || null); } break; }
       case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
       case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
       case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
