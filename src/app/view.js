@@ -368,7 +368,9 @@
     else path(s.pts);
     if (faint) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke(); ctx.restore(); return; }
     ctx.fillStyle = C.paper; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke();
-    // détail : oreillers pour les lits, assise pour canapés
+    // détail : oreillers pour les lits, dossier et accoudoirs pour les canapés
+    const sp = App.sofaParts && App.sofaParts(s);
+    if (sp) { ctx.lineWidth = 0.8; for (const q of sp.back.concat(sp.arms)) { path(q); ctx.stroke(); } }
     if (/^lit/.test(s.lib || '') && s.pts.length === 4) {
       const a = s.pts[0], b = s.pts[1], c = s.pts[2], d = s.pts[3]; const hd = G.lerp(d, a, 0.12), hc = G.lerp(c, b, 0.12);
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();

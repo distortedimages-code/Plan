@@ -65,12 +65,31 @@
   const frameOf = (P) => { const o = P[0], U = G.norm(G.sub(P[1], P[0])), Vv = G.norm(G.sub(P[3], P[0])); return { at: (u, v) => G.add(G.add(o, G.mul(U, u)), G.mul(Vv, v)), w: G.dist(P[0], P[1]), d: G.dist(P[0], P[3]) }; };
   const sub = (f, u0, u1, v0, v1) => [f.at(u0, v0), f.at(u1, v0), f.at(u1, v1), f.at(u0, v1)];
   const ellipse = (f, n = 28, cu = f.w / 2, cv = f.d / 2, ru = f.w / 2, rv = f.d / 2) => { const o = []; for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; o.push(f.at(cu + Math.cos(a) * ru, cv + Math.sin(a) * rv)); } return o; };
+  /* canapés : assise, dossier le long du dos (côté 3 pour un droit, les deux côtés extérieurs pour un angle), accoudoirs aux bouts */
+  App.sofaParts = (s) => {
+    const id = s.lib || '', P = s.pts; if (!/^canape|^fauteuil$|^angle$/.test(id)) return null;
+    if (P.length === 4) {
+      const f = frameOf(P), w = f.w, d = f.d, ar = Math.min(170, w * 0.2), bk = Math.min(220, d * 0.25);
+      return { seat: sub(f, ar, w - ar, 0, d - bk), back: [sub(f, 0, w, d - bk, d)], arms: [sub(f, 0, ar, 0, d - bk), sub(f, w - ar, w, 0, d - bk)] };
+    }
+    if (P.length !== 6 || id !== 'angle') return null;
+    const sg = Math.sign(G.area(P)); let k = -1;
+    for (let i = 0; i < 6; i++) { const a = P[(i + 5) % 6], b = P[i], c = P[(i + 1) % 6]; if (Math.sign(G.cross(G.sub(b, a), G.sub(c, b))) === -sg) { k = i; break; } }
+    if (k < 0) return null;
+    const O = P[(k + 3) % 6], A = P[(k + 4) % 6], Bp = P[(k + 5) % 6], C = P[(k + 2) % 6], D = P[(k + 1) % 6];
+    const U = G.norm(G.sub(A, O)), Vv = G.norm(G.sub(C, O)), w1 = G.dist(A, O), w2 = G.dist(C, O), t1 = G.dist(Bp, A), t2 = G.dist(D, C);
+    const at = (u, v) => G.add(G.add(O, G.mul(U, u)), G.mul(Vv, v)), R = (u0, u1, v0, v1) => [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
+    const bk = Math.min(220, Math.min(t1, t2) * 0.25), ar = Math.min(170, Math.min(w1, w2) * 0.12);
+    return { seat: [at(bk, bk), at(w1 - ar, bk), at(w1 - ar, t1), at(t2, t1), at(t2, w2 - ar), at(bk, w2 - ar)], back: [R(0, w1, 0, bk), R(0, bk, bk, w2)], arms: [R(w1 - ar, w1, bk, t1), R(bk, t2, w2 - ar, w2)] };
+  };
   const legs = (B, f, y, s, ins, col) => { for (const [u, v] of [[ins, ins], [f.w - ins - s, ins], [f.w - ins - s, f.d - ins - s], [ins, f.d - ins - s]]) prism(B, sub(f, u, u + s, v, v + s), 0, y, col); };
   const furniture = (B, s, Hc, col) => {
     const id = s.lib || '', P = s.pts;
     if (s.kind === 'poteau') return prism(B, s.round && P.length === 4 ? ellipse(frameOf(P)) : P, 0, Hc, col, s.round);
     if (s.kind === 'exclusion') { if (id === 'tremie') return; if (id === 'poele') { const f = P.length === 4 ? frameOf(P) : null; prism(B, P, 0, 1100, col); if (f) prism(B, ellipse(f, 16, f.w / 2, f.d / 2, 90, 90), 1100, Hc, col, true); return; } return prism(B, P, 0, Hc, col); }
     if (s.kind === 'forme') return prism(B, P, 0, s.h ? s.h * 10 : 900, col);
+    const sp = App.sofaParts(s);
+    if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
@@ -80,7 +99,6 @@
     if (id === 'basse') { prism(B, sub(f, 0, w, 0, d), 360, 400, col); legs(B, f, 360, 40, 25, col); return; }
     if (id === 'chaise') { prism(B, sub(f, 0, w, 0, d), 430, 460, col); legs(B, f, 430, 30, 15, col); prism(B, sub(f, 0, w, d - 35, d), 460, 880, col); return; }
     if (id === 'fauteuilbur') { prism(B, ellipse(f, 20, w / 2, d / 2, w * 0.38, d * 0.38), 440, 500, col, true); prism(B, sub(f, w / 2 - 30, w / 2 + 30, d / 2 - 30, d / 2 + 30), 0, 440, col); prism(B, sub(f, w * 0.18, w * 0.82, d - 70, d - 20), 500, 1050, col); return; }
-    if (/^canape|^fauteuil$/.test(id)) { const ar = Math.min(170, w * 0.2), bk = Math.min(220, d * 0.25); prism(B, sub(f, ar, w - ar, 0, d - bk), 0, 430, col); prism(B, sub(f, 0, w, d - bk, d), 0, 820, col); prism(B, sub(f, 0, ar, 0, d - bk), 0, 620, col); prism(B, sub(f, w - ar, w, 0, d - bk), 0, 620, col); return; }
     if (id === 'wc') { prism(B, sub(f, w * 0.12, w * 0.88, 0, d - 120), 0, 400, col); prism(B, sub(f, 0, w, d - 120, d), 0, 1100, col); return; }
     if (id === 'baignoire') { prism(B, sub(f, 0, w, 0, d), 0, 560, col); const q = sub(f, 70, w - 70, 70, d - 70); for (let i = 0; i < 4; i++) ln(P3(q[i], 560), P3(q[(i + 1) % 4], 560)); return; }
     if (/^douche/.test(id)) { prism(B, sub(f, 0, w, 0, d), 0, 50, col); for (const k of [0, 1]) ln(P3(f.at(0, k ? d : 0), 50), P3(f.at(0, k ? d : 0), 2000)); ln(P3(f.at(0, 0), 2000), P3(f.at(0, d), 2000)); return; }
