@@ -2391,7 +2391,7 @@ details[open] summary::after{content:"–"}
     for (const a of p.add) { if (a.isNew) continue; path(a.pts); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
     if (p.zone) { path(p.zone); ctx.fillStyle = C.red; ctx.globalAlpha = 0.1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.stroke(); }
     // cloisons créées : la bande, seulement là où une pièce redécoupée perd de la surface
-    ctx.save(); ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip();
+    ctx.save(); if (p.kind !== 'join') { ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip(); }
     for (const s of p.strips) { path(s); ctx.fillStyle = C.red; ctx.fill(); }
     ctx.restore();
     for (const a of p.add) { if (a.isNew) continue; const c = App.w2s(G.centroid(a.pts)); pill(`${App.fmtM2(Math.abs(G.area(a.pts)))} m²`, c.x, c.y, false); }
@@ -2551,6 +2551,7 @@ details[open] summary::after{content:"–"}
     const sel = S.sel && S.sel.id === s.id;
     if (s.kind === 'poteau') { path(s.pts); ctx.fillStyle = C.ink; ctx.fill(); return; }
     path(s.pts); ctx.fillStyle = C.paper; ctx.fill();
+    if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay) { drawStair(s, lay); return; } }
     if (s.kind === 'escalier') {
       // marches
       const bb = G.bbox(s.pts); const lp = s.pts; const lens = lp.map((p, i) => G.dist(p, lp[(i + 1) % lp.length]));
@@ -2568,6 +2569,30 @@ details[open] summary::after{content:"–"}
     hatch(s.pts, C.ink4, 8);
     path(s.pts); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke();
     if (S.view.z > 0.04 && s.name) { const c = App.w2s(G.centroid(s.pts)); text(s.name, c.x, c.y, 500, 10, C.ink2); }
+  }
+
+  /* escalier : marches le long de la ligne de foulée, rayonnantes dans les tournants, flèche vers l'arrivée */
+  function drawStair(s, lay) {
+    const W = (p) => App.w2s(lay.fr.from(p)); const tr = App.stairs.treads(s, lay);
+    ctx.save(); path(s.pts); ctx.clip();
+    for (const c of lay.corners) { const q = [{ x: c.cell.x0, y: c.cell.y0 }, { x: c.cell.x1, y: c.cell.y0 }, { x: c.cell.x1, y: c.cell.y1 }, { x: c.cell.x0, y: c.cell.y1 }].map(W); ctx.beginPath(); q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fillStyle = C.ink5; ctx.globalAlpha = 0.5; ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.beginPath();
+    for (const l of tr.lines) { const a = W(l.a), b = W(l.b); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+    ctx.stroke(); ctx.restore();
+    path(s.pts); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.stroke();
+    // ligne de foulée
+    const P = lay.path.map(W); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.beginPath(); P.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
+    const st = P[0]; ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(st.x, st.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const e = P[P.length - 1], e0 = P[P.length - 2], u = G.norm(G.sub(e, e0)), nn = { x: -u.y, y: u.x };
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x - u.x * 12 + nn.x * 6, e.y - u.y * 12 + nn.y * 6); ctx.lineTo(e.x - u.x * 12 - nn.x * 6, e.y - u.y * 12 - nn.y * 6); ctx.closePath(); ctx.fill();
+    // numéros des marches
+    const tread = (lay.L / tr.n) * S.view.z;
+    if (tread > 15) tr.nums.forEach((p, k) => { const q = W(p); const t = String(k + 1); ctx.font = font(600, 9); const tw = ctx.measureText(t).width; ctx.fillStyle = C.paper; ctx.fillRect(q.x - tw / 2 - 2, q.y - 6, tw + 4, 12); text(t, q.x, q.y + 0.5, 600, 9, k === 0 || k === tr.n - 1 ? C.ink : C.ink3); });
+    // étiquette au départ
+    const dirTxt = s.stair && s.stair.dir === 'descend' ? 'Descend' : 'Monte'; const sub = `${tr.n} marches${lay.kind !== 'Droit' ? ' · ' + lay.kind.toLowerCase() : ''}`;
+    ctx.font = font(300, 10); const w = Math.max(54, ctx.measureText(sub).width + 14); const lp = G.sub(st, G.mul(G.norm(G.sub(P[1], P[0])), 26));
+    ctx.fillStyle = C.paper; ctx.fillRect(lp.x - w / 2, lp.y - 15, w, 30); ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(lp.x - w / 2, lp.y - 15, w, 30);
+    text(dirTxt, lp.x, lp.y - 5, 800, 11, C.ink); text(sub, lp.x, lp.y + 8, 300, 10, C.ink2);
   }
 
   function drawFree(s) {
@@ -3374,10 +3399,12 @@ details[open] summary::after{content:"–"}
       h += `<div class="field" style="margin-top:10px"><label>Parquet dans cette pièce</label><input type="checkbox" data-c="parquet" ${s.parquet !== false ? 'checked' : ''}></div>
         <div class="field"><label>Hauteur sous plafond</label><div class="unit"><input data-c="ceil" inputmode="decimal" placeholder="${App.feat.ceiling(Object.assign({}, s, { ceiling: null }))}" value="${s.ceiling || ''}"><span>cm</span></div></div>
         <h3>Transformer</h3><div class="row"><button class="btn sm" data-a="cut">Ajouter une cloison</button>${nb.length ? `<select id="mergeWith" style="height:36px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${nb.map((r) => `<option value="${r.id}">${esc(r.name || 'Pièce')}</option>`).join('')}</select><button class="btn sm" data-a="merge">Fusionner</button>` : ''}</div>
+        ${(() => { const st = App.stairs.stairsTouching(s).filter(() => Math.abs(G.area(s.pts)) < 8e6); return st.length ? `<div class="preview"><b>Partie d'escalier ?</b> Cette pièce touche ${esc(st[0].name || 'l\'escalier')}. Si c'est son palier ou ses marches tournantes, réunissez-les.<div class="row" style="margin-top:8px"><button class="btn sm red" data-x="stjoin2" data-v="${st[0].id}">Assembler à l'escalier</button></div></div>` : ''; })()}
         <p>Touchez un mur sur le plan (ou son nom ci-dessous) pour passer en mode cloison : verrou, longueur, déplacement avec aperçu avant validation.</p>`;
     }
     if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
+    if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
     if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
     if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
@@ -4641,7 +4668,7 @@ details[open] summary::after{content:"–"}
         ${P.valid ? '' : '<p class="warn">Une pièce se retournerait : réduisez le déplacement.</p>'}
         <div class="row"><button class="btn sm ghost" data-x="pcancel">Annuler</button><button class="btn sm red" data-x="pok" ${P.valid ? '' : 'disabled'}>Valider</button></div></div>`;
     }
-    h += `<div class="row" style="margin:12px 0 4px"><button class="btn sm ${locked ? 'primary' : ''}" data-x="wlock">${LOCK}${locked ? 'Cloison verrouillée' : 'Verrouiller la cloison'}</button>${parts.length ? '<button class="btn sm ghost" data-x="wmerge">Supprimer la cloison</button>' : ''}${App.walls.canStraighten(room, i) ? '<button class="btn sm" data-x="wstraight">Redresser</button>' : ''}</div>
+    h += `<div class="row" style="margin:12px 0 4px"><button class="btn sm ${locked ? 'primary' : ''}" data-x="wlock">${LOCK}${locked ? 'Cloison verrouillée' : 'Verrouiller la cloison'}</button>${parts.length ? '<button class="btn sm ghost" data-x="wmerge">Supprimer la cloison</button>' : ''}${App.walls.canStraighten(room, i) ? '<button class="btn sm" data-x="wstraight">Redresser</button>' : ''}${(() => { const j = App.sketch.joinCandidate(room, i); return j ? `<button class="btn sm" data-x="wjoin">Joindre à ${esc(j.room.name || 'la pièce voisine')}</button>` : ''; })()}</div>
       ${App.walls.canStraighten(room, i) ? '<p class="hint2">Redresser : supprime les décrochements de moins de 30 cm le long de ce mur (embrasures, châssis…) et l\'aligne d\'un seul trait sur ses deux bouts ; une fenêtre ou une porte en renfoncement prend toute la largeur du trou.</p>' : ''}
       <h3>Longueur</h3>
       <div class="field"><label>Longueur ${App.walls.name(room, i)}</label><div class="unit"><input data-xc="wlen" inputmode="decimal" value="${fmt(W.el / 10)}" ${locked ? '' : ''}><span>cm</span></div></div>
@@ -4670,12 +4697,15 @@ details[open] summary::after{content:"–"}
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
+      const st = App.selected(), cands = App.stairs.candidates(st);
+      h = `<button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
       const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
-      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
     }
     bar.innerHTML = h; bar.hidden = !h; X.placeOpbar();
   };
@@ -4743,6 +4773,10 @@ details[open] summary::after{content:"–"}
       case 'fixall': {
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
+      case 'wjoin': { const r = App.selected(); if (!r || S.sel.wall == null) return; App.sketch.joinWall(r, S.sel.wall); break; }
+      case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
+      case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
+      case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
       case 'skok': App.sketch.validate(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
@@ -4780,7 +4814,7 @@ details[open] summary::after{content:"–"}
   X.init = () => {
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
-    $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, null, b); });
+    $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
   };
 })();
 
@@ -4948,7 +4982,9 @@ details[open] summary::after{content:"–"}
     const z = S.view.z, len = strokeLen(W); if (len * z < 50) return { err: 'Tracé trop court' };
     const gap = G.dist(W[0], W[W.length - 1]); const bb = G.bbox(W), diag = Math.hypot(bb.w, bb.h);
     const closed = gap < Math.max(60 / z, 0.3 * diag) && len > 2.2 * diag;
-    return closed ? zone(W) : line(W);
+    if (closed) return zone(W);
+    const j = joinStroke(W); if (j) return j;
+    return line(W);
   };
   const roomAt = (p) => App.rooms().find((r) => G.pointInPoly(p, r.pts));
   function frameFor(room) {
@@ -5031,6 +5067,69 @@ details[open] summary::after{content:"–"}
     return carve({ kind: 'line', fr, zone: null, strips: [strip], home, tDef, only: home });
   }
 
+  /* ---------- joindre deux cloisons de pièces différentes : une seule cloison entre elles ---------- */
+  const inAnyRoom = (p) => !!roomAt(p);
+  function joinStroke(W) {
+    const a = W[0], b = W[W.length - 1]; const ra = roomAt(a), rb = roomAt(b);
+    const outside = W.filter((p) => !inAnyRoom(p)).length / W.length;
+    if (ra && rb && ra !== rb) { // trait d'une pièce à l'autre, en travers du mur
+      const fr = frameFor(ra); const A0 = fr.to(a), B0 = fr.to(b), dx = Math.abs(B0.x - A0.x), dy = Math.abs(B0.y - A0.y);
+      const o = dy <= 0.6 * dx ? 'V' : dx <= 0.6 * dy ? 'H' : null; if (!o) return null; // les murs à joindre sont perpendiculaires au trait
+      const along = o === 'V' ? (A0.y + B0.y) / 2 : (A0.x + B0.x) / 2, pa = o === 'V' ? A0.x : A0.y, pb = o === 'V' ? B0.x : B0.y;
+      const F = faces(fr); const lo = Math.min(pa, pb), hi = Math.max(pa, pb); const tol = tolMm();
+      const pick = (room) => F.filter((f) => f.room === room && f.o === o && f.v >= lo - 1 && f.v <= hi + 1 && along >= f.lo - tol && along <= f.hi + tol && f.n === (room === ra ? (pa < pb ? -1 : 1) : (pa < pb ? 1 : -1))).sort((x, y) => (room === ra ? Math.abs(pb - x.v) - Math.abs(pb - y.v) : Math.abs(pa - x.v) - Math.abs(pa - y.v)))[0];
+      const fa = pick(ra), fb = pick(rb); if (!fa || !fb) return { err: 'Pas de murs face à face entre ces deux pièces' };
+      return joinFaces(fr, F, fa, fb, null);
+    }
+    if (outside < 0.6) return null; // trait dans une pièce : c'est une cloison à fermer
+    // trait le long de l'espace entre deux pièces
+    const near = App.rooms().map((r) => ({ r, d: G.distPointPoly(W[Math.floor(W.length / 2)], r.pts) })).sort((x, y) => x.d - y.d)[0]; if (!near) return null;
+    const fr = frameFor(near.r); const P = W.map(fr.to); const p0 = P[0], p1 = P[P.length - 1], dx = Math.abs(p1.x - p0.x), dy = Math.abs(p1.y - p0.y);
+    const o = dy <= 0.45 * dx ? 'H' : dx <= 0.45 * dy ? 'V' : null; if (!o) return null;
+    const v = P.reduce((t, p) => t + (o === 'H' ? p.y : p.x), 0) / P.length; const sLo = Math.min(o === 'H' ? p0.x : p0.y, o === 'H' ? p1.x : p1.y), sHi = Math.max(o === 'H' ? p0.x : p0.y, o === 'H' ? p1.x : p1.y);
+    const F = faces(fr), tol = tolMm(); const ok = (f) => f.o === o && f.hi > sLo - tol && f.lo < sHi + tol;
+    const fa = F.filter((f) => ok(f) && f.n === -1 && f.v <= v + 30 && v - f.v < 1500).sort((x, y) => y.v - x.v)[0];
+    const fb = F.filter((f) => ok(f) && f.n === 1 && f.v >= v - 30 && f.v - v < 1500 && (!fa || f.room !== fa.room)).sort((x, y) => x.v - y.v)[0];
+    if (!fa || !fb || fa.room === fb.room) return null;
+    return joinFaces(fr, F, fa, fb, v);
+  }
+  /* fa : face d'une pièce tournée vers le haut du repère (pièce en dessous), fb : face de l'autre pièce, au-dessus */
+  function joinFaces(fr, F, fa, fb, cPref) {
+    if (fa.v > fb.v) { const t = fa; fa = fb; fb = t; }
+    const gap = fb.v - fa.v, t = typicalThickness(F), o = fa.o;
+    const lo = Math.max(fa.lo, fb.lo), hi = Math.min(fa.hi, fb.hi);
+    if (hi - lo < 200) return { err: 'Ces deux murs ne se font pas face' };
+    if (gap > 1500) return { err: 'Murs trop éloignés pour n\'en faire qu\'une cloison' };
+    if (Math.abs(gap - t) < 15) return { err: `${fa.room.name || 'Pièce'} et ${fb.room.name || 'pièce'} : déjà une seule cloison de ${App.fmtCm(gap, 0)} cm` };
+    const mid = (fa.v + fb.v) / 2; let c = mid;
+    if (cPref != null && Math.abs(cPref - mid) > Math.max(gap / 4, 20 / S.view.z) && gap > t) c = Math.max(fa.v + t / 2, Math.min(fb.v - t / 2, cPref));
+    const b0 = c - t / 2, b1 = c + t / 2;
+    const R = (u0, u1, w0, w1) => (o === 'H' ? { x0: u0, x1: u1, y0: Math.min(w0, w1), y1: Math.max(w0, w1) } : { y0: u0, y1: u1, x0: Math.min(w0, w1), x1: Math.max(w0, w1) });
+    const band = R(lo, hi, b0, b1), rA = b0 > fa.v ? R(lo, hi, fa.v, b0) : null, rB = b1 < fb.v ? R(lo, hi, b1, fb.v) : null;
+    // pas une autre pièce dans l'espace comblé
+    for (const r of App.rooms()) {
+      if (r === fa.room || r === fb.room) continue; const P = r.pts.map(fr.to);
+      for (const box of [rA, rB, band]) { if (!box) continue; const ctr = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 }; if (G.pointInPoly(ctr, P) || P.some((p) => O.inRect({ x0: box.x0 + 5, x1: box.x1 - 5, y0: box.y0 + 5, y1: box.y1 - 5 }, p.x, p.y))) return { err: `${r.name || 'Une autre pièce'} est entre les deux` }; }
+    }
+    const out = { kind: 'join', fr, add: [], remove: [], strips: [O.rect(band.x0, band.y0, band.x1, band.y1).map(fr.from)], zone: null, gap, t, names: [fa.room.name || 'Pièce', fb.room.name || 'Pièce'] };
+    for (const [f, box] of [[fa, rA], [fb, rB]]) {
+      const P = O.square(f.room.pts.map(fr.to)); if (!P) return { err: `${f.room.name || 'Pièce'} a un mur en biais` };
+      const xs = O.coords(P.map((p) => p.x).concat([band.x0, band.x1], box ? [box.x0, box.x1] : [])), ys = O.coords(P.map((p) => p.y).concat([band.y0, band.y1], box ? [box.y0, box.y1] : []));
+      const loops = O.trace(xs, ys, (x, y) => (G.pointInPoly({ x, y }, P) || (box && O.inRect(box, x, y))) && !O.inRect(band, x, y));
+      const pos = loops.filter((l) => G.area(l) > 0.1e6); if (pos.length !== 1 || loops.some((l) => G.area(l) < 0)) return { err: 'Jonction impossible ici (la pièce serait coupée)' };
+      out.remove.push(f.room); out.add.push({ pts: pos[0].map(fr.from), from: f.room, keep: true, srcs: [f.room], tol: Math.abs(f.v - (f === fa ? b0 : b1)) + 40 });
+    }
+    return out;
+  }
+  K.joinCandidate = (room, i) => {
+    const fr = O.frame(O.angleOf(room.pts)); const F = faces(fr); const f = F.find((x) => x.room === room && x.i === i); if (!f) return null;
+    const t = typicalThickness(F); let best = null;
+    for (const g of F) { if (g.room === room || g.o !== f.o || g.n !== -f.n) continue; const d = (g.v - f.v) * -f.n; if (d < 20 || d > 1500) continue; if (Math.min(f.hi, g.hi) - Math.max(f.lo, g.lo) < 200) continue; if (!best || d < best.d) best = { g, d }; }
+    if (!best || Math.abs(best.d - t) < 15) return null;
+    return { room: best.g.room, gap: best.d, t, plan: () => joinFaces(fr, F, f, best.g, null) };
+  };
+  K.joinWall = (room, i) => { const c = K.joinCandidate(room, i); if (!c) return; const plan = c.plan(); if (!plan || plan.err) { App.toast((plan && plan.err) || 'Jonction impossible'); return; } S.skPlan = plan; App.ui.refresh(); App.render(); };
+
   /* ---------- redécoupage des pièces touchées ---------- */
   function carve(q) {
     const { fr } = q; const zb = q.zone ? G.bbox(q.zone) : null; const out = { kind: q.kind, fr, add: [], remove: [], strips: [], err: null };
@@ -5081,20 +5180,107 @@ details[open] summary::after{content:"–"}
         const sh = App.makeShape('piece', G.cleanPoly(a.pts, 0.2, 1), Object.assign(base, { name: a.isNew ? (a.replaces ? a.replaces.name : 'Pièce') : a.keep ? src.name : 'Pièce' }));
         if (a.keep && !a.isNew) sh.id = src.id; if (a.isNew && a.replaces) sh.id = a.replaces.id;
         if (src && src.noParquet != null) sh.noParquet = src.noParquet;
-        sh.openings = App.feat.reattach(sh.pts, olds.length ? olds : [], [], 40).map((o) => Object.assign({}, o, { oid: App.uid() }));
+        sh.openings = App.feat.reattach(sh.pts, a.srcs || olds, [], a.tol || 40).map((o) => Object.assign({}, o, { oid: App.uid() }));
         const m = PL.solver.measure(sh.pts); sh.locks = PL.solver.syncLocks(sh.pts, m.A.map((x) => ({ L: false, A: Math.abs(G.deg(x) - 90) < 0.05 || Math.abs(G.deg(x) - 270) < 0.05 })));
         made.push(sh); if (a.isNew || (plan.kind === 'line' && !a.keep)) sel = sh;
       }
       const gone = new Set(olds.map((r) => r.id)); P.shapes = P.shapes.filter((x) => !gone.has(x.id)); P.shapes.push(...made);
     });
     App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
+    if (plan.kind === 'join') { App.toast(`Une seule cloison de ${App.fmtCm(plan.t, 0)} cm entre ${plan.names.join(' et ')}`); return; }
     App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
   };
   K.summary = () => {
     const p = S.skPlan; if (!p) return '';
+    if (p.kind === 'join') return `${p.names.join(' + ')} · écart ${App.fmtCm(p.gap, 0)} → cloison ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
     return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;
   };
+})();
+
+/* Calepin — escaliers droits, en L (quart tournant) ou en U (demi-tournant).
+   La forme est lue sur le contour : découpé en cases (une par volée ou par angle), on y trace la ligne de foulée
+   du départ à l'arrivée ; les marches sont réparties dessus, droites dans les volées, rayonnantes dans les angles. */
+(function () {
+  const PL = globalThis.PL, G = PL.geom, O = PL.ortho, App = globalThis.App, S = App.state;
+  const St = (App.stairs = {});
+
+  /* ---------- lecture de la forme ---------- */
+  St.layout = (s) => {
+    const fr = O.frame(O.angleOf(s.pts)); const P = O.square(s.pts.map(fr.to)); if (!P) return null;
+    const xs = O.coords(P.map((p) => p.x), 3), ys = O.coords(P.map((p) => p.y), 3);
+    const cells = [];
+    for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) { const c = { x: (xs[i] + xs[i + 1]) / 2, y: (ys[j] + ys[j + 1]) / 2 }; if (G.pointInPoly(c, P)) cells.push({ i, j, x0: xs[i], x1: xs[i + 1], y0: ys[j], y1: ys[j + 1], c }); }
+    if (!cells.length || cells.length > 12) return null;
+    const key = (i, j) => i + ',' + j; const at = new Map(cells.map((c) => [key(c.i, c.j), c]));
+    const nb = (c) => [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => at.get(key(c.i + a, c.j + b))).filter(Boolean);
+    let chain;
+    if (cells.length === 1) chain = cells;
+    else {
+      if (cells.some((c) => nb(c).length > 2)) return null; const ends = cells.filter((c) => nb(c).length === 1); if (ends.length !== 2) return null;
+      chain = [ends[0]]; const seen = new Set([ends[0]]);
+      while (chain.length < cells.length) { const n = nb(chain[chain.length - 1]).find((x) => !seen.has(x)); if (!n) return null; seen.add(n); chain.push(n); }
+    }
+    // ligne de foulée (dans le repère)
+    const dir = (a, b) => ({ x: Math.sign(b.i - a.i), y: Math.sign(b.j - a.j) });
+    const pts = [], corners = [];
+    if (chain.length === 1) { const c = chain[0]; const hor = c.x1 - c.x0 >= c.y1 - c.y0; pts.push(hor ? { x: c.x0, y: c.c.y } : { x: c.c.x, y: c.y0 }, hor ? { x: c.x1, y: c.c.y } : { x: c.c.x, y: c.y1 }); }
+    else {
+      const d0 = dir(chain[0], chain[1]), c0 = chain[0]; pts.push({ x: d0.x ? (d0.x > 0 ? c0.x0 : c0.x1) : c0.c.x, y: d0.y ? (d0.y > 0 ? c0.y0 : c0.y1) : c0.c.y });
+      for (let k = 1; k < chain.length - 1; k++) {
+        const a = dir(chain[k - 1], chain[k]), b = dir(chain[k], chain[k + 1]); if (a.x === b.x && a.y === b.y) continue; const c = chain[k];
+        pts.push(c.c); const dx = b.x - a.x, dy = b.y - a.y; corners.push({ cell: c, inner: { x: dx > 0 ? c.x1 : dx < 0 ? c.x0 : c.c.x, y: dy > 0 ? c.y1 : dy < 0 ? c.y0 : c.c.y } });
+      }
+      const n = chain.length, d1 = dir(chain[n - 2], chain[n - 1]), c1 = chain[n - 1]; pts.push({ x: d1.x ? (d1.x > 0 ? c1.x1 : c1.x0) : c1.c.x, y: d1.y ? (d1.y > 0 ? c1.y1 : c1.y0) : c1.c.y });
+    }
+    let path = pts, cs = corners;
+    // sens : du départ (bas de l'escalier) vers l'arrivée
+    const st = s.stair && s.stair.start ? fr.to(s.stair.start) : null;
+    if (st && G.dist(st, path[path.length - 1]) < G.dist(st, path[0])) { path = path.slice().reverse(); cs = cs.slice().reverse(); }
+    const segs = []; let L = 0; for (let k = 1; k < path.length; k++) { const l = G.dist(path[k - 1], path[k]); segs.push({ a: path[k - 1], b: path[k], l, t0: L }); L += l; }
+    const kind = cs.length === 0 ? 'Droit' : cs.length === 1 ? 'Quart tournant' : cs.length === 2 ? (G.cross(G.sub(path[1], path[0]), G.sub(path[2], path[1])) * G.cross(G.sub(path[2], path[1]), G.sub(path[3], path[2])) > 0 ? 'Demi-tournant' : 'Deux quarts tournants') : 'Tournant';
+    return { fr, cells: chain, path, corners: cs, segs, L, kind };
+  };
+  St.kindName = (s) => { const l = St.layout(s); return l ? l.kind : 'Forme libre'; };
+
+  /* marches : pour chacune, un segment (repère) — droit dans une volée, rayonnant depuis l'angle intérieur dans un tournant */
+  St.treads = (s, lay) => {
+    const n = Math.max(2, (s.stair && s.stair.steps) || Math.round(lay.L / 250)); const out = [];
+    const pointAt = (t) => { for (const g of lay.segs) if (t <= g.t0 + g.l + 1e-6) { const u = (t - g.t0) / g.l; return { p: G.lerp(g.a, g.b, u), d: G.norm(G.sub(g.b, g.a)) }; } const g = lay.segs[lay.segs.length - 1]; return { p: g.b, d: G.norm(G.sub(g.b, g.a)) }; };
+    const cellOf = (p) => lay.cells.find((c) => p.x >= c.x0 - 1 && p.x <= c.x1 + 1 && p.y >= c.y0 - 1 && p.y <= c.y1 + 1);
+    const exit = (c, o, u) => { let t = Infinity; if (u.x > 1e-9) t = Math.min(t, (c.x1 - o.x) / u.x); if (u.x < -1e-9) t = Math.min(t, (c.x0 - o.x) / u.x); if (u.y > 1e-9) t = Math.min(t, (c.y1 - o.y) / u.y); if (u.y < -1e-9) t = Math.min(t, (c.y0 - o.y) / u.y); return G.add(o, G.mul(u, t)); };
+    for (let k = 1; k < n; k++) {
+      const { p, d } = pointAt((k * lay.L) / n); const c = cellOf(p); if (!c) continue; const corner = lay.corners.find((q) => q.cell === c);
+      if (corner && G.dist(p, corner.inner) > 1) { const u = G.norm(G.sub(p, corner.inner)); out.push({ a: corner.inner, b: exit(c, corner.inner, u), turn: true }); }
+      else { const nrm = { x: -d.y, y: d.x }; out.push({ a: exit(c, p, G.mul(nrm, -1)), b: exit(c, p, nrm) }); }
+    }
+    // numéros au milieu de chaque marche
+    const nums = []; for (let k = 0; k < n; k++) nums.push(pointAt(((k + 0.5) * lay.L) / n).p);
+    return { n, lines: out, nums };
+  };
+
+  /* ---------- assembler un escalier et une pièce (ou un autre escalier) qui le prolonge ---------- */
+  const touches = (A, B) => { for (const p of A) if (G.pointInPoly(p, B) || G.distPointPoly(p, B) < 40) return true; for (const p of B) if (G.pointInPoly(p, A) || G.distPointPoly(p, A) < 40) return true; return false; };
+  St.candidates = (s) => App.shapesOn(s.floor).filter((o) => o !== s && (o.kind === 'escalier' || (o.kind === 'piece' && Math.abs(G.area(o.pts)) < 8e6)) && touches(s.pts, o.pts));
+  St.stairsTouching = (room) => App.shapesOn(room.floor).filter((o) => o.kind === 'escalier' && touches(o.pts, room.pts));
+  St.union = (s, o) => {
+    const fr = O.frame(O.angleOf(s.pts)); const A = s.pts.map(fr.to), B = o.pts.map(fr.to);
+    const xs = O.coords(A.concat(B).map((p) => p.x)), ys = O.coords(A.concat(B).map((p) => p.y));
+    const loops = O.trace(xs, ys, (x, y) => G.pointInPoly({ x, y }, A) || G.pointInPoly({ x, y }, B)).filter((l) => G.area(l) > 0.05e6);
+    if (loops.length !== 1) return null;
+    return G.cleanPoly(loops[0].map(fr.from), 0.5, 3);
+  };
+  St.assemble = (s, o) => {
+    const pts = St.union(s, o); if (!pts) { App.toast('L\'escalier et cette zone ne se touchent pas'); return false; }
+    App.mutate((P) => {
+      const far = (() => { const tmp = Object.assign({}, s, { pts, stair: Object.assign({}, s.stair, { start: null }) }); const lay = St.layout(tmp); if (!lay) return null; const oc = lay.fr.to(G.centroid(o.pts)); const a = lay.path[0], b = lay.path[lay.path.length - 1]; return lay.fr.from(G.dist(a, oc) > G.dist(b, oc) ? a : b); })();
+      s.pts = G.ensureCCW(pts); s.locks = s.pts.map(() => ({ L: false, A: false })); s.stair = Object.assign({ dir: 'monte' }, s.stair, o.kind === 'escalier' && o.stair && o.stair.steps && s.stair && s.stair.steps ? { steps: s.stair.steps + o.stair.steps } : {}, far ? { start: far } : {});
+      P.shapes = P.shapes.filter((x) => x.id !== o.id);
+    });
+    S.sel = { id: s.id }; App.ui.refresh();
+    App.toast(`Escalier ${St.kindName(s).toLowerCase()} — touchez « Inverser » si le départ n'est pas au bon bout`); return true;
+  };
+  St.flip = (s) => { const lay = St.layout(s); if (!lay) return; App.mutate(() => { s.stair = Object.assign({}, s.stair, { start: lay.fr.from(lay.path[lay.path.length - 1]), userSet: true }); }); };
 })();
 
 /* Calepin — démarrage. */

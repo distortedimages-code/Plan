@@ -142,7 +142,7 @@
     for (const a of p.add) { if (a.isNew) continue; path(a.pts); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
     if (p.zone) { path(p.zone); ctx.fillStyle = C.red; ctx.globalAlpha = 0.1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.stroke(); }
     // cloisons créées : la bande, seulement là où une pièce redécoupée perd de la surface
-    ctx.save(); ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip();
+    ctx.save(); if (p.kind !== 'join') { ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip(); }
     for (const s of p.strips) { path(s); ctx.fillStyle = C.red; ctx.fill(); }
     ctx.restore();
     for (const a of p.add) { if (a.isNew) continue; const c = App.w2s(G.centroid(a.pts)); pill(`${App.fmtM2(Math.abs(G.area(a.pts)))} m²`, c.x, c.y, false); }
@@ -302,6 +302,7 @@
     const sel = S.sel && S.sel.id === s.id;
     if (s.kind === 'poteau') { path(s.pts); ctx.fillStyle = C.ink; ctx.fill(); return; }
     path(s.pts); ctx.fillStyle = C.paper; ctx.fill();
+    if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay) { drawStair(s, lay); return; } }
     if (s.kind === 'escalier') {
       // marches
       const bb = G.bbox(s.pts); const lp = s.pts; const lens = lp.map((p, i) => G.dist(p, lp[(i + 1) % lp.length]));
@@ -319,6 +320,30 @@
     hatch(s.pts, C.ink4, 8);
     path(s.pts); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke();
     if (S.view.z > 0.04 && s.name) { const c = App.w2s(G.centroid(s.pts)); text(s.name, c.x, c.y, 500, 10, C.ink2); }
+  }
+
+  /* escalier : marches le long de la ligne de foulée, rayonnantes dans les tournants, flèche vers l'arrivée */
+  function drawStair(s, lay) {
+    const W = (p) => App.w2s(lay.fr.from(p)); const tr = App.stairs.treads(s, lay);
+    ctx.save(); path(s.pts); ctx.clip();
+    for (const c of lay.corners) { const q = [{ x: c.cell.x0, y: c.cell.y0 }, { x: c.cell.x1, y: c.cell.y0 }, { x: c.cell.x1, y: c.cell.y1 }, { x: c.cell.x0, y: c.cell.y1 }].map(W); ctx.beginPath(); q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fillStyle = C.ink5; ctx.globalAlpha = 0.5; ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.beginPath();
+    for (const l of tr.lines) { const a = W(l.a), b = W(l.b); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+    ctx.stroke(); ctx.restore();
+    path(s.pts); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.stroke();
+    // ligne de foulée
+    const P = lay.path.map(W); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.4; ctx.beginPath(); P.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
+    const st = P[0]; ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(st.x, st.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const e = P[P.length - 1], e0 = P[P.length - 2], u = G.norm(G.sub(e, e0)), nn = { x: -u.y, y: u.x };
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x - u.x * 12 + nn.x * 6, e.y - u.y * 12 + nn.y * 6); ctx.lineTo(e.x - u.x * 12 - nn.x * 6, e.y - u.y * 12 - nn.y * 6); ctx.closePath(); ctx.fill();
+    // numéros des marches
+    const tread = (lay.L / tr.n) * S.view.z;
+    if (tread > 15) tr.nums.forEach((p, k) => { const q = W(p); const t = String(k + 1); ctx.font = font(600, 9); const tw = ctx.measureText(t).width; ctx.fillStyle = C.paper; ctx.fillRect(q.x - tw / 2 - 2, q.y - 6, tw + 4, 12); text(t, q.x, q.y + 0.5, 600, 9, k === 0 || k === tr.n - 1 ? C.ink : C.ink3); });
+    // étiquette au départ
+    const dirTxt = s.stair && s.stair.dir === 'descend' ? 'Descend' : 'Monte'; const sub = `${tr.n} marches${lay.kind !== 'Droit' ? ' · ' + lay.kind.toLowerCase() : ''}`;
+    ctx.font = font(300, 10); const w = Math.max(54, ctx.measureText(sub).width + 14); const lp = G.sub(st, G.mul(G.norm(G.sub(P[1], P[0])), 26));
+    ctx.fillStyle = C.paper; ctx.fillRect(lp.x - w / 2, lp.y - 15, w, 30); ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(lp.x - w / 2, lp.y - 15, w, 30);
+    text(dirTxt, lp.x, lp.y - 5, 800, 11, C.ink); text(sub, lp.x, lp.y + 8, 300, 10, C.ink2);
   }
 
   function drawFree(s) {

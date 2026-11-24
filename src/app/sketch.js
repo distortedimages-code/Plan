@@ -40,7 +40,9 @@
     const z = S.view.z, len = strokeLen(W); if (len * z < 50) return { err: 'Tracé trop court' };
     const gap = G.dist(W[0], W[W.length - 1]); const bb = G.bbox(W), diag = Math.hypot(bb.w, bb.h);
     const closed = gap < Math.max(60 / z, 0.3 * diag) && len > 2.2 * diag;
-    return closed ? zone(W) : line(W);
+    if (closed) return zone(W);
+    const j = joinStroke(W); if (j) return j;
+    return line(W);
   };
   const roomAt = (p) => App.rooms().find((r) => G.pointInPoly(p, r.pts));
   function frameFor(room) {
@@ -123,6 +125,69 @@
     return carve({ kind: 'line', fr, zone: null, strips: [strip], home, tDef, only: home });
   }
 
+  /* ---------- joindre deux cloisons de pièces différentes : une seule cloison entre elles ---------- */
+  const inAnyRoom = (p) => !!roomAt(p);
+  function joinStroke(W) {
+    const a = W[0], b = W[W.length - 1]; const ra = roomAt(a), rb = roomAt(b);
+    const outside = W.filter((p) => !inAnyRoom(p)).length / W.length;
+    if (ra && rb && ra !== rb) { // trait d'une pièce à l'autre, en travers du mur
+      const fr = frameFor(ra); const A0 = fr.to(a), B0 = fr.to(b), dx = Math.abs(B0.x - A0.x), dy = Math.abs(B0.y - A0.y);
+      const o = dy <= 0.6 * dx ? 'V' : dx <= 0.6 * dy ? 'H' : null; if (!o) return null; // les murs à joindre sont perpendiculaires au trait
+      const along = o === 'V' ? (A0.y + B0.y) / 2 : (A0.x + B0.x) / 2, pa = o === 'V' ? A0.x : A0.y, pb = o === 'V' ? B0.x : B0.y;
+      const F = faces(fr); const lo = Math.min(pa, pb), hi = Math.max(pa, pb); const tol = tolMm();
+      const pick = (room) => F.filter((f) => f.room === room && f.o === o && f.v >= lo - 1 && f.v <= hi + 1 && along >= f.lo - tol && along <= f.hi + tol && f.n === (room === ra ? (pa < pb ? -1 : 1) : (pa < pb ? 1 : -1))).sort((x, y) => (room === ra ? Math.abs(pb - x.v) - Math.abs(pb - y.v) : Math.abs(pa - x.v) - Math.abs(pa - y.v)))[0];
+      const fa = pick(ra), fb = pick(rb); if (!fa || !fb) return { err: 'Pas de murs face à face entre ces deux pièces' };
+      return joinFaces(fr, F, fa, fb, null);
+    }
+    if (outside < 0.6) return null; // trait dans une pièce : c'est une cloison à fermer
+    // trait le long de l'espace entre deux pièces
+    const near = App.rooms().map((r) => ({ r, d: G.distPointPoly(W[Math.floor(W.length / 2)], r.pts) })).sort((x, y) => x.d - y.d)[0]; if (!near) return null;
+    const fr = frameFor(near.r); const P = W.map(fr.to); const p0 = P[0], p1 = P[P.length - 1], dx = Math.abs(p1.x - p0.x), dy = Math.abs(p1.y - p0.y);
+    const o = dy <= 0.45 * dx ? 'H' : dx <= 0.45 * dy ? 'V' : null; if (!o) return null;
+    const v = P.reduce((t, p) => t + (o === 'H' ? p.y : p.x), 0) / P.length; const sLo = Math.min(o === 'H' ? p0.x : p0.y, o === 'H' ? p1.x : p1.y), sHi = Math.max(o === 'H' ? p0.x : p0.y, o === 'H' ? p1.x : p1.y);
+    const F = faces(fr), tol = tolMm(); const ok = (f) => f.o === o && f.hi > sLo - tol && f.lo < sHi + tol;
+    const fa = F.filter((f) => ok(f) && f.n === -1 && f.v <= v + 30 && v - f.v < 1500).sort((x, y) => y.v - x.v)[0];
+    const fb = F.filter((f) => ok(f) && f.n === 1 && f.v >= v - 30 && f.v - v < 1500 && (!fa || f.room !== fa.room)).sort((x, y) => x.v - y.v)[0];
+    if (!fa || !fb || fa.room === fb.room) return null;
+    return joinFaces(fr, F, fa, fb, v);
+  }
+  /* fa : face d'une pièce tournée vers le haut du repère (pièce en dessous), fb : face de l'autre pièce, au-dessus */
+  function joinFaces(fr, F, fa, fb, cPref) {
+    if (fa.v > fb.v) { const t = fa; fa = fb; fb = t; }
+    const gap = fb.v - fa.v, t = typicalThickness(F), o = fa.o;
+    const lo = Math.max(fa.lo, fb.lo), hi = Math.min(fa.hi, fb.hi);
+    if (hi - lo < 200) return { err: 'Ces deux murs ne se font pas face' };
+    if (gap > 1500) return { err: 'Murs trop éloignés pour n\'en faire qu\'une cloison' };
+    if (Math.abs(gap - t) < 15) return { err: `${fa.room.name || 'Pièce'} et ${fb.room.name || 'pièce'} : déjà une seule cloison de ${App.fmtCm(gap, 0)} cm` };
+    const mid = (fa.v + fb.v) / 2; let c = mid;
+    if (cPref != null && Math.abs(cPref - mid) > Math.max(gap / 4, 20 / S.view.z) && gap > t) c = Math.max(fa.v + t / 2, Math.min(fb.v - t / 2, cPref));
+    const b0 = c - t / 2, b1 = c + t / 2;
+    const R = (u0, u1, w0, w1) => (o === 'H' ? { x0: u0, x1: u1, y0: Math.min(w0, w1), y1: Math.max(w0, w1) } : { y0: u0, y1: u1, x0: Math.min(w0, w1), x1: Math.max(w0, w1) });
+    const band = R(lo, hi, b0, b1), rA = b0 > fa.v ? R(lo, hi, fa.v, b0) : null, rB = b1 < fb.v ? R(lo, hi, b1, fb.v) : null;
+    // pas une autre pièce dans l'espace comblé
+    for (const r of App.rooms()) {
+      if (r === fa.room || r === fb.room) continue; const P = r.pts.map(fr.to);
+      for (const box of [rA, rB, band]) { if (!box) continue; const ctr = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 }; if (G.pointInPoly(ctr, P) || P.some((p) => O.inRect({ x0: box.x0 + 5, x1: box.x1 - 5, y0: box.y0 + 5, y1: box.y1 - 5 }, p.x, p.y))) return { err: `${r.name || 'Une autre pièce'} est entre les deux` }; }
+    }
+    const out = { kind: 'join', fr, add: [], remove: [], strips: [O.rect(band.x0, band.y0, band.x1, band.y1).map(fr.from)], zone: null, gap, t, names: [fa.room.name || 'Pièce', fb.room.name || 'Pièce'] };
+    for (const [f, box] of [[fa, rA], [fb, rB]]) {
+      const P = O.square(f.room.pts.map(fr.to)); if (!P) return { err: `${f.room.name || 'Pièce'} a un mur en biais` };
+      const xs = O.coords(P.map((p) => p.x).concat([band.x0, band.x1], box ? [box.x0, box.x1] : [])), ys = O.coords(P.map((p) => p.y).concat([band.y0, band.y1], box ? [box.y0, box.y1] : []));
+      const loops = O.trace(xs, ys, (x, y) => (G.pointInPoly({ x, y }, P) || (box && O.inRect(box, x, y))) && !O.inRect(band, x, y));
+      const pos = loops.filter((l) => G.area(l) > 0.1e6); if (pos.length !== 1 || loops.some((l) => G.area(l) < 0)) return { err: 'Jonction impossible ici (la pièce serait coupée)' };
+      out.remove.push(f.room); out.add.push({ pts: pos[0].map(fr.from), from: f.room, keep: true, srcs: [f.room], tol: Math.abs(f.v - (f === fa ? b0 : b1)) + 40 });
+    }
+    return out;
+  }
+  K.joinCandidate = (room, i) => {
+    const fr = O.frame(O.angleOf(room.pts)); const F = faces(fr); const f = F.find((x) => x.room === room && x.i === i); if (!f) return null;
+    const t = typicalThickness(F); let best = null;
+    for (const g of F) { if (g.room === room || g.o !== f.o || g.n !== -f.n) continue; const d = (g.v - f.v) * -f.n; if (d < 20 || d > 1500) continue; if (Math.min(f.hi, g.hi) - Math.max(f.lo, g.lo) < 200) continue; if (!best || d < best.d) best = { g, d }; }
+    if (!best || Math.abs(best.d - t) < 15) return null;
+    return { room: best.g.room, gap: best.d, t, plan: () => joinFaces(fr, F, f, best.g, null) };
+  };
+  K.joinWall = (room, i) => { const c = K.joinCandidate(room, i); if (!c) return; const plan = c.plan(); if (!plan || plan.err) { App.toast((plan && plan.err) || 'Jonction impossible'); return; } S.skPlan = plan; App.ui.refresh(); App.render(); };
+
   /* ---------- redécoupage des pièces touchées ---------- */
   function carve(q) {
     const { fr } = q; const zb = q.zone ? G.bbox(q.zone) : null; const out = { kind: q.kind, fr, add: [], remove: [], strips: [], err: null };
@@ -173,17 +238,19 @@
         const sh = App.makeShape('piece', G.cleanPoly(a.pts, 0.2, 1), Object.assign(base, { name: a.isNew ? (a.replaces ? a.replaces.name : 'Pièce') : a.keep ? src.name : 'Pièce' }));
         if (a.keep && !a.isNew) sh.id = src.id; if (a.isNew && a.replaces) sh.id = a.replaces.id;
         if (src && src.noParquet != null) sh.noParquet = src.noParquet;
-        sh.openings = App.feat.reattach(sh.pts, olds.length ? olds : [], [], 40).map((o) => Object.assign({}, o, { oid: App.uid() }));
+        sh.openings = App.feat.reattach(sh.pts, a.srcs || olds, [], a.tol || 40).map((o) => Object.assign({}, o, { oid: App.uid() }));
         const m = PL.solver.measure(sh.pts); sh.locks = PL.solver.syncLocks(sh.pts, m.A.map((x) => ({ L: false, A: Math.abs(G.deg(x) - 90) < 0.05 || Math.abs(G.deg(x) - 270) < 0.05 })));
         made.push(sh); if (a.isNew || (plan.kind === 'line' && !a.keep)) sel = sh;
       }
       const gone = new Set(olds.map((r) => r.id)); P.shapes = P.shapes.filter((x) => !gone.has(x.id)); P.shapes.push(...made);
     });
     App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
+    if (plan.kind === 'join') { App.toast(`Une seule cloison de ${App.fmtCm(plan.t, 0)} cm entre ${plan.names.join(' et ')}`); return; }
     App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
   };
   K.summary = () => {
     const p = S.skPlan; if (!p) return '';
+    if (p.kind === 'join') return `${p.names.join(' + ')} · écart ${App.fmtCm(p.gap, 0)} → cloison ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
     return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;
   };

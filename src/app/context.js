@@ -91,7 +91,7 @@
         ${P.valid ? '' : '<p class="warn">Une pièce se retournerait : réduisez le déplacement.</p>'}
         <div class="row"><button class="btn sm ghost" data-x="pcancel">Annuler</button><button class="btn sm red" data-x="pok" ${P.valid ? '' : 'disabled'}>Valider</button></div></div>`;
     }
-    h += `<div class="row" style="margin:12px 0 4px"><button class="btn sm ${locked ? 'primary' : ''}" data-x="wlock">${LOCK}${locked ? 'Cloison verrouillée' : 'Verrouiller la cloison'}</button>${parts.length ? '<button class="btn sm ghost" data-x="wmerge">Supprimer la cloison</button>' : ''}${App.walls.canStraighten(room, i) ? '<button class="btn sm" data-x="wstraight">Redresser</button>' : ''}</div>
+    h += `<div class="row" style="margin:12px 0 4px"><button class="btn sm ${locked ? 'primary' : ''}" data-x="wlock">${LOCK}${locked ? 'Cloison verrouillée' : 'Verrouiller la cloison'}</button>${parts.length ? '<button class="btn sm ghost" data-x="wmerge">Supprimer la cloison</button>' : ''}${App.walls.canStraighten(room, i) ? '<button class="btn sm" data-x="wstraight">Redresser</button>' : ''}${(() => { const j = App.sketch.joinCandidate(room, i); return j ? `<button class="btn sm" data-x="wjoin">Joindre à ${esc(j.room.name || 'la pièce voisine')}</button>` : ''; })()}</div>
       ${App.walls.canStraighten(room, i) ? '<p class="hint2">Redresser : supprime les décrochements de moins de 30 cm le long de ce mur (embrasures, châssis…) et l\'aligne d\'un seul trait sur ses deux bouts ; une fenêtre ou une porte en renfoncement prend toute la largeur du trou.</p>' : ''}
       <h3>Longueur</h3>
       <div class="field"><label>Longueur ${App.walls.name(room, i)}</label><div class="unit"><input data-xc="wlen" inputmode="decimal" value="${fmt(W.el / 10)}" ${locked ? '' : ''}><span>cm</span></div></div>
@@ -120,12 +120,15 @@
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
+      const st = App.selected(), cands = App.stairs.candidates(st);
+      h = `<button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
       const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
-      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
     }
     bar.innerHTML = h; bar.hidden = !h; X.placeOpbar();
   };
@@ -193,6 +196,10 @@
       case 'fixall': {
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
+      case 'wjoin': { const r = App.selected(); if (!r || S.sel.wall == null) return; App.sketch.joinWall(r, S.sel.wall); break; }
+      case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
+      case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
+      case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
       case 'skok': App.sketch.validate(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
@@ -230,6 +237,6 @@
   X.init = () => {
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
-    $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, null, b); });
+    $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
   };
 })();
