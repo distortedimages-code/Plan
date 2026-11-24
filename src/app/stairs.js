@@ -41,6 +41,14 @@
     const kind = cs.length === 0 ? 'Droit' : cs.length === 1 ? 'Quart tournant' : cs.length === 2 ? (G.cross(G.sub(path[1], path[0]), G.sub(path[2], path[1])) * G.cross(G.sub(path[2], path[1]), G.sub(path[3], path[2])) > 0 ? 'Demi-tournant' : 'Deux quarts tournants') : 'Tournant';
     return { fr, cells: chain, path, corners: cs, segs, L, kind };
   };
+  /* bords d'une trémie qui ne longent pas un mur : là où il faut un garde-corps */
+  St.openEdges = (s) => {
+    const rooms = App.rooms(s.floor), P = s.pts, out = [];
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; if (G.dist(a, b) < 50) continue; const wall = rooms.some((r) => G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40 && G.distPointPoly(a, r.pts) < 40 && G.distPointPoly(b, r.pts) < 40); if (!wall) out.push({ a, b, i }); }
+    return out;
+  };
+  St.GUARDS = { ajoure: 'Barreaudage', vitre: 'Vitré', plein: 'Muret plein', aucun: 'Aucun' };
+  St.guard = (s) => { const g = (s.stair && s.stair.guard) || 'ajoure'; return { type: St.GUARDS[g] ? g : 'ajoure', h: ((s.stair && s.stair.guardH) || 100) * 10, th: ((s.stair && s.stair.guardT) || 10) * 10 }; };
   St.kindName = (s) => { const l = St.layout(s); return l ? l.kind : 'Forme libre'; };
 
   /* marches : pour chacune, un segment (repère) — droit dans une volée, rayonnant depuis l'angle intérieur dans un tournant */

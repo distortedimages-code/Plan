@@ -2092,7 +2092,7 @@ details[open] summary::after{content:"–"}
   ];
   const structure = [
     F('poteau20', 'Structure', 'Poteau 20 × 20', 20, 20, { kind: 'poteau' }), F('poteau30', 'Structure', 'Poteau 30 × 30', 30, 30, { kind: 'poteau' }),
-    F('poteaurond', 'Structure', 'Poteau rond Ø 20', 20, 20, { kind: 'poteau', round: true }), F('gaine', 'Structure', 'Gaine technique 40 × 30', 40, 30, { kind: 'exclusion' }),
+    F('poteaurond', 'Structure', 'Poteau rond Ø 20', 20, 20, { kind: 'poteau', round: true }), F('muret', 'Structure', 'Muret / cloison basse', 120, 10, { kind: 'poteau', h: 100 }), F('gaine', 'Structure', 'Gaine technique 40 × 30', 40, 30, { kind: 'exclusion' }),
     F('poele', 'Structure', 'Poêle / foyer 80 × 60', 80, 60, { kind: 'exclusion' }), F('tremie', 'Structure', 'Trémie / zone sans parquet', 100, 100, { kind: 'exclusion' }),
   ];
   const elec = [
@@ -2623,7 +2623,7 @@ details[open] summary::after{content:"–"}
 
   function drawObstacle(s) {
     const sel = S.sel && S.sel.id === s.id;
-    if (s.kind === 'poteau') { path(s.pts); ctx.fillStyle = C.ink; ctx.fill(); return; }
+    if (s.kind === 'poteau') { path(s.pts); if (s.h) { ctx.fillStyle = C.ink; ctx.globalAlpha = 0.38; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke(); } else { ctx.fillStyle = C.ink; ctx.fill(); } return; }
     path(s.pts); ctx.fillStyle = C.paper; ctx.fill();
     if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay) { drawStair(s, lay); return; } }
     if (s.kind === 'escalier') {
@@ -2662,6 +2662,8 @@ details[open] summary::after{content:"–"}
     // numéros des marches
     const tread = (lay.L / tr.n) * S.view.z;
     if (tread > 15) tr.nums.forEach((p, k) => { const q = W(p); const t = String(k + 1); ctx.font = font(600, 9); const tw = ctx.measureText(t).width; ctx.fillStyle = C.paper; ctx.fillRect(q.x - tw / 2 - 2, q.y - 6, tw + 4, 12); text(t, q.x, q.y + 0.5, 600, 9, k === 0 || k === tr.n - 1 ? C.ink : C.ink3); });
+    // garde-corps de la trémie
+    if (s.stair && s.stair.dir === 'descend') { const gd = App.stairs.guard(s); if (gd.type !== 'aucun') for (const e of App.stairs.openEdges(s)) { const o = G.norm(G.perp(G.sub(e.b, e.a))), m = G.lerp(e.a, e.b, 0.5), ins = G.pointInPoly(G.add(m, G.mul(o, 5)), s.pts) ? o : G.mul(o, -1), t = gd.type === 'plein' ? gd.th : 40; const q = [e.a, e.b, G.add(e.b, G.mul(ins, t)), G.add(e.a, G.mul(ins, t))]; path(q); ctx.fillStyle = gd.type === 'plein' ? C.ink : C.paper; ctx.globalAlpha = gd.type === 'plein' ? 0.38 : 1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke(); } }
     // étiquette au départ
     const dirTxt = s.stair && s.stair.dir === 'descend' ? 'Descend' : 'Monte'; const sub = `${tr.n} marches${lay.kind !== 'Droit' ? ' · ' + lay.kind.toLowerCase() : ''}`;
     ctx.font = font(300, 10); const w = Math.max(54, ctx.measureText(sub).width + 14); const lp = G.sub(st, G.mul(G.norm(G.sub(P[1], P[0])), 26));
@@ -3347,7 +3349,7 @@ details[open] summary::after{content:"–"}
     if (it.shape === 'L') { const t = (it.t || 60) * 10; pts = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: t }, { x: t, y: t }, { x: t, y: d }, { x: 0, y: d }].map((p) => ({ x: p.x + c.x - w / 2, y: p.y + c.y - d / 2 })); }
     else pts = G.rect(c.x - w / 2, c.y - d / 2, w, d);
     const kind = it.kind || 'meuble';
-    const s = App.makeShape(kind, pts, { name: it.name, lib: it.id, round: !!it.round, noParquet: !!it.noParquet });
+    const s = App.makeShape(kind, pts, Object.assign({ name: it.name, lib: it.id, round: !!it.round, noParquet: !!it.noParquet }, it.h ? { h: it.h } : {}));
     if (kind !== 'meuble') s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true })));
     App.mutate((P) => P.shapes.push(s)); S.sel = { id: s.id };
     if (kind === 'meuble' && S.mode !== 'mobilier' && !S.layers.mobilier) S.layers.mobilier = true;
@@ -3523,7 +3525,8 @@ details[open] summary::after{content:"–"}
     if (s.kind === 'meuble') h += furnitureDims(s);
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
       h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div>${(() => { const U = cur && cur.shape === 'U' && App.stairs.well(s); return U ? `<div class="field"><label>Jour (vide entre les volées)</label><div class="unit"><input data-xc="stjour" inputmode="decimal" value="${fmt(U.jour / 10)}"><span>cm</span></div></div><div class="field"><label>Longueur du mur central</label><div class="unit"><input data-xc="stwall" inputmode="decimal" value="${fmt(U.wall / 10)}"><span>cm</span></div></div>` : ''; })()}<p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. Les points rouges pleins règlent le mur central (jour et longueur). « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
-    if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
+    if (s.kind === 'poteau') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur</label><div class="unit"><input data-c="sh" inputmode="decimal" placeholder="jusqu'au plafond" value="${s.h || ''}"><span>cm</span></div></div><div class="chips sm">${[90, 100, 110, 120].map((v) => `<button data-a="shq" data-v="${v}" aria-pressed="${s.h === v}">${v}</button>`).join('')}<button data-a="shq" data-v="0" aria-pressed="${!s.h}">Plafond</button></div><p class="hint2">Une hauteur fait un muret ou une cloison basse (le parquet passe autour, la visite 3D l'élève à cette hauteur).</p>`;
+    if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>${s.stair && s.stair.dir === 'descend' ? (() => { const gd = App.stairs.guard(s), n = App.stairs.openEdges(s).length; return `<h3>Garde-corps de la trémie</h3><div class="chips">${Object.entries(App.stairs.GUARDS).map(([k, v]) => `<button data-a="guard" data-v="${k}" aria-pressed="${gd.type === k}">${v}</button>`).join('')}</div>${gd.type !== 'aucun' ? `<div class="field"><label>Hauteur</label><div class="unit"><input data-c="guardH" inputmode="decimal" value="${gd.h / 10}"><span>cm</span></div></div>` : ''}${gd.type === 'plein' ? `<div class="field"><label>Épaisseur du muret</label><div class="unit"><input data-c="guardT" inputmode="decimal" value="${gd.th / 10}"><span>cm</span></div></div>` : ''}<p class="hint2">${n ? `Sur ${n} bord${n > 1 ? 's' : ''} de la trémie qui ne longe${n > 1 ? 'nt' : ''} pas un mur.` : 'Tous les bords longent un mur : rien à poser.'} Visible dans la visite 3D.</p>`; })() : ''}`;
     if (s.kind !== 'piece' && s.kind !== 'elec' && s.pts && s.pts.length >= 3) h += `<h3>Taille</h3><div class="row"><button class="btn sm" data-x="fitwalls">Caler aux murs</button></div><div class="field"><label>Aimanter aux murs en redimensionnant</label><input type="checkbox" data-x="snapwalls" ${S.p.snapWalls !== false ? 'checked' : ''}></div><p class="hint2">Avec le cadre, le bord qui bouge se colle à la cloison la plus proche. « Caler aux murs » met d'un coup chaque côté contre la cloison voisine (à moins de 40 cm).</p>`;
     if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
@@ -3736,6 +3739,8 @@ details[open] summary::after{content:"–"}
       case 'mirror': if (s.locked) break; App.mutate(() => { const c = G.centroid(s.pts); s.pts = s.pts.map((p) => ({ x: 2 * c.x - p.x, y: p.y })).reverse(); s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: false, A: false }))); }); break;
       case 'prot': if (s.locked) break; App.mutate(() => { s.rot = (s.rot || 0) + Math.PI / 2; }); break;
       case 'stairdir': App.mutate(() => { s.stair = Object.assign({}, s.stair, { dir: v }); }); break;
+      case 'shq': App.mutate(() => { if (+v > 0) s.h = +v; else delete s.h; }); break;
+      case 'guard': App.mutate(() => { s.stair = Object.assign({}, s.stair, { guard: v }); }); break;
       case 'lockL': case 'lockA': { const i = +b.dataset.i, k = a === 'lockL' ? 'L' : 'A'; App.mutate(() => { s.locks[i][k] = !s.locks[i][k]; s.locks = PL.solver.syncLocks(s.pts, s.locks); }); break; }
       case 'lockAll': App.mutate(() => { s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true }))); s.locks[s.locks.length - 1].L = false; s.locks[0].A = false; s.locks[s.locks.length - 1].A = false; s.locks = PL.solver.syncLocks(s.pts, s.locks); }); App.toast('Cotes verrouillées (un mur et deux angles restent libres pour fermer la forme)'); break;
       case 'unlockAll': App.mutate(() => { s.locks = s.pts.map(() => ({ L: false, A: false })); }); break;
@@ -3776,6 +3781,8 @@ details[open] summary::after{content:"–"}
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
     if (c === 'noParquet') { App.mutate(() => { s.noParquet = val; }); return; }
+    if (c === 'guardH' || c === 'guardT') { const v = num(val); if (v > 0) App.mutate(() => { s.stair = Object.assign({}, s.stair, { [c]: v }); }); return; }
+    if (c === 'sh') { const v = num(val); App.mutate(() => { if (v > 0) s.h = v; else delete s.h; }); return; }
     if (c === 'steps') { App.mutate(() => { s.stair = Object.assign({}, s.stair, { steps: parseInt(val, 10) || null }); }); return; }
     if (c === 'L' || c === 'A') { const v = num(val); if (v == null) return; const i = +t.dataset.i; const lk = s.locks[i] && s.locks[i][c]; if (!applyDim(s, i, c, c === 'L' ? v * 10 : G.rad(v), lk)) ui.refresh(true); return; }
     if (c === 'fw' || c === 'fd') {
@@ -5515,6 +5522,14 @@ details[open] summary::after{content:"–"}
     const kind = cs.length === 0 ? 'Droit' : cs.length === 1 ? 'Quart tournant' : cs.length === 2 ? (G.cross(G.sub(path[1], path[0]), G.sub(path[2], path[1])) * G.cross(G.sub(path[2], path[1]), G.sub(path[3], path[2])) > 0 ? 'Demi-tournant' : 'Deux quarts tournants') : 'Tournant';
     return { fr, cells: chain, path, corners: cs, segs, L, kind };
   };
+  /* bords d'une trémie qui ne longent pas un mur : là où il faut un garde-corps */
+  St.openEdges = (s) => {
+    const rooms = App.rooms(s.floor), P = s.pts, out = [];
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; if (G.dist(a, b) < 50) continue; const wall = rooms.some((r) => G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40 && G.distPointPoly(a, r.pts) < 40 && G.distPointPoly(b, r.pts) < 40); if (!wall) out.push({ a, b, i }); }
+    return out;
+  };
+  St.GUARDS = { ajoure: 'Barreaudage', vitre: 'Vitré', plein: 'Muret plein', aucun: 'Aucun' };
+  St.guard = (s) => { const g = (s.stair && s.stair.guard) || 'ajoure'; return { type: St.GUARDS[g] ? g : 'ajoure', h: ((s.stair && s.stair.guardH) || 100) * 10, th: ((s.stair && s.stair.guardT) || 10) * 10 }; };
   St.kindName = (s) => { const l = St.layout(s); return l ? l.kind : 'Forme libre'; };
 
   /* marches : pour chacune, un segment (repère) — droit dans une volée, rayonnant depuis l'angle intérieur dans un tournant */
@@ -5827,7 +5842,7 @@ details[open] summary::after{content:"–"}
   const legs = (B, f, y, s, ins, col) => { for (const [u, v] of [[ins, ins], [f.w - ins - s, ins], [f.w - ins - s, f.d - ins - s], [ins, f.d - ins - s]]) prism(B, sub(f, u, u + s, v, v + s), 0, y, col); };
   const furniture = (B, s, Hc, col) => {
     const id = s.lib || '', P = s.pts;
-    if (s.kind === 'poteau') return prism(B, s.round && P.length === 4 ? ellipse(frameOf(P)) : P, 0, Hc, col, s.round);
+    if (s.kind === 'poteau') return prism(B, s.round && P.length === 4 ? ellipse(frameOf(P)) : P, 0, s.h ? Math.min(Hc, s.h * 10) : Hc, col, s.round);
     if (s.kind === 'exclusion') { if (id === 'tremie') return; if (id === 'poele') { const f = P.length === 4 ? frameOf(P) : null; prism(B, P, 0, 1100, col); if (f) prism(B, ellipse(f, 16, f.w / 2, f.d / 2, 90, 90), 1100, Hc, col, true); return; } return prism(B, P, 0, Hc, col); }
     if (s.kind === 'forme') return prism(B, P, 0, s.h ? s.h * 10 : 900, col);
     const sp = App.sofaParts(s);
@@ -5911,10 +5926,17 @@ details[open] summary::after{content:"–"}
       if (!down) ln(P3(a, 0), P3(b, 0));
       // trémie : puits au-dessus (monte) ou garde-corps (descend)
       if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), H3(o, -1), st.col.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
-      else {
-        ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0));
-        const open = !rooms.some((r) => G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40 && G.distPointPoly(a, r.pts) < 40 && G.distPointPoly(b, r.pts) < 40);
-        if (open) { ln(P3(a, 1000), P3(b, 1000)); ln(P3(a, 960), P3(b, 960)); const nb = Math.max(1, Math.ceil(el / 1100)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, 0), P3(q, 1000)); } st.rail.push([a, b]); }
+      else { ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0)); }
+    }
+    // garde-corps de la trémie, sur les bords qui ne longent pas un mur
+    if (down) {
+      const gd = App.stairs.guard(s), H = gd.h;
+      for (const e of App.stairs.openEdges(s)) {
+        const a = e.a, b = e.b, el = G.dist(a, b), d = G.norm(G.sub(b, a)), o = outward(P, a, b), ins = G.mul(o, -1);
+        if (gd.type === 'plein') { const q = [a, b, G.add(b, G.mul(ins, gd.th)), G.add(a, G.mul(ins, gd.th))]; prism(B, q, -SLAB, H, st.col.wall); }
+        else if (gd.type === 'vitre') { const nb = Math.max(1, Math.ceil(el / 1100)); for (const y of [H, H - 40, 100]) ln(P3(a, y), P3(b, y)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, 0), P3(q, H)); } const t = G.mul(ins, 25); for (let j = 0; j < nb; j++) { const q0 = G.add(G.lerp(a, b, j / nb), t), q1 = G.add(G.lerp(a, b, (j + 1) / nb), t); ln(P3(G.lerp(q0, q1, 0.12), 180), P3(G.lerp(q0, q1, 0.32), H - 120)); } }
+        else if (gd.type === 'ajoure') { ln(P3(a, H), P3(b, H)); ln(P3(a, H - 40), P3(b, H - 40)); ln(P3(a, 80), P3(b, 80)); const nb = Math.max(1, Math.round(el / 120)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, j === 0 || j === nb ? 0 : 80), P3(q, H)); } }
+        if (gd.type !== 'aucun') st.rail.push([a, b]);
       }
     }
     if (!down) fill(B, P, [], () => Hf + 2500, [0, -1, 0], st.col.ceil);

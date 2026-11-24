@@ -85,7 +85,7 @@
   const legs = (B, f, y, s, ins, col) => { for (const [u, v] of [[ins, ins], [f.w - ins - s, ins], [f.w - ins - s, f.d - ins - s], [ins, f.d - ins - s]]) prism(B, sub(f, u, u + s, v, v + s), 0, y, col); };
   const furniture = (B, s, Hc, col) => {
     const id = s.lib || '', P = s.pts;
-    if (s.kind === 'poteau') return prism(B, s.round && P.length === 4 ? ellipse(frameOf(P)) : P, 0, Hc, col, s.round);
+    if (s.kind === 'poteau') return prism(B, s.round && P.length === 4 ? ellipse(frameOf(P)) : P, 0, s.h ? Math.min(Hc, s.h * 10) : Hc, col, s.round);
     if (s.kind === 'exclusion') { if (id === 'tremie') return; if (id === 'poele') { const f = P.length === 4 ? frameOf(P) : null; prism(B, P, 0, 1100, col); if (f) prism(B, ellipse(f, 16, f.w / 2, f.d / 2, 90, 90), 1100, Hc, col, true); return; } return prism(B, P, 0, Hc, col); }
     if (s.kind === 'forme') return prism(B, P, 0, s.h ? s.h * 10 : 900, col);
     const sp = App.sofaParts(s);
@@ -169,10 +169,17 @@
       if (!down) ln(P3(a, 0), P3(b, 0));
       // trémie : puits au-dessus (monte) ou garde-corps (descend)
       if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), H3(o, -1), st.col.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
-      else {
-        ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0));
-        const open = !rooms.some((r) => G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40 && G.distPointPoly(a, r.pts) < 40 && G.distPointPoly(b, r.pts) < 40);
-        if (open) { ln(P3(a, 1000), P3(b, 1000)); ln(P3(a, 960), P3(b, 960)); const nb = Math.max(1, Math.ceil(el / 1100)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, 0), P3(q, 1000)); } st.rail.push([a, b]); }
+      else { ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0)); }
+    }
+    // garde-corps de la trémie, sur les bords qui ne longent pas un mur
+    if (down) {
+      const gd = App.stairs.guard(s), H = gd.h;
+      for (const e of App.stairs.openEdges(s)) {
+        const a = e.a, b = e.b, el = G.dist(a, b), d = G.norm(G.sub(b, a)), o = outward(P, a, b), ins = G.mul(o, -1);
+        if (gd.type === 'plein') { const q = [a, b, G.add(b, G.mul(ins, gd.th)), G.add(a, G.mul(ins, gd.th))]; prism(B, q, -SLAB, H, st.col.wall); }
+        else if (gd.type === 'vitre') { const nb = Math.max(1, Math.ceil(el / 1100)); for (const y of [H, H - 40, 100]) ln(P3(a, y), P3(b, y)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, 0), P3(q, H)); } const t = G.mul(ins, 25); for (let j = 0; j < nb; j++) { const q0 = G.add(G.lerp(a, b, j / nb), t), q1 = G.add(G.lerp(a, b, (j + 1) / nb), t); ln(P3(G.lerp(q0, q1, 0.12), 180), P3(G.lerp(q0, q1, 0.32), H - 120)); } }
+        else if (gd.type === 'ajoure') { ln(P3(a, H), P3(b, H)); ln(P3(a, H - 40), P3(b, H - 40)); ln(P3(a, 80), P3(b, 80)); const nb = Math.max(1, Math.round(el / 120)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, j === 0 || j === nb ? 0 : 80), P3(q, H)); } }
+        if (gd.type !== 'aucun') st.rail.push([a, b]);
       }
     }
     if (!down) fill(B, P, [], () => Hf + 2500, [0, -1, 0], st.col.ceil);

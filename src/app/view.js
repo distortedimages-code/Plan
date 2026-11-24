@@ -326,7 +326,7 @@
 
   function drawObstacle(s) {
     const sel = S.sel && S.sel.id === s.id;
-    if (s.kind === 'poteau') { path(s.pts); ctx.fillStyle = C.ink; ctx.fill(); return; }
+    if (s.kind === 'poteau') { path(s.pts); if (s.h) { ctx.fillStyle = C.ink; ctx.globalAlpha = 0.38; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke(); } else { ctx.fillStyle = C.ink; ctx.fill(); } return; }
     path(s.pts); ctx.fillStyle = C.paper; ctx.fill();
     if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay) { drawStair(s, lay); return; } }
     if (s.kind === 'escalier') {
@@ -365,6 +365,8 @@
     // numéros des marches
     const tread = (lay.L / tr.n) * S.view.z;
     if (tread > 15) tr.nums.forEach((p, k) => { const q = W(p); const t = String(k + 1); ctx.font = font(600, 9); const tw = ctx.measureText(t).width; ctx.fillStyle = C.paper; ctx.fillRect(q.x - tw / 2 - 2, q.y - 6, tw + 4, 12); text(t, q.x, q.y + 0.5, 600, 9, k === 0 || k === tr.n - 1 ? C.ink : C.ink3); });
+    // garde-corps de la trémie
+    if (s.stair && s.stair.dir === 'descend') { const gd = App.stairs.guard(s); if (gd.type !== 'aucun') for (const e of App.stairs.openEdges(s)) { const o = G.norm(G.perp(G.sub(e.b, e.a))), m = G.lerp(e.a, e.b, 0.5), ins = G.pointInPoly(G.add(m, G.mul(o, 5)), s.pts) ? o : G.mul(o, -1), t = gd.type === 'plein' ? gd.th : 40; const q = [e.a, e.b, G.add(e.b, G.mul(ins, t)), G.add(e.a, G.mul(ins, t))]; path(q); ctx.fillStyle = gd.type === 'plein' ? C.ink : C.paper; ctx.globalAlpha = gd.type === 'plein' ? 0.38 : 1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke(); } }
     // étiquette au départ
     const dirTxt = s.stair && s.stair.dir === 'descend' ? 'Descend' : 'Monte'; const sub = `${tr.n} marches${lay.kind !== 'Droit' ? ' · ' + lay.kind.toLowerCase() : ''}`;
     ctx.font = font(300, 10); const w = Math.max(54, ctx.measureText(sub).width + 14); const lp = G.sub(st, G.mul(G.norm(G.sub(P[1], P[0])), 26));
