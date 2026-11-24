@@ -2096,8 +2096,9 @@ details[open] summary::after{content:"–"}
   const openings = [
     { id: 'porte', name: 'Porte', w: 830, h: 2040 }, { id: 'porte2', name: 'Porte double', w: 1400, h: 2040 }, { id: 'coulissante', name: 'Porte coulissante', w: 830, h: 2040 },
     { id: 'galandage', name: 'Porte à galandage', w: 830, h: 2040 }, { id: 'passage', name: 'Passage libre', w: 900, h: 2100 },
-    { id: 'fenetre', name: 'Fenêtre', w: 1000, h: 1250, sill: 950, leaves: 2 }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, leaves: 2 },
-    { id: 'baie', name: 'Baie vitrée coulissante', w: 2400, h: 2150, sill: 0, leaves: 2 }, { id: 'fixe', name: 'Châssis fixe', w: 800, h: 1200, sill: 900 }, { id: 'velux', name: 'Fenêtre de toit', w: 780, h: 980, sill: 0 },
+    { id: 'fenetre', name: 'Fenêtre', w: 1200, h: 1250, sill: 950, widths: [60, 80, 100, 120, 140] }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, widths: [80, 90, 120, 140] },
+    { id: 'baie', name: 'Baie vitrée coulissante', w: 2400, h: 2150, sill: 0, leaves: 2 }, { id: 'fixe', name: 'Châssis fixe', w: 800, h: 1200, sill: 900 },
+    { id: 'velux', name: 'Velux (fenêtre de toit)', w: 780, h: 980, sill: 0, sizes: [{ code: 'CK02', w: 550, h: 780 }, { code: 'CK04', w: 550, h: 980 }, { code: 'MK04', w: 780, h: 980 }, { code: 'MK06', w: 780, h: 1180 }, { code: 'MK08', w: 780, h: 1400 }, { code: 'SK06', w: 1140, h: 1180 }, { code: 'UK04', w: 1340, h: 980 }] },
   ];
   /* références de parquet : dimensions et conditionnement relevés sur les fiches fabricant */
   const TANGER = 'https://www.alsaflooring.com/stratifie/chene-tanger/';
@@ -2682,9 +2683,10 @@ details[open] summary::after{content:"–"}
       else { const tk = 5 / z; segLine(G.add(p0, G.mul(nin, tk)), G.add(p0, G.mul(out, tk))); segLine(G.add(p1, G.mul(nin, tk)), G.add(p1, G.mul(out, tk))); }
       const t = o.type;
       if (o.sw !== 0) {
-        if (t === 'porte' || t === 'porte2' || t === 'porte-fenetre') {
+        if (t === 'porte' || t === 'porte2' || t === 'porte-fenetre' || t === 'fenetre') {
           const side = o.out ? -1 : 1;
-          const leaves = t === 'porte' ? [[o.hinge === 'd' ? p1 : p0, w, o.hinge === 'd' ? -1 : 1]] : [[p0, w / 2, 1], [p1, w / 2, -1]];
+          if (t === 'fenetre') for (const f of [0.35, 0.65]) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
+          const leaves = App.ops.leaves(o) === 1 ? [[o.hinge === 'd' ? p1 : p0, w, o.hinge === 'd' ? -1 : 1]] : [[p0, w / 2, 1], [p1, w / 2, -1]];
           for (const [h, lw, sg] of leaves) {
             const tip = G.add(h, G.mul(nin, lw * side)); const hs = App.w2s(h), ts = App.w2s(tip), closed = App.w2s(G.add(h, G.mul(d, lw * sg)));
             ctx.lineWidth = isSel ? 2.4 : 1.6; ctx.beginPath(); ctx.moveTo(hs.x, hs.y); ctx.lineTo(ts.x, ts.y); ctx.stroke();
@@ -2700,7 +2702,7 @@ details[open] summary::after{content:"–"}
           if (t === 'galandage') { ctx.setLineDash([4, 3]); segLine(G.add(from, G.mul(out, T / 2)), G.add(G.add(from, G.mul(G.sub(from, to), 1)), G.mul(out, T / 2))); ctx.setLineDash([]); }
           const am = App.w2s(G.add(G.lerp(from, to, 0.5), G.mul(nin, side * 160))), ad = G.norm(G.sub(App.w2s(from), App.w2s(to)));
           ctx.beginPath(); ctx.moveTo(am.x - ad.x * 10, am.y - ad.y * 10); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.moveTo(am.x + ad.x * 10 - ad.y * 4 - ad.x * 4, am.y + ad.y * 10 + ad.x * 4 - ad.y * 4); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.lineTo(am.x + ad.x * 10 + ad.y * 4 - ad.x * 4, am.y + ad.y * 10 - ad.x * 4 - ad.y * 4); ctx.stroke();
-        } else if (t === 'velux') { const q = [p0, p1, G.add(p1, G.mul(nin, 600)), G.add(p0, G.mul(nin, 600))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]); }
+        } else if (t === 'velux') { const dv = Math.round((o.h || 980) * 0.72); const q = [p0, p1, G.add(p1, G.mul(nin, dv)), G.add(p0, G.mul(nin, dv))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]); }
         else if (t !== 'passage') {
           const fr = t === 'baie' ? [0.25, 0.5, 0.75] : t === 'fixe' ? [0.5] : [0.35, 0.65];
           for (const f of fr) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
@@ -4289,6 +4291,8 @@ details[open] summary::after{content:"–"}
   O.DOORS = ['porte', 'porte2', 'coulissante', 'galandage'];
   O.INTERIOR = ['porte', 'porte2', 'coulissante', 'galandage', 'passage'];
   O.name = (t) => (PL.lib.openings.find((x) => x.id === t) || {}).name || t;
+  /* nombre de vantaux ouvrants : choisi, sinon deux à partir de 90 cm */
+  O.leaves = (o) => { if (o.type === 'porte2' || o.type === 'baie') return 2; if (o.type === 'fenetre' || o.type === 'porte-fenetre') return o.leaves || ((o.width || 0) >= 900 ? 2 : 1); return 1; };
 
   O.wall = (room, i) => { const n = room.pts.length, a = room.pts[i % n], b = room.pts[(i + 1) % n], el = G.dist(a, b); const d = el ? G.mul(G.sub(b, a), 1 / el) : { x: 1, y: 0 }; return { a, b, el, d, nin: G.perp(d) }; };
   O.geo = (room, o) => {
@@ -4719,10 +4723,12 @@ details[open] summary::after{content:"–"}
       ${isDoor || o.type === 'passage' ? `<div class="chips sm">${[63, 73, 83, 93].map((v) => `<button data-x="w" data-v="${v}" aria-pressed="${Math.abs(o.width / 10 - v) < 0.5}">${v}</button>`).join('')}<span class="chipnote">vantaux standard</span></div>` : ''}
       <div class="field"><label>Hauteur</label><div class="unit"><input data-xc="h" inputmode="decimal" value="${o.h ? fmt(o.h / 10) : ''}"><span>cm</span></div></div>
       ${isDoor ? `<div class="chips sm">${[204, 215, 224].map((v) => `<button data-x="hh" data-v="${v}" aria-pressed="${o.h && Math.abs(o.h / 10 - v) < 0.5}">${v}</button>`).join('')}</div>` : ''}
+      ${(() => { const L = PL.lib.openings.find((x) => x.id === o.type) || {}; if (L.widths) return `<div class="chips sm">${L.widths.map((v) => `<button data-x="w" data-v="${v}" aria-pressed="${Math.abs(o.width / 10 - v) < 0.5}">${v}</button>`).join('')}<span class="chipnote">largeurs courantes</span></div>`; if (L.sizes) return `<div class="chips sm">${L.sizes.map((q) => `<button data-x="vx" data-v="${q.code}" aria-pressed="${Math.abs(o.width - q.w) < 5 && Math.abs((o.h || L.h) - q.h) < 5}">${q.code} · ${q.w / 10} × ${q.h / 10}</button>`).join('')}</div><p class="hint2">Tailles Velux courantes (largeur × hauteur en cm). Sur le plan, le pointillé montre son emprise dans le rampant.</p>`; return ''; })()}
       ${isWin ? `<div class="field"><label>Allège</label><div class="unit"><input data-xc="sill" inputmode="decimal" value="${o.sill != null ? fmt(o.sill / 10) : ''}"><span>cm</span></div></div>` : ''}
       <div class="field"><label>Distance à l'angle ${L(o.wall)}</label><div class="unit"><input data-xc="pos" inputmode="decimal" value="${fmt(g.pos / 10)}"><span>cm</span></div></div>
       <p class="hint2">Sur le plan : glissez l'ouverture le long du mur, tirez ses extrémités pour l'élargir.</p>
       ${X.recessAt(f) ? `<div class="preview"><b>Mur en décrochement</b> — la pièce entre de ${App.fmtCm(X.recessAt(f).off, 0)} cm dans l'épaisseur du mur autour de cette ouverture (souvent un vantail coulissant ou une embrasure lus comme une cloison sur le PDF).<div class="row" style="margin-top:8px"><button class="btn sm red" data-x="dstraight">Redresser le mur</button></div></div>` : ''}
+      ${o.type === 'fenetre' || o.type === 'porte-fenetre' ? `<h3>Ouvrants</h3><div class="chips"><button data-x="leaves" data-v="1" aria-pressed="${App.ops.leaves(o) === 1}">1 vantail</button><button data-x="leaves" data-v="2" aria-pressed="${App.ops.leaves(o) === 2}">2 vantaux</button>${App.ops.leaves(o) === 1 ? `<button data-x="hinge">Gonds à ${o.hinge === 'd' ? 'droite' : 'gauche'} ⇄</button>` : ''}</div>` : ''}
       <h3>Type</h3><div class="chips">${PL.lib.openings.map((t) => `<button data-x="type" data-v="${t.id}" aria-pressed="${t.id === o.type}">${esc(t.name)}</button>`).join('')}</div>
       <div class="row" style="margin-top:18px"><button class="btn sm" data-x="zoom">Zoomer</button><button class="btn sm red" data-x="del">Supprimer</button></div>`;
     return h;
@@ -4833,7 +4839,9 @@ details[open] summary::after{content:"–"}
         break;
       case 'more': App.ui.sheet(innerWidth < 900 ? 'half' : App.ui.sheetState()); App.ui.refresh(); break;
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
-      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(f.o.type))) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'leaves': if (!f) return; App.mutate(() => { f.o.leaves = +v; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'vx': { if (!f) return; const q = ((PL.lib.openings.find((x) => x.id === 'velux') || {}).sizes || []).find((x) => x.code === v); if (!q) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - q.w) / 2, q.w); f.o.h = q.h; f.o.ref = q.code; }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
       case 'w': { if (!f) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); const nw = +v * 10; cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - nw) / 2, nw); }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'hh': if (!f) return; App.mutate(() => { f.o.h = +v * 10; App.ops.syncTwin(f.room, f.o); }); break;
@@ -5820,6 +5828,7 @@ details[open] summary::after{content:"–"}
 
   /* ---------- scène de l'étage ---------- */
   const opInfo = (r, o, Hc, nin) => {
+    if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
     const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
     const sill = Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
@@ -5846,7 +5855,7 @@ details[open] summary::after{content:"–"}
         const ins = (p, q) => G.add(p, G.mul(G.norm(G.sub(q, p)), e)); const g0 = ins(f0, f1), g1 = ins(f1, f0);
         const rect = (a, b, y0, y1) => { ln(P3(a, y0), P3(b, y0)); ln(P3(a, y1), P3(b, y1)); ln(P3(a, y0), P3(a, y1)); ln(P3(b, y0), P3(b, y1)); };
         rect(g0, g1, sill + e, top - e);
-        const leaves = o.type === 'fixe' ? 1 : lib.leaves || (g.w > 900 ? 2 : 1); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
+        const leaves = o.type === 'fixe' ? 1 : App.ops.leaves(o); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
       }
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
@@ -5924,6 +5933,13 @@ details[open] summary::after{content:"–"}
         for (const o of pass) { if (o.u0 - cur > 1) st.segs.push([G.add(W.a, G.mul(W.d, cur)), G.add(W.a, G.mul(W.d, o.u0))]); cur = Math.max(cur, o.u1); const t0 = G.dist(o.tg.p0, o.g.p0) < G.dist(o.tg.p1, o.g.p0) ? o.tg.p0 : o.tg.p1, t1 = t0 === o.tg.p0 ? o.tg.p1 : o.tg.p0; st.segs.push([o.g.p0, t0], [o.g.p1, t1]); st.doors.push([o.g.p0, o.g.p1, t1, t0]); }
         if (W.el - cur > 1) st.segs.push([G.add(W.a, G.mul(W.d, cur)), W.b]);
         for (const I of ops) buildOpening(B, r, I, W, nin);
+        for (const o of (r.openings || []).filter((x) => x.wall === i && x.type === 'velux')) {
+          const g = App.ops.geo(r, o); if (!g) continue; const dv = (o.h || 980) * 0.72, s0 = 150;
+          const hAt = (p) => Math.min(Hc, ...sl.filter((z) => z.inside(p)).map((z) => z.hAt(p))) - 6;
+          const at = (p, k) => G.add(p, G.mul(nin, k)), ins = (a, b, e) => G.add(a, G.mul(G.norm(G.sub(b, a)), e));
+          const q = [at(g.p0, s0), at(g.p1, s0), at(g.p1, s0 + dv), at(g.p0, s0 + dv)], c = G.centroid(q), qi = q.map((p) => ins(p, c, 70));
+          for (const R of [q, qi]) for (let k = 0; k < 4; k++) ln(P3(R[k], hAt(R[k])), P3(R[(k + 1) % 4], hAt(R[(k + 1) % 4])));
+        }
       }
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
@@ -5954,7 +5970,7 @@ details[open] summary::after{content:"–"}
     const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 3;
     if (st.sunBase == null) {
       let sx = 0, sy = 0;
-      for (const r of st.rooms) for (const o of r.openings || []) { if (App.ops.twin(r, o)) continue; const g = App.ops.geo(r, o); if (!g) continue; let nin = g.nin; if (!G.pointInPoly(G.add(g.mid, G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1); const w = g.w * ((o.h || 1200) / 1000); sx -= nin.x * w; sy -= nin.y * w; }
+      for (const r of st.rooms) for (const o of r.openings || []) { if (App.ops.twin(r, o) || o.type === 'velux') continue; const g = App.ops.geo(r, o); if (!g) continue; let nin = g.nin; if (!G.pointInPoly(G.add(g.mid, G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1); const w = g.w * ((o.h || 1200) / 1000); sx -= nin.x * w; sy -= nin.y * w; }
       st.sunBase = sx || sy ? Math.atan2(sy, sx) + 0.45 : 0.8;
     }
     const az = st.sunBase + st.sunStep * (Math.PI / 4), el = 0.56;

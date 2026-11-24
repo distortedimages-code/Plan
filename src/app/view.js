@@ -400,9 +400,10 @@
       else { const tk = 5 / z; segLine(G.add(p0, G.mul(nin, tk)), G.add(p0, G.mul(out, tk))); segLine(G.add(p1, G.mul(nin, tk)), G.add(p1, G.mul(out, tk))); }
       const t = o.type;
       if (o.sw !== 0) {
-        if (t === 'porte' || t === 'porte2' || t === 'porte-fenetre') {
+        if (t === 'porte' || t === 'porte2' || t === 'porte-fenetre' || t === 'fenetre') {
           const side = o.out ? -1 : 1;
-          const leaves = t === 'porte' ? [[o.hinge === 'd' ? p1 : p0, w, o.hinge === 'd' ? -1 : 1]] : [[p0, w / 2, 1], [p1, w / 2, -1]];
+          if (t === 'fenetre') for (const f of [0.35, 0.65]) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
+          const leaves = App.ops.leaves(o) === 1 ? [[o.hinge === 'd' ? p1 : p0, w, o.hinge === 'd' ? -1 : 1]] : [[p0, w / 2, 1], [p1, w / 2, -1]];
           for (const [h, lw, sg] of leaves) {
             const tip = G.add(h, G.mul(nin, lw * side)); const hs = App.w2s(h), ts = App.w2s(tip), closed = App.w2s(G.add(h, G.mul(d, lw * sg)));
             ctx.lineWidth = isSel ? 2.4 : 1.6; ctx.beginPath(); ctx.moveTo(hs.x, hs.y); ctx.lineTo(ts.x, ts.y); ctx.stroke();
@@ -418,7 +419,7 @@
           if (t === 'galandage') { ctx.setLineDash([4, 3]); segLine(G.add(from, G.mul(out, T / 2)), G.add(G.add(from, G.mul(G.sub(from, to), 1)), G.mul(out, T / 2))); ctx.setLineDash([]); }
           const am = App.w2s(G.add(G.lerp(from, to, 0.5), G.mul(nin, side * 160))), ad = G.norm(G.sub(App.w2s(from), App.w2s(to)));
           ctx.beginPath(); ctx.moveTo(am.x - ad.x * 10, am.y - ad.y * 10); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.moveTo(am.x + ad.x * 10 - ad.y * 4 - ad.x * 4, am.y + ad.y * 10 + ad.x * 4 - ad.y * 4); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.lineTo(am.x + ad.x * 10 + ad.y * 4 - ad.x * 4, am.y + ad.y * 10 - ad.x * 4 - ad.y * 4); ctx.stroke();
-        } else if (t === 'velux') { const q = [p0, p1, G.add(p1, G.mul(nin, 600)), G.add(p0, G.mul(nin, 600))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]); }
+        } else if (t === 'velux') { const dv = Math.round((o.h || 980) * 0.72); const q = [p0, p1, G.add(p1, G.mul(nin, dv)), G.add(p0, G.mul(nin, dv))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]); }
         else if (t !== 'passage') {
           const fr = t === 'baie' ? [0.25, 0.5, 0.75] : t === 'fixe' ? [0.5] : [0.35, 0.65];
           for (const f of fr) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));

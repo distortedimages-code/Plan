@@ -178,6 +178,7 @@
 
   /* ---------- scène de l'étage ---------- */
   const opInfo = (r, o, Hc, nin) => {
+    if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
     const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
     const sill = Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
@@ -204,7 +205,7 @@
         const ins = (p, q) => G.add(p, G.mul(G.norm(G.sub(q, p)), e)); const g0 = ins(f0, f1), g1 = ins(f1, f0);
         const rect = (a, b, y0, y1) => { ln(P3(a, y0), P3(b, y0)); ln(P3(a, y1), P3(b, y1)); ln(P3(a, y0), P3(a, y1)); ln(P3(b, y0), P3(b, y1)); };
         rect(g0, g1, sill + e, top - e);
-        const leaves = o.type === 'fixe' ? 1 : lib.leaves || (g.w > 900 ? 2 : 1); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
+        const leaves = o.type === 'fixe' ? 1 : App.ops.leaves(o); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
       }
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
@@ -282,6 +283,13 @@
         for (const o of pass) { if (o.u0 - cur > 1) st.segs.push([G.add(W.a, G.mul(W.d, cur)), G.add(W.a, G.mul(W.d, o.u0))]); cur = Math.max(cur, o.u1); const t0 = G.dist(o.tg.p0, o.g.p0) < G.dist(o.tg.p1, o.g.p0) ? o.tg.p0 : o.tg.p1, t1 = t0 === o.tg.p0 ? o.tg.p1 : o.tg.p0; st.segs.push([o.g.p0, t0], [o.g.p1, t1]); st.doors.push([o.g.p0, o.g.p1, t1, t0]); }
         if (W.el - cur > 1) st.segs.push([G.add(W.a, G.mul(W.d, cur)), W.b]);
         for (const I of ops) buildOpening(B, r, I, W, nin);
+        for (const o of (r.openings || []).filter((x) => x.wall === i && x.type === 'velux')) {
+          const g = App.ops.geo(r, o); if (!g) continue; const dv = (o.h || 980) * 0.72, s0 = 150;
+          const hAt = (p) => Math.min(Hc, ...sl.filter((z) => z.inside(p)).map((z) => z.hAt(p))) - 6;
+          const at = (p, k) => G.add(p, G.mul(nin, k)), ins = (a, b, e) => G.add(a, G.mul(G.norm(G.sub(b, a)), e));
+          const q = [at(g.p0, s0), at(g.p1, s0), at(g.p1, s0 + dv), at(g.p0, s0 + dv)], c = G.centroid(q), qi = q.map((p) => ins(p, c, 70));
+          for (const R of [q, qi]) for (let k = 0; k < 4; k++) ln(P3(R[k], hAt(R[k])), P3(R[(k + 1) % 4], hAt(R[(k + 1) % 4])));
+        }
       }
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
@@ -312,7 +320,7 @@
     const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 3;
     if (st.sunBase == null) {
       let sx = 0, sy = 0;
-      for (const r of st.rooms) for (const o of r.openings || []) { if (App.ops.twin(r, o)) continue; const g = App.ops.geo(r, o); if (!g) continue; let nin = g.nin; if (!G.pointInPoly(G.add(g.mid, G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1); const w = g.w * ((o.h || 1200) / 1000); sx -= nin.x * w; sy -= nin.y * w; }
+      for (const r of st.rooms) for (const o of r.openings || []) { if (App.ops.twin(r, o) || o.type === 'velux') continue; const g = App.ops.geo(r, o); if (!g) continue; let nin = g.nin; if (!G.pointInPoly(G.add(g.mid, G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1); const w = g.w * ((o.h || 1200) / 1000); sx -= nin.x * w; sy -= nin.y * w; }
       st.sunBase = sx || sy ? Math.atan2(sy, sx) + 0.45 : 0.8;
     }
     const az = st.sunBase + st.sunStep * (Math.PI / 4), el = 0.56;

@@ -5,6 +5,8 @@
   O.DOORS = ['porte', 'porte2', 'coulissante', 'galandage'];
   O.INTERIOR = ['porte', 'porte2', 'coulissante', 'galandage', 'passage'];
   O.name = (t) => (PL.lib.openings.find((x) => x.id === t) || {}).name || t;
+  /* nombre de vantaux ouvrants : choisi, sinon deux à partir de 90 cm */
+  O.leaves = (o) => { if (o.type === 'porte2' || o.type === 'baie') return 2; if (o.type === 'fenetre' || o.type === 'porte-fenetre') return o.leaves || ((o.width || 0) >= 900 ? 2 : 1); return 1; };
 
   O.wall = (room, i) => { const n = room.pts.length, a = room.pts[i % n], b = room.pts[(i + 1) % n], el = G.dist(a, b); const d = el ? G.mul(G.sub(b, a), 1 / el) : { x: 1, y: 0 }; return { a, b, el, d, nin: G.perp(d) }; };
   O.geo = (room, o) => {
