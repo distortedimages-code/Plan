@@ -125,9 +125,7 @@
     if (mode !== 'close' && nearLo !== nearHi) {
       const from = nearLo ? lo : hi, tip = nearLo ? sHi : sLo, len = Math.round(Math.abs(tip - from) / 10) * 10, end = from + (nearLo ? len : -len);
       if (len < 100) return { err: 'Trait trop court' };
-      const out = carve({ kind: 'stub', fr, zone: null, strips: [nearLo ? mk(from - 6, end) : mk(end, from + 6)], home, tDef, only: home });
-      if (!out.err) Object.assign(out, { len, t: band.b - band.a, stroke: W, canClose: isFinite(nearLo ? hi : lo) });
-      return out;
+      return K.extendPlan({ fr, o, band, tip: from, dir: nearLo ? 1 : -1, host: home }, len);
     }
     if (mode !== 'close' && !nearLo && !nearHi) return { err: 'Partez d\'un mur ou du bout d\'une cloison' };
     lo = isFinite(lo) ? Math.min(lo, sLo) : sLo; hi = isFinite(hi) ? Math.max(hi, sHi) : sHi;
@@ -136,8 +134,63 @@
     if (!out.err) out.stroke = W;
     return out;
   }
-  /* aperçu d'un bout de cloison : le prolonger jusqu'au mur d'en face */
-  K.closeStub = () => { const p = S.skPlan; if (!p || p.kind !== 'stub') return; const q = line(p.stroke, 'close'); if (!q || q.err) { App.toast((q && q.err) || 'Impossible de fermer ici'); return; } S.skPlan = q; App.ui.refresh(); App.ui.refreshHint(); App.render(); };
+  /* ---------- prolonger une cloison depuis son bout libre ---------- */
+  const PT = (o, u, w) => (o === 'H' ? { x: u, y: w } : { x: w, y: u });
+  /* bouts libres de la cloison derrière le mur i de la pièce : là où la cloison s'arrête dans une pièce */
+  K.tips = (room, i) => {
+    const fr = frameFor(room), F = faces(fr), f = F.find((x) => x.room === room && x.i === i); if (!f) return [];
+    const g = F.filter((x) => x !== f && x.o === f.o && x.n === -f.n).map((x) => ({ x, t: (x.v - f.v) * -f.n })).filter((q) => q.t >= 30 && q.t <= 300 && Math.min(f.hi, q.x.hi) - Math.max(f.lo, q.x.lo) > 40).sort((p, q) => p.t - q.t)[0];
+    if (!g) return [];
+    const band = { a: Math.min(f.v, g.x.v), b: Math.max(f.v, g.x.v) }, mid = (band.a + band.b) / 2, lo = Math.max(f.lo, g.x.lo), hi = Math.min(f.hi, g.x.hi), out = [];
+    for (const [tip, dir] of [[lo, -1], [hi, 1]]) { const host = roomAt(fr.from(PT(f.o, tip + dir * 25, mid))); if (host) out.push({ fr, o: f.o, band, tip, dir, host, at: fr.from(PT(f.o, tip, mid)) }); }
+    return out;
+  };
+  /* distance du bout libre au premier mur rencontré dans la pièce hôte */
+  const reach = (h) => {
+    const P = h.host.pts.map(h.fr.to); let best = Infinity;
+    for (const w of [h.band.a + 1, (h.band.a + h.band.b) / 2, h.band.b - 1]) {
+      const A = PT(h.o, h.tip + h.dir * 2, w), B = PT(h.o, h.tip + h.dir * 1e6, w);
+      for (let i = 0; i < P.length; i++) { const q = G.segInter(A, B, P[i], P[(i + 1) % P.length]); if (q && q.t >= 0 && q.t <= 1 && q.u >= -1e-9 && q.u <= 1 + 1e-9) best = Math.min(best, Math.abs((h.o === 'H' ? q.p.x : q.p.y) - h.tip)); }
+    }
+    return best;
+  };
+  /* encoche dans la pièce hôte : insérée sur le mur d'entrée (marche aussi si la pièce a des murs en biais) */
+  const notch = (h, len) => {
+    const P = h.host.pts.map(h.fr.to), n = P.length, A = (h.o === 'H' ? (p) => p.x : (p) => p.y), W = (h.o === 'H' ? (p) => p.y : (p) => p.x);
+    const end = h.tip + h.dir * len; let e = -1, ea = null, eb = null, best = Infinity;
+    const cut = (p, q, w) => { const wp = W(p) - w, wq = W(q) - w; if (wp * wq > 0 || wp === wq) return null; const t = wp / (wp - wq); return { u: A(p) + (A(q) - A(p)) * t, t }; };
+    for (let i = 0; i < n; i++) {
+      const p = P[i], q = P[(i + 1) % n]; const ca = cut(p, q, h.band.a), cb = cut(p, q, h.band.b); if (!ca || !cb) continue;
+      const d = Math.max(Math.abs(ca.u - h.tip), Math.abs(cb.u - h.tip)); if (d < best && d < 60) { best = d; e = i; ea = ca; eb = cb; }
+    }
+    if (e < 0) return null;
+    const ka = { p: PT(h.o, ea.u, h.band.a), t: ea.t, tp: PT(h.o, end, h.band.a) }, kb = { p: PT(h.o, eb.u, h.band.b), t: eb.t, tp: PT(h.o, end, h.band.b) };
+    const [k1, k2] = ka.t <= kb.t ? [ka, kb] : [kb, ka];
+    const Q = P.slice(0, e + 1).concat([k1.p, k1.tp, k2.tp, k2.p], P.slice(e + 1));
+    const out = G.cleanPoly(Q.map(h.fr.from), 0.2, 1);
+    if (G.isSelfIntersecting && G.isSelfIntersecting(out)) return null;
+    if (Math.abs(G.area(out)) >= Math.abs(G.area(h.host.pts)) - 100) return null;
+    return out;
+  };
+  K.extendPlan = (h, len) => {
+    const t = h.band.b - h.band.a, max = reach(h); len = Math.round(Math.max(0, len) / 10) * 10;
+    const strip = (L) => { const u0 = h.dir > 0 ? h.tip - 6 : h.tip - L, u1 = h.dir > 0 ? h.tip + L : h.tip + 6; return h.o === 'H' ? { x0: u0, x1: u1, y0: h.band.a, y1: h.band.b } : { y0: u0, y1: u1, x0: h.band.a, x1: h.band.b }; };
+    if (isFinite(max) && len >= max - 5) { // jusqu'au mur : la pièce est coupée en deux
+      const q = carve({ kind: 'line', fr: h.fr, zone: null, strips: [strip(max + 6)], home: h.host, tDef: t, only: h.host });
+      if (!q.err) Object.assign(q, { handle: h, len: Math.round(max), max, t }); return q;
+    }
+    if (len < 50) return { err: 'Tirez un peu plus loin' };
+    let pts = notch(h, len), out;
+    if (pts) out = { kind: 'stub', fr: h.fr, add: [{ pts, from: h.host, keep: true, srcs: [h.host] }], remove: [h.host], strips: [], zone: null };
+    else { out = carve({ kind: 'stub', fr: h.fr, zone: null, strips: [strip(len)], home: h.host, tDef: t, only: h.host }); if (out.err) return out; }
+    const sr = strip(len); out.strips = [O.rect(sr.x0, sr.y0, sr.x1, sr.y1).map(h.fr.from)];
+    return Object.assign(out, { handle: h, len, max, t, canClose: isFinite(max) });
+  };
+  K.setLen = (cm) => { const p = S.skPlan; if (!p || !p.handle) return; const q = K.extendPlan(p.handle, cm * 10); if (q.err) { App.toast(q.err); return; } S.skPlan = q; App.ui.refresh(); App.render(); };
+  K.closeStub = () => { const p = S.skPlan; if (!p || !p.handle) return; const q = K.extendPlan(p.handle, Infinity); if (!q || q.err) { App.toast((q && q.err) || 'Impossible de fermer ici'); return; } S.skPlan = q; App.ui.refresh(); App.ui.refreshHint(); App.render(); };
+  /* bout de la cloison en cours d'aperçu, pour le tirer encore */
+  K.tipPoint = () => { const p = S.skPlan; if (!p || !p.handle) return null; const h = p.handle; return h.fr.from(PT(h.o, h.tip + h.dir * p.len, (h.band.a + h.band.b) / 2)); };
+  K.lenAt = (h, w) => { const q = h.fr.to(w); return ((h.o === 'H' ? q.x : q.y) - h.tip) * h.dir; };
 
   /* ---------- joindre deux cloisons de pièces différentes : une seule cloison entre elles ---------- */
   const inAnyRoom = (p) => !!roomAt(p);
@@ -264,12 +317,12 @@
     });
     App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
     if (plan.kind === 'join') { App.toast(`Une seule cloison de ${App.fmtCm(plan.t, 0)} cm entre ${plan.names.join(' et ')}`); return; }
-    if (plan.kind === 'stub') { App.toast(`Bout de cloison de ${App.fmtCm(plan.len, 0)} cm ajouté. Ajustez sa longueur en déplaçant son extrémité`); return; }
+    if (plan.kind === 'stub') { App.toast(`Cloison prolongée de ${App.fmtCm(plan.len, 0)} cm`); return; }
     App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
   };
   K.summary = () => {
     const p = S.skPlan; if (!p) return '';
-    if (p.kind === 'stub') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} · bout de cloison ${App.fmtCm(p.len, 0)} cm × ${App.fmtCm(p.t, 0)} cm`;
+    if (p.kind === 'stub') return `+ ${App.fmtCm(p.len, 0)} cm · ép. ${App.fmtCm(p.t, 0)} cm${isFinite(p.max) ? ` · reste ${App.fmtCm(p.max - p.len, 0)} cm jusqu'au mur` : ''}`;
     if (p.kind === 'join') return `${p.names.join(' + ')} · écart ${App.fmtCm(p.gap, 0)} → cloison ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
     return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;

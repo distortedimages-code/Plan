@@ -84,6 +84,7 @@
     let h = `<button class="link" data-x="back">← ${esc(room.name || 'Pièce')}</button>
       <div class="ctxhead"><h2>${parts.length ? 'Cloison' : 'Mur'} ${App.walls.name(room, i)}</h2><span class="big2">${App.fmtCm(W.el)}<small>cm</small></span></div>
       <p class="lead">${parts.length ? `Entre ${esc(room.name || 'pièce')} et ${others.map((r) => esc(r.name || 'pièce')).join(', ')}${th > 15 ? ` · épaisseur ${App.fmtCm(th, 0)} cm` : ""}` : `${esc(room.name || 'Pièce')} · mur extérieur ou sans voisin`}</p>`;
+    if (!locked && !P && App.sketch.tips(room, i).length) h += `<p class="note">Cette cloison s'arrête dans une pièce : tirez la flèche à son bout pour la prolonger, puis ajustez la longueur au centimètre.</p>`;
     if (P) {
       const toward = P.delta < 0 ? (others[0] ? others[0].name : 'l\'extérieur') : room.name;
       h += `<div class="preview"><b>Aperçu</b> — ${P.info ? esc(P.info) + ' · ' : ''}la cloison avance de ${App.fmtCm(Math.abs(P.delta))} cm vers ${esc(toward || 'la pièce')}.
@@ -112,7 +113,8 @@
   X.renderOpbar = () => {
     const bar = $('opbar'); if (!bar) return; let h = '';
     const P = S.pending; const f = App.ops.selected();
-    if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'stub' ? 'Bout de cloison' : S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span>${S.skPlan.kind === 'stub' && S.skPlan.canClose ? '<button data-ob="skclose">Jusqu\'au mur</button>' : ''}<button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
+    if (S.skPlan && S.skPlan.handle) { const p = S.skPlan, full = p.kind === 'line'; h = `<span class="ob-v">${full ? 'Jusqu\'au mur' : 'Prolonger'}</span>${full ? `<span class="ob-n">${App.esc(App.sketch.summary())}</span>` : `<label class="ob-len">+<input data-obx="sklen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label>${p.canClose ? '<button data-ob="skclose">Jusqu\'au mur</button>' : ''}`}<button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
+    else if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
@@ -149,6 +151,9 @@
     let x = Math.max(8, Math.min(st.width - bw - 8, q.x - bw / 2)), y = q.y - bh - 34;
     if (y < ob.top + 4) y = q.y + 34;
     y = Math.min(y, st.height - ob.bottom - bh - 6);
+    // ne pas cacher les poignées « prolonger » (bout libre d'une cloison)
+    const hits = (X0, Y0) => (App.tipHandles || []).some((t) => t.sp.x > X0 - 18 && t.sp.x < X0 + bw + 18 && t.sp.y > Y0 - 18 && t.sp.y < Y0 + bh + 18);
+    if (hits(x, y)) { const alt = [[x, q.y + 34], [x, q.y - bh - 90], [x, q.y + 90]].find(([a, b]) => b > ob.top && b + bh < st.height - ob.bottom && !hits(a, b)); if (alt) [x, y] = alt; }
     bar.style.left = x + 'px'; bar.style.top = y + 'px'; bar.style.visibility = 'visible';
   };
 
@@ -250,5 +255,7 @@
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
     $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
+    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } });
+    $('opbar').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.obx) e.target.blur(); });
   };
 })();

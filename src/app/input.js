@@ -55,6 +55,7 @@
   }
   App.hit = (sp) => {
     const w = App.s2w(sp), fid = S.p.floorId, sel = App.selected();
+    for (const th of App.tipHandles || []) if (G.dist(th.sp, sp) < 24) return { t: 'wtip', th };
     const so = App.ops.selected(), H = App.opHandles;
     if (so && H && H.oid === so.o.oid) { if (G.dist(H.s0, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 0 }; if (G.dist(H.s1, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 1 }; if (G.distPointSeg(sp, H.s0, H.s1) < 14) return { t: 'opmove', oid: so.o.oid }; }
     if (S.sel && S.sel.wall != null && App.wallHandle) { const h = App.wallHandle; if (G.dist(h, sp) < 24 || G.distPointSeg(sp, h.s0, h.s1) < 11) return { t: 'wmove', id: S.sel.id, i: S.sel.wall }; }
@@ -94,6 +95,9 @@
     act = { start: p, last: p, moved: false, touch, button: e.button };
     if (e.button === 1 || e.button === 2) { act.kind = 'pan'; act.view = Object.assign({}, S.view); return; }
     const tool = S.tool;
+    const th = (App.tipHandles || []).find((q) => G.dist(q.sp, p) < 24);
+    if (th && (tool === 'select' || tool === 'sketch')) { act.kind = 'wtip'; act.th = th.h; if (touch) S.loupe = p; return; }
+    if (S.skPlan && S.skPlan.handle && tool === 'select') App.sketch.cancel(true);
     if (tool === 'select') {
       const h = App.hit(p); act.h = h;
       if (S.pending && !(h && h.t === 'wmove')) { App.walls.cancel(); App.toast('Déplacement annulé'); act = null; return; }
@@ -184,6 +188,7 @@
     }
     if (act.kind === 'cut') { S.cutLine.b = App.snap(p).p; App.render(); return; }
     if (act.kind === 'sketch') { App.sketch.add(App.s2w(p)); App.render(); return; }
+    if (act.kind === 'wtip') { const q = App.sketch.extendPlan(act.th, App.sketch.lenAt(act.th, App.s2w(p))); if (!q.err) S.skPlan = q; if (S.loupe) S.loupe = p; App.render(); return; }
   }
 
   function up(e) {
@@ -208,6 +213,7 @@
       App.render(); return;
     }
     if (a.kind === 'sketch') { if (a.moved) App.sketch.finish(); else { S.sketch = null; App.render(); } return; }
+    if (a.kind === 'wtip') { if (!a.moved && !S.skPlan) App.toast('Tirez la flèche dans l\'axe de la cloison'); App.ui.refresh(); App.ui.refreshHint(); App.render(); return; }
     if (a.kind === 'cut') { const L = S.cutLine; S.cutLine = null; if (G.dist(App.w2s(L.a), App.w2s(L.b)) > 20) App.ui.cutSelected(L.a, L.b); App.render(); return; }
     if (a.moved) { App.render(); return; }
     // tap

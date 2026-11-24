@@ -262,3 +262,6 @@ details[open] summary::after{content:"–"}
 .fps-joy i{position:absolute;left:50%;top:50%;width:38px;height:38px;margin:-19px 0 0 -19px;background:var(--red);border-radius:50%}
 .fps-load{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;letter-spacing:.02em}
 @media(max-width:640px){.fps-hint{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 92px)}.fps-map{width:96px;height:96px}.fps-br .fps-seg button{padding:0 9px;font-size:12px}.fps-hint{white-space:normal;width:max-content;max-width:80vw;text-align:center}}
+
+.opbar .ob-len{display:flex;align-items:center;gap:4px;padding:0 10px;font-weight:700;color:var(--paper)}
+.opbar .ob-len input{width:64px;height:30px;border:0;background:var(--paper);color:var(--ink);font:700 15px var(--sans);text-align:right;padding:0 6px}

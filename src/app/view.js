@@ -98,8 +98,9 @@
     // électricité
     if (S.layers.elec || S.mode === 'elec') for (const p of App.pointsOn(fid)) drawElec(p, S.sel && S.sel.id === p.id);
     // sélection
-    App.wallHandle = null;
-    if (S.pending) drawPending();
+    App.wallHandle = null; App.tipHandles = [];
+    if (S.skPlan && S.skPlan.handle) { const w = App.sketch.tipPoint(); if (w) drawTip(w, S.skPlan.handle, `+ ${App.fmtCm(S.skPlan.len, 0)} cm`); }
+    else if (S.pending) drawPending();
     else if (sel && S.sel.wall != null) drawWallSel(sel, S.sel.wall);
     else if (sel && !ctxSel) drawSelection(sel);
     if (S.opInfo) { const q = App.w2s(S.opInfo.p); pill(S.opInfo.txt, q.x, q.y - 30, true); }
@@ -180,6 +181,7 @@
     // cote du mur
     const long = G.dist(s0, s1) > 190; const lab = long ? G.lerp(s0, s1, 0.24) : App.w2s(G.add(G.lerp(W.a, W.b, 0.5), G.mul(W.nin, 30 / S.view.z))); pill(App.fmtCm(W.el) + ' cm', lab.x, lab.y, false);
     if (locked) { pill('Verrouillée', m.x, m.y, true); return; }
+    for (const h of App.sketch.tips(r, i)) drawTip(h.at, h, null);
     // poignée : double flèche perpendiculaire
     const hpos = G.add(m, G.mul(ns, 0)); ctx.beginPath(); ctx.arc(hpos.x, hpos.y, 14, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.beginPath(); const a1 = G.add(hpos, G.mul(ns, 8)), a2 = G.add(hpos, G.mul(ns, -8)); const t = { x: -ns.y, y: ns.x };
@@ -187,6 +189,15 @@
     for (const [tip, sg] of [[a1, 1], [a2, -1]]) { const b = G.sub(tip, G.mul(ns, 4 * sg)); ctx.moveTo(b.x + t.x * 4, b.y + t.y * 4); ctx.lineTo(tip.x, tip.y); ctx.lineTo(b.x - t.x * 4, b.y - t.y * 4); }
     ctx.stroke();
     App.wallHandle = { x: hpos.x, y: hpos.y, s0, s1 };
+  }
+  /* poignée « prolonger » au bout libre d'une cloison : flèche dans l'axe */
+  function drawTip(w, h, label) {
+    const c = App.w2s(w), dw = h.fr.from(h.o === 'H' ? { x: h.dir, y: 0 } : { x: 0, y: h.dir }), d0 = App.w2s({ x: 0, y: 0 }), d1 = App.w2s(dw); const d = G.norm(G.sub(d1, d0)), t = { x: -d.y, y: d.x };
+    const q = G.add(c, G.mul(d, 20));
+    ctx.beginPath(); ctx.arc(q.x, q.y, 13, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.stroke();
+    const a = G.add(q, G.mul(d, 6)), b = G.sub(q, G.mul(d, 6)); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.moveTo(a.x - d.x * 5 + t.x * 4.5, a.y - d.y * 5 + t.y * 4.5); ctx.lineTo(a.x, a.y); ctx.lineTo(a.x - d.x * 5 - t.x * 4.5, a.y - d.y * 5 - t.y * 4.5); ctx.stroke();
+    if (label) pill(label, q.x + t.x * 30, q.y + t.y * 30, true);
+    App.tipHandles.push({ sp: q, h });
   }
   function drawPending() {
     const P = S.pending; ctx.lineCap = 'round';
