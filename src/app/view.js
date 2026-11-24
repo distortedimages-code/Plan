@@ -69,9 +69,10 @@
     const rooms = shapes.filter((s) => s.kind === 'piece');
     const showCal = S.mode === 'calepinage' || S.layers.calepinage;
     // murs (tramage) puis pièces
-    if (S.mode !== 'calepinage' || true) drawPoche(rooms);
+    // tramage des murs : jamais sous les pièces (le fond de plan doit se voir à travers elles)
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); for (const r of rooms) r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.clip('evenodd'); drawPoche(rooms); ctx.restore();
     for (const r of rooms) {
-      path(r.pts); ctx.fillStyle = r.parquet === false && showCal ? C.ink5 : C.paper; ctx.globalAlpha = S.layers.fond && S.bgs[fid] && S.bgs[fid].img ? 0.82 : 1; ctx.fill(); ctx.globalAlpha = 1;
+      path(r.pts); ctx.fillStyle = r.parquet === false && showCal ? C.ink5 : C.paper; ctx.globalAlpha = S.layers.fond && S.bgs[fid] && S.bgs[fid].img ? roomVeil() : 1; ctx.fill(); ctx.globalAlpha = 1;
     }
     for (const r of rooms) if (r.parquet === false) tiles(r.pts);
     if (showCal) drawCalepinage(fid, rooms);
@@ -225,15 +226,17 @@
     const sel = App.selected(); if (sel && S.sel.wall != null) { const W = App.ops.wall(sel, S.sel.wall); const s0 = App.w2s(W.a), s1 = App.w2s(W.b); App.wallHandle = { ...G.lerp(s0, s1, 0.5), s0, s1 }; }
   }
 
+  /* voile des pièces sur le fond : plus le fond est opaque, plus on le voit à travers les pièces */
+  const roomVeil = () => { const op = App.bgOpacity ? App.bgOpacity() : 0.42; return op <= 0.42 ? 0.9 : Math.max(0.1, 0.9 - ((op - 0.42) / 0.58) * 0.8); };
   function drawBackground(fid) {
     const bg = S.bgs[fid]; if (!bg || !S.layers.fond) return;
     if (bg.img) {
       const z = S.view.z, k = bg.k / bg.pxPerUnit;
       const e = (bg.ox - S.view.cx) * z + W / 2, f = H / 2 - (bg.oy + bg.hUnits * bg.k - S.view.cy) * z;
-      ctx.save(); ctx.globalAlpha = S.mode === 'calepinage' ? 0.18 : 0.42; ctx.setTransform(dpr * k * z, 0, 0, dpr * k * z, dpr * e, dpr * f);
+      ctx.save(); const op = App.bgOpacity ? App.bgOpacity() : 0.42; ctx.globalAlpha = S.mode === 'calepinage' ? op * 0.43 : op; ctx.setTransform(dpr * k * z, 0, 0, dpr * k * z, dpr * e, dpr * f);
       ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bg.img, 0, 0); ctx.restore();
     } else if (bg.segs) {
-      ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = C.ink3; ctx.lineWidth = 0.7; ctx.beginPath();
+      ctx.save(); ctx.globalAlpha = Math.min(1, 0.5 * (App.bgOpacity ? App.bgOpacity() : 0.42) / 0.42); ctx.strokeStyle = C.ink3; ctx.lineWidth = 0.7; ctx.beginPath();
       for (const s of bg.segs) { const a = App.w2s(s.a), b = App.w2s(s.b); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
       ctx.stroke(); ctx.restore();
     }

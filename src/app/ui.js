@@ -47,7 +47,7 @@
     $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { S.sel = null; ui.setTab(b.dataset.tab); if ($('sheet').dataset.h === 'min') ui.sheet('half'); App.render(); } };
     const panel = $('panel');
     panel.addEventListener('click', onPanelClick); panel.addEventListener('change', onPanelChange);
-    panel.addEventListener('input', (e) => { const t = e.target; if (t.dataset.live === 'name' && App.selected()) { App.selected().name = t.value; App.render(); } });
+    panel.addEventListener('input', (e) => { const t = e.target; if (t.dataset.live === 'name' && App.selected()) { App.selected().name = t.value; App.render(); } if (t.dataset.live === 'bgop') { const v = +t.value / 100; App.setBgOpacity(v); panel.querySelectorAll('[data-bgop-v]').forEach((x) => { x.textContent = Math.round(v * 100) + ' %'; }); panel.querySelectorAll('input[data-live=bgop]').forEach((x) => { if (x !== t) x.value = t.value; }); } });
     // poignée du panneau
     const grip = $('grip'); let gy = null, gh = 0;
     grip.addEventListener('pointerdown', (e) => { gy = e.clientY; gh = $('sheet').getBoundingClientRect().height; grip.setPointerCapture(e.pointerId); });
@@ -131,6 +131,7 @@
     App.mutate((P) => P.shapes.push(s)); S.draft = null; S.sel = { id: s.id }; ui.setTool('select'); ui.onSelect(); App.toast('Forme créée — ajustez ses cotes');
   };
 
+  ui.bgSlider = () => { const v = Math.round(App.bgOpacity() * 100); return `<div class="field bgop"><label>Opacité du fond de plan</label><div class="range"><input type="range" min="5" max="100" step="1" value="${v}" data-live="bgop" aria-label="Opacité du fond de plan"><span data-bgop-v>${v} %</span></div></div>`; };
   /* ---------- placement ---------- */
   ui.placeLib = (it) => {
     const c = App.s2w({ x: App.viewSize().W / 2, y: (App.viewSize().H - ui.obstruction().bottom) / 2 });
@@ -279,6 +280,7 @@
       <p class="note">PDF d'architecte, export magicplan (DXF, SVG, PDF, image) : les pièces, les cotes et les escaliers sont détectés automatiquement.</p></div>`;
     return `<h2>${esc(f.name)}</h2><p class="lead">${rooms.length} pièce${rooms.length > 1 ? 's' : ''} · ${App.fmtM2(total)} m² au sol</p>
       <div class="row" style="margin:4px 0 14px"><button class="btn sm" data-a="addRect">+ Pièce</button><button class="btn sm" data-a="draw">Tracer</button><button class="btn sm" data-a="addLib" data-v="poteau20">+ Poteau</button><button class="btn sm" data-a="addLib" data-v="tremie">+ Zone sans parquet</button><button class="btn sm" data-a="drawKind" data-v="plafond">+ Plafond bas</button></div>
+      ${S.bgs[S.p.floorId] && S.layers.fond ? ui.bgSlider() : ''}
       ${(() => { const sp = App.walls.spots(), ig = App.walls.ignoredCount(); if (!sp.length && !ig) return ''; const cm = (v) => App.fmtCm(v, 0);
         return `<div class="preview simp"><b>${sp.length ? `${sp.length} décrochement${sp.length > 1 ? 's' : ''} à simplifier` : 'Décrochements'}</b>${sp.length ? ' — petits creux dans les murs (embrasures, châssis lus comme des murs). Repérés en rouge sur le plan.' : ''}
           ${sp.slice(0, 12).map((x) => `<div class="simprow${S.simpFocus === x.key ? ' on' : ''}"><button class="link" data-x="simpgo" data-v="${esc(x.key)}"><b>${esc(x.name)}</b> · mur ${x.wall} · creux de ${cm(x.depth)} cm${x.width > 1 ? ` sur ${cm(x.width)} cm` : ''}</button><span><button class="btn sm ghost" data-x="simpign" data-v="${esc(x.key)}">Ignorer</button><button class="btn sm red" data-x="simpok" data-v="${esc(x.key)}">Simplifier</button></span></div>`).join('')}
@@ -486,6 +488,7 @@
       <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
       <div class="row"><button class="btn sm" data-a="exp">Exporter (.json)</button><button class="btn sm" data-a="copyjson">Copier le projet</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
       <h3>Affichage</h3>
+      ${ui.bgSlider()}
       ${[['fond', 'Fond de plan importé'], ['cotes', 'Cotes des murs'], ['mobilier', 'Mobilier (vue Plan)'], ['elec', 'Électricité (vue Plan)'], ['calepinage', 'Lames (vue Plan)']].map(([k, v]) => `<div class="field"><label>${v}</label><input type="checkbox" data-c="layer.${k}" ${S.layers[k] ? 'checked' : ''}></div>`).join('')}
       <h3>Scan LiDAR</h3><p>Une page web n'a pas accès au capteur LiDAR de l'iPhone. Scannez la pièce avec magicplan (qui utilise le LiDAR), exportez en DXF, SVG, PDF ou image, puis importez le fichier ici. Une petite app iOS dédiée (RoomPlan d'Apple) pourrait envoyer directement le scan à Calepin.</p>
       <h3>Nouveau projet</h3><button class="btn sm ghost" data-a="reset">Effacer et recommencer</button>`;

@@ -271,3 +271,7 @@ details[open] summary::after{content:"–"}
 .preview.simp .simprow.on{background:color-mix(in srgb,var(--red) 10%,transparent)}
 .preview.simp .simprow .link{text-align:left;font-size:13px;line-height:1.3}
 .preview.simp .simprow span{display:flex;gap:6px;flex:none}
+
+.field.bgop .range{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
+.field.bgop input[type=range]{flex:1;max-width:220px;accent-color:var(--red);height:28px}
+.field.bgop [data-bgop-v]{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}

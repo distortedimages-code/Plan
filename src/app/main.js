@@ -20,6 +20,9 @@
     window.addEventListener('pagehide', () => App.save());
   }
   /* apparence : claire par défaut ; sombre ou selon l'appareil au choix (réglage propre à chaque appareil) */
+  /* opacité du fond de plan importé (préférence de l'appareil, comme les fonds eux-mêmes) */
+  App.bgOpacity = () => { try { const v = parseFloat(localStorage.getItem('calepin.bgop')); return isFinite(v) ? Math.max(0.02, Math.min(1, v)) : 0.42; } catch (e) { return 0.42; } };
+  App.setBgOpacity = (v) => { try { localStorage.setItem('calepin.bgop', String(v)); } catch (e) { /* stockage indisponible */ } App.render(); };
   App.theme = () => { try { return localStorage.getItem('calepin.theme') || 'light'; } catch (e) { return 'light'; } };
   App.applyTheme = (t = App.theme()) => { document.documentElement.dataset.theme = t; };
   App.setTheme = (t) => { try { localStorage.setItem('calepin.theme', t); } catch (e) { /* stockage indisponible */ } App.applyTheme(t); App.render(); };
