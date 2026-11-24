@@ -43,6 +43,7 @@
     $('rnPrev').onclick = () => stepRoom(-1); $('rnNext').onclick = () => stepRoom(1);
     $('rnName').onclick = () => { ui.setTab('pieces'); ui.sheet('half'); };
     $('rnAll').onclick = () => { S.sel = null; App.fitAll(); ui.refresh(); };
+    $('rn3d').onclick = () => { const s = App.selected(); const room = s && s.kind === 'piece' ? s : s && App.rooms(s.floor).find((r) => G.pointInPoly(G.centroid(s.pts || r.pts), r.pts)); App.fps.open({ floor: S.p.floorId, room: room && room.id }); };
     $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { S.sel = null; ui.setTab(b.dataset.tab); if ($('sheet').dataset.h === 'min') ui.sheet('half'); App.render(); } };
     const panel = $('panel');
     panel.addEventListener('click', onPanelClick); panel.addEventListener('change', onPanelChange);

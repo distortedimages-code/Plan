@@ -122,7 +122,7 @@
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'piece' && !App.selected().locked) {
       const r = App.selected(); const on = S.resizeRoom === r.id;
-      h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="more">Réglages</button>`;
+      h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="tour">Visite 3D</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
       const st = App.selected(), cands = App.stairs.candidates(st);
       h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="fitwalls">Caler aux murs</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
@@ -207,6 +207,7 @@
       case 'fitwalls': { const o = App.selected(); if (!o || o.locked) return; const n = App.resize.fitWalls(o); App.toast(n ? `Calé sur ${n} mur${n > 1 ? 's' : ''}` : 'Aucune cloison à moins de 40 cm'); break; }
       case 'snapwalls': S.p.snapWalls = S.p.snapWalls === false; App.save(); App.ui.refresh(); App.toast(S.p.snapWalls === false ? 'Aimant aux murs désactivé' : 'Aimant aux murs activé'); break;
       case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
+      case 'tour': { const r = App.selected(); if (r && App.fps) App.fps.open({ floor: r.floor, room: r.id }); break; }
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
       case 'skok': App.sketch.validate(); break;
