@@ -111,6 +111,9 @@
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
+      const m = App.selected();
+      h = `<button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
       const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
       h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button><button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
@@ -123,6 +126,7 @@
     if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
+    else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
     if (!p) { bar.style.visibility = 'hidden'; return; }
     const q = App.w2s(p), st = $('stage').getBoundingClientRect(), bw = bar.offsetWidth, bh = bar.offsetHeight, ob = App.ui.obstruction();
     if (q.y > st.height - ob.bottom + 4 || q.y < ob.top - 10 || q.x < -20 || q.x > st.width + 20) { bar.style.visibility = 'hidden'; return; }
@@ -151,7 +155,7 @@
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
       case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(f.o.type))) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
-      case 'w': if (!f) return; App.mutate(() => { const g = App.ops.geo(f.room, f.o); const nw = +v * 10; App.ops.setSpan(f.room, f.o, g.pos + (g.w - nw) / 2, nw); }); break;
+      case 'w': { if (!f) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); const nw = +v * 10; cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - nw) / 2, nw); }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'hh': if (!f) return; App.mutate(() => { f.o.h = +v * 10; App.ops.syncTwin(f.room, f.o); }); break;
       case 'zoom': if (f) { const g = App.ops.geo(f.room, f.o); const pad = 1200; App.fitBox({ x0: g.mid.x - pad, y0: g.mid.y - pad, x1: g.mid.x + pad, y1: g.mid.y + pad, w: 2 * pad, h: 2 * pad }, 20); } break;
       case 'opsel': { const fo = App.ops.find(v); if (!fo) return; S.sel = { id: fo.room.id, oid: v }; App.ui.onSelect(); App.render(); break; }
@@ -161,10 +165,13 @@
       case 'lock': case 'wlock': { const r = App.selected(); if (!r) return; const lk = App.walls.toggleLock(r, S.sel.wall); App.toast(lk ? 'Cloison verrouillée (des deux côtés)' : 'Cloison déverrouillée'); break; }
       case 'door': case 'wadd': {
         const r = App.selected(); if (!r) return; const W = App.ops.wall(r, S.sel.wall); const p = G.add(G.lerp(W.a, W.b, 0.5), G.mul(W.nin, 5));
-        const res = App.ops.addAt(p, v || 'porte'); if (res.err) { App.toast(res.err); return; }
+        const res = App.ops.addAt(p, v || 'porte'); if (res.exist) { S.sel = { id: res.exist.room.id, oid: res.exist.o.oid }; App.ui.onSelect(); App.toast('Il y a déjà une ouverture au milieu de ce mur'); break; } if (res.err) { App.toast(res.err); return; }
         S.sel = { id: res.room.id, oid: res.o.oid }; App.ui.onSelect(); App.render(); App.toast(`${App.ops.name(res.o.type)} ajoutée au milieu du mur`); break;
       }
       case 'wsel': { const r = App.selected(); if (!r) return; S.sel = { id: r.id, wall: +v }; S.wallEnd = null; App.ui.onSelect(); break; }
+      case 'rot90': { const m = App.selected(); if (!m || m.locked) return; App.mutate(() => { const c = G.centroid(m.pts); m.pts = m.pts.map((q) => G.rotAround(q, c, Math.PI / 2)); }); break; }
+      case 'backwall': { const m = App.selected(); if (!m || m.locked) return; let ok = false; App.mutate(() => { ok = App.guides.backToWall(m); }); App.toast(ok ? 'Dos contre le mur le plus proche' : 'Aucun mur à proximité'); break; }
+      case 'sdel': App.ui.deleteSelected(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;
       case 'wmerge': {
@@ -179,7 +186,9 @@
     const f = App.ops.selected(); const v = num(val);
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
-      App.mutate(() => { const g = App.ops.geo(f.room, f.o); if (c === 'width') App.ops.setSpan(f.room, f.o, g.pos + (g.w - v * 10) / 2, v * 10); else if (c === 'pos') App.ops.setSpan(f.room, f.o, v * 10, g.w); else { f.o[c] = v == null ? null : v * 10; App.ops.syncTwin(f.room, f.o); } });
+      let cl = false;
+      App.mutate(() => { const g = App.ops.geo(f.room, f.o); if (c === 'width') cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - v * 10) / 2, v * 10); else if (c === 'pos') cl = App.ops.setSpan(f.room, f.o, v * 10, g.w, { jump: true }); else { f.o[c] = v == null ? null : v * 10; App.ops.syncTwin(f.room, f.o); } });
+      if (cl) App.toast('Ajusté : pas de chevauchement avec une autre ouverture');
       return;
     }
     const r = App.selected(); if (!r || S.sel.wall == null) return; const i = S.sel.wall;

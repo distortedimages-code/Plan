@@ -86,6 +86,10 @@
     p.shapes = p.shapes || []; p.points = p.points || []; p.measures = p.measures || [];
     p.parquet = Object.assign({}, PL.layout.DEFAULTS, p.parquet || {});
     p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; s.openings.forEach((o) => { if (!o.oid) o.oid = App.uid(); }); });
+    // portes en double laissées par l'ancienne mise à jour du plan intégré : relecture propre depuis le plan
+    if (App.ops && p.seedApplied && globalThis.CALEPIN_SEED && App.ops.countDups(p) > 0) {
+      try { App.ops.applySeed(p, globalThis.CALEPIN_SEED); setTimeout(() => App.toast && App.toast('Portes en double corrigées : ouvertures relues depuis le plan'), 1500); } catch (e) { console.error(e); }
+    }
     if (App.ops) App.ops.relinkAll(p);
     return p;
   }

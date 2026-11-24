@@ -21,6 +21,7 @@
 
   /* ---------- jumelage : une porte entre deux pièces = deux ouvertures liées, une seule dessinée ---------- */
   O.relink = (p, fid) => {
+    for (const r of p.shapes) if (r.kind === 'piece' && r.floor === fid && r.openings && r.openings.length > 1) O.tidy(r);
     const items = [];
     for (const r of p.shapes) { if (r.kind !== 'piece' || r.floor !== fid) continue; r.openings = r.openings || []; for (const o of r.openings) { if (!o.oid) o.oid = App.uid(); const g = O.geo(r, o); if (g) items.push({ r, o, g }); } }
     const pairs = [];
@@ -49,7 +50,62 @@
     if (hi - lo > 50) { t.o.pos = lo; t.o.width = hi - lo; }
     t.o.type = o.type; t.o.h = o.h; t.o.sill = o.sill;
   };
-  O.setSpan = (room, o, pos, width) => { const W = O.wall(room, o.wall); width = Math.max(300, Math.min(width, W.el)); pos = Math.max(0, Math.min(pos, W.el - width)); o.pos = pos; o.width = width; O.syncTwin(room, o); };
+  /* ---------- pas de chevauchement : place libre sur un mur, des deux côtés de la cloison ---------- */
+  O.obstacles = (room, wi, skip = []) => {
+    const W = O.wall(room, wi); const out = [];
+    for (const r of App.shapesOn(room.floor)) {
+      if (r.kind !== 'piece') continue;
+      for (const q of r.openings || []) {
+        if (skip.includes(q)) continue; const g = O.geo(r, q); if (!g) continue; const dd = G.dot(g.d, W.d);
+        const off = G.dot(G.sub(g.p0, W.a), W.nin);
+        if (dd > 0.995 ? !(r === room && Math.abs(off) < 8) : !(dd < -0.995 && off < 8 && off > -520)) continue;
+        const t0 = G.dot(G.sub(g.p0, W.a), W.d), t1 = G.dot(G.sub(g.p1, W.a), W.d);
+        out.push({ lo: Math.min(t0, t1), hi: Math.max(t0, t1), o: q, room: r });
+      }
+    }
+    return out;
+  };
+  O.limits = (room, wi, t, skip = []) => {
+    const W = O.wall(room, wi); let lo = 0, hi = W.el, inside = null;
+    for (const b of O.obstacles(room, wi, skip)) {
+      if (b.hi <= 0 || b.lo >= W.el) continue;
+      if (t > b.lo + 1 && t < b.hi - 1) inside = b;
+      if ((b.lo + b.hi) / 2 <= t) lo = Math.max(lo, b.hi); else hi = Math.min(hi, b.lo);
+    }
+    return { lo, hi, inside };
+  };
+  const skipOf = (room, o) => { const t = O.twin(room, o); return t ? [o, t.o] : [o]; };
+  /* opt.end = 0 | 1 : seule cette extrémité bouge ; opt.jump : la cible peut passer de l'autre côté d'une ouverture */
+  O.setSpan = (room, o, pos, width, opt = {}) => {
+    const W = O.wall(room, o.wall), MIN = 300;
+    const L = O.limits(room, o.wall, opt.jump ? pos + width / 2 : o.pos + o.width / 2, skipOf(room, o));
+    const want = [pos, width];
+    if (opt.end === 0) { const end = Math.min(o.pos + o.width, L.hi); pos = Math.max(L.lo, Math.min(pos, end - MIN)); width = end - pos; }
+    else if (opt.end === 1) { pos = Math.max(L.lo, o.pos); width = Math.max(Math.min(MIN, L.hi - pos), Math.min(width, L.hi - pos)); }
+    else { const room2 = L.hi - L.lo; width = Math.max(Math.min(MIN, room2), Math.min(width, room2, W.el)); pos = Math.max(L.lo, Math.min(pos, L.hi - width)); }
+    o.pos = pos; o.width = width; O.syncTwin(room, o);
+    return Math.abs(want[0] - pos) > 2 || Math.abs(want[1] - width) > 2;
+  };
+
+  /* ouvertures superposées dans une même pièce (import, anciennes versions) : doublon retiré, chevauchement partagé au milieu */
+  O.overlaps = (room) => {
+    const res = []; const ops = room.openings || [];
+    for (let i = 0; i < ops.length; i++) for (let j = i + 1; j < ops.length; j++) {
+      const a = ops[i], b = ops[j]; if (a.wall !== b.wall) continue;
+      const ov = Math.min(a.pos + a.width, b.pos + b.width) - Math.max(a.pos, b.pos); if (ov > 1) res.push({ a, b, ov, dup: ov > 0.5 * Math.min(a.width, b.width) });
+    }
+    return res;
+  };
+  O.tidy = (room) => {
+    let changed = false;
+    for (let guard = 0; guard < 50; guard++) {
+      const ov = O.overlaps(room); if (!ov.length) break; const x = ov[0];
+      if (x.dup) { const score = (q) => (q.sw !== 0 ? 2 : 0) + (q.link ? 1 : 0); const drop = score(x.b) > score(x.a) ? x.a : x.b; room.openings = room.openings.filter((q) => q !== drop); }
+      else { const [l, r] = x.a.pos <= x.b.pos ? [x.a, x.b] : [x.b, x.a]; const cut = (Math.max(l.pos, r.pos) + Math.min(l.pos + l.width, r.pos + r.width)) / 2; l.width = Math.max(100, cut - l.pos); const end = r.pos + r.width; r.pos = cut; r.width = Math.max(100, end - cut); }
+      changed = true;
+    }
+    return changed;
+  };
 
   /* ---------- sens d'ouverture ---------- */
   O.opensInto = (room, o) => { const pr = O.primary(room, o); if (!pr.o.out) return pr.room; const t = O.twin(pr.room, pr.o); return t ? t.room : null; };
@@ -87,8 +143,10 @@
     if (!best) return { err: 'Touchez un mur de pièce' };
     if (best.r.locked) return { err: 'Pièce verrouillée' };
     const def = PL.lib.openings.find((x) => x.id === type) || { w: 830 };
-    const width = Math.min(def.w, best.W.el - 60); if (width < 300) return { err: 'Mur trop court pour cette ouverture' };
-    const pos = Math.max(0, Math.min(best.W.el - width, best.t - width / 2));
+    const L = O.limits(best.r, best.i, best.t);
+    if (L.inside) { const pr = O.primary(L.inside.room, L.inside.o); return { exist: pr, err: 'Il y a déjà une ouverture ici' }; }
+    const width = Math.min(def.w, best.W.el - 60, L.hi - L.lo); if (width < 300) return { err: L.hi - L.lo < best.W.el ? 'Pas assez de place entre les ouvertures voisines' : 'Mur trop court pour cette ouverture' };
+    const pos = Math.max(L.lo, Math.min(L.hi - width, best.t - width / 2));
     const o = { oid: App.uid(), type, wall: best.i, pos, width, h: def.h, sill: def.sill, sw: 1, hinge: 'g', out: false };
     App.mutate(() => {
       best.r.openings = best.r.openings || []; best.r.openings.push(o);
@@ -111,8 +169,10 @@
       const f = p.floors.find((x) => x.name === sf.name); if (!f) continue;
       const seedRooms = seed.shapes.filter((s) => s.floor === sf.id && s.kind === 'piece');
       for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) r.openings = App.feat.reattach(r.pts, seedRooms).map((o) => Object.assign({}, o, { oid: App.uid(), to: null }));
+      for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) O.tidy(r);
       O.relink(p, f.id);
     }
     p.seedApplied = seed.seedVersion; delete p.seedOffer;
   };
+  O.countDups = (p) => p.shapes.filter((r) => r.kind === 'piece').reduce((n, r) => n + O.overlaps(r).filter((x) => x.dup).length, 0);
 })();

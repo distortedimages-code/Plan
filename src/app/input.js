@@ -61,6 +61,7 @@
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
       for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      if (S.tool === 'select' && ['meuble', 'poteau', 'forme'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
     for (const l of App.labelRects) if (G.dist(l, sp) < l.r) return { t: l.ang ? 'angle' : 'dim', id: l.id, i: l.i, x: l.x, y: l.y };
@@ -138,12 +139,12 @@
     }
     if (act.kind === 'opmove' || act.kind === 'opend') {
       const f = act.f, g = act.g0; const u = G.dot(G.sub(App.s2w(p), g.a), g.d); const r10 = (x) => Math.round(x / 10) * 10;
-      let pos = g.pos, wid = g.w;
-      if (act.kind === 'opmove') pos = r10(g.pos + u - act.u0);
-      else if (act.h.e === 0) { const end = g.pos + g.w; pos = Math.min(r10(u), end - 300); wid = end - Math.max(0, pos); }
-      else wid = r10(u - g.pos);
-      App.ops.setSpan(f.room, f.o, pos, wid); const ng = App.ops.geo(f.room, f.o);
-      S.opInfo = { p: ng.mid, txt: `${App.fmtCm(ng.w, 0)} cm · à ${App.fmtCm(ng.pos)} cm de ${String.fromCharCode(65 + f.o.wall)}` };
+      let cl;
+      if (act.kind === 'opmove') cl = App.ops.setSpan(f.room, f.o, r10(g.pos + u - act.u0), g.w);
+      else if (act.h.e === 0) cl = App.ops.setSpan(f.room, f.o, r10(u), g.pos + g.w - r10(u), { end: 0 });
+      else cl = App.ops.setSpan(f.room, f.o, g.pos, r10(u - g.pos), { end: 1 });
+      const ng = App.ops.geo(f.room, f.o);
+      S.opInfo = { p: ng.mid, txt: `${App.fmtCm(ng.w, 0)} cm · à ${App.fmtCm(ng.pos)} cm de ${String.fromCharCode(65 + f.o.wall)}${cl ? ' · butée' : ''}` };
       if (act.touch) S.loupe = p; S.calc = {}; App.render(); return;
     }
     if (act.kind === 'wmove') {
@@ -157,6 +158,10 @@
       const np = App.feat.moveEdgePts(act.orig, act.h.i, delta);
       if (G.area(np) > 0 && !G.isSelfIntersecting(np)) { s.pts = np; act.partners.forEach((q) => { const pp = App.feat.moveEdgePts(q.orig, q.j, -delta); if (G.area(pp) > 0 && !G.isSelfIntersecting(pp)) q.s.pts = pp; }); }
       S.edgeInfo = { delta, p: G.add(act.mid, G.mul(act.nin, delta)) }; S.calc = {}; App.render(); return;
+    }
+    if (act.kind === 'move' && App.byId(act.h.id).kind !== 'piece') {
+      const s = App.byId(act.h.id); const r = App.guides.solve(s, act.orig, G.sub(App.s2w(p), act.w0));
+      s.pts = r.Q; S.guides = r; S.snapMark = null; S.calc = {}; App.render(); return;
     }
     if (act.kind === 'move') {
       const s = App.byId(act.h.id); const w = App.s2w(p); let d = G.sub(w, act.w0);
@@ -184,7 +189,7 @@
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
-      S.snapMark = null; S.dragE = null; S.edgeInfo = null; App.end(true);
+      S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }
       App.render(); return;
     }
@@ -237,7 +242,7 @@
     if (tool === 'wand') { App.importer.wandAt(App.s2w(p)); return; }
     if (tool === 'place') { App.ui.placeAt(App.s2w(p)); return; }
     if (tool === 'elec') { App.ui.placeElec(App.s2w(p)); return; }
-    if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
+    if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.exist) { S.sel = { id: r.exist.room.id, oid: r.exist.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast('Il y a déjà une ouverture ici : la voici'); return; } if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
   }
 
   function wheel(e) {

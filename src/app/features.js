@@ -14,7 +14,7 @@
       let best = null;
       for (let i = 0; i < n; i++) {
         const c = pts[i], e = pts[(i + 1) % n], ed = G.sub(e, c), el = G.len(ed); if (el < 50) continue;
-        const u = G.mul(ed, 1 / el); if (Math.abs(G.cross(u, d)) > 0.03) continue;
+        const u = G.mul(ed, 1 / el); if (G.dot(u, d) < 0.999) continue; // même sens : la face du mur côté de cette pièce, pas celle de la voisine
         const dist = Math.abs(G.cross(G.sub(p0, c), u)); if (dist > 40) continue;
         const t0 = G.dot(G.sub(p0, c), u), t1 = G.dot(G.sub(p1, c), u); const lo = Math.min(t0, t1), hi = Math.max(t0, t1);
         if (hi < -10 || lo > el + 10) continue;

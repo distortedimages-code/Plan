@@ -104,12 +104,36 @@
     else if (sel && !ctxSel) drawSelection(sel);
     if (S.opInfo) { const q = App.w2s(S.opInfo.p); pill(S.opInfo.txt, q.x, q.y - 30, true); }
     if (S.draft) drawDraft();
+    if (S.guides) drawGuides(S.guides, true);
+    else if (sel && !ctxSel && ['meuble', 'poteau', 'forme'].includes(sel.kind) && !S.pending && App.guides) drawGuides(App.guides.solve(sel, sel.pts, { x: 0, y: 0 }, false), false);
     if (S.snapMark) drawSnap(S.snapMark);
     if (S.edgeInfo) { const e = S.edgeInfo; const q = App.w2s(e.p); ctx.font = font(700, 12); const t = (e.delta >= 0 ? '+' : '') + App.fmtCm(e.delta) + ' cm'; const tw = ctx.measureText(t).width; ctx.fillStyle = C.red; ctx.fillRect(q.x - tw / 2 - 6, q.y - 30, tw + 12, 20); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, q.x, q.y - 20); }
     if (S.cutLine) { const a = App.w2s(S.cutLine.a), b = App.w2s(S.cutLine.b); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
     drawScale();
     if (S.loupe) drawLoupe();
     if (App.ctx) App.ctx.placeOpbar();
+  }
+  /* meubles : murs touchés, axes de centrage, distances libres */
+  function drawGuides(g, live) {
+    ctx.lineCap = 'butt';
+    for (const e of g.contacts) {
+      const sp = g.Q.map((q) => G.dot(G.sub(q, e.a), e.d)); const t0 = Math.max(0, Math.min(...sp)), t1 = Math.min(e.el, Math.max(...sp));
+      const o = G.mul(e.n, -3 / S.view.z); ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(G.add(G.add(e.a, G.mul(e.d, t0)), o), G.add(G.add(e.a, G.mul(e.d, t1)), o));
+    }
+    for (const l of g.guides) {
+      ctx.strokeStyle = C.red; ctx.lineWidth = 1.4; ctx.setLineDash([7, 4]); segLine(l.a, l.b); ctx.setLineDash([]);
+      const q = App.w2s(l.at); const a = App.w2s(l.a); ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(a.x, a.y, 3.5, 0, Math.PI * 2); ctx.fill();
+      const v = G.norm(G.sub(q, a)); pill(l.label, q.x + v.x * 14, q.y + v.y * 14, true);
+    }
+    for (const dm of g.dims) {
+      const a = App.w2s(dm.a), b = App.w2s(dm.b); const L = G.dist(a, b); if (L < 18) continue;
+      const u = G.norm(G.sub(b, a)), t = { x: -u.y, y: u.x };
+      ctx.strokeStyle = live ? C.ink : C.ink2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      for (const p of [a, b]) { ctx.moveTo(p.x + t.x * 5, p.y + t.y * 5); ctx.lineTo(p.x - t.x * 5, p.y - t.y * 5); }
+      ctx.stroke();
+      const m = G.lerp(a, b, 0.5); const lbl = App.fmtCm(dm.v); ctx.font = font(700, 11); const tw = ctx.measureText(lbl).width;
+      if (L > tw + 14) { ctx.fillStyle = C.paper; ctx.fillRect(m.x - tw / 2 - 4, m.y - 8, tw + 8, 16); text(lbl, m.x, m.y + 0.5, 700, 11, live ? C.ink : C.ink2); }
+    }
   }
   function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
   const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };

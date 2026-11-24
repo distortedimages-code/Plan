@@ -139,7 +139,7 @@
     if (kind !== 'meuble') s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true })));
     App.mutate((P) => P.shapes.push(s)); S.sel = { id: s.id };
     if (kind === 'meuble' && S.mode !== 'mobilier' && !S.layers.mobilier) S.layers.mobilier = true;
-    ui.onSelect(); App.toast('Faites glisser la poignée rouge pour placer');
+    ui.onSelect(); App.toast(kind === 'meuble' ? 'Glissez le meuble : il se colle aux murs et se centre' : 'Glissez l\'objet pour le placer');
   };
   ui.placeElec = (w) => {
     const type = S.elecType || 'prise'; const r = App.placeOnWall(w, type);
@@ -183,7 +183,8 @@
   /* ---------- sélection ---------- */
   ui.onSelect = (again) => {
     const s = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
-    if (s && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
+    const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
+    if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {
       let p = null; const f = App.ops.selected();
       if (S.sel.oid && f) { const g = App.ops.geo(f.room, f.o); p = g && g.mid; }
@@ -302,7 +303,7 @@
     if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
     if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
-    if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button></div>`;
+    if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
     h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme.</p>
       <table class="dims"><thead><tr><th>Mur</th><th>Longueur (cm)</th><th></th><th>Angle (°)</th><th></th><th></th></tr></thead><tbody>

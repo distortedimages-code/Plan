@@ -2099,6 +2099,10 @@ details[open] summary::after{content:"–"}
     p.shapes = p.shapes || []; p.points = p.points || []; p.measures = p.measures || [];
     p.parquet = Object.assign({}, PL.layout.DEFAULTS, p.parquet || {});
     p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; s.openings.forEach((o) => { if (!o.oid) o.oid = App.uid(); }); });
+    // portes en double laissées par l'ancienne mise à jour du plan intégré : relecture propre depuis le plan
+    if (App.ops && p.seedApplied && globalThis.CALEPIN_SEED && App.ops.countDups(p) > 0) {
+      try { App.ops.applySeed(p, globalThis.CALEPIN_SEED); setTimeout(() => App.toast && App.toast('Portes en double corrigées : ouvertures relues depuis le plan'), 1500); } catch (e) { console.error(e); }
+    }
     if (App.ops) App.ops.relinkAll(p);
     return p;
   }
@@ -2283,12 +2287,36 @@ details[open] summary::after{content:"–"}
     else if (sel && !ctxSel) drawSelection(sel);
     if (S.opInfo) { const q = App.w2s(S.opInfo.p); pill(S.opInfo.txt, q.x, q.y - 30, true); }
     if (S.draft) drawDraft();
+    if (S.guides) drawGuides(S.guides, true);
+    else if (sel && !ctxSel && ['meuble', 'poteau', 'forme'].includes(sel.kind) && !S.pending && App.guides) drawGuides(App.guides.solve(sel, sel.pts, { x: 0, y: 0 }, false), false);
     if (S.snapMark) drawSnap(S.snapMark);
     if (S.edgeInfo) { const e = S.edgeInfo; const q = App.w2s(e.p); ctx.font = font(700, 12); const t = (e.delta >= 0 ? '+' : '') + App.fmtCm(e.delta) + ' cm'; const tw = ctx.measureText(t).width; ctx.fillStyle = C.red; ctx.fillRect(q.x - tw / 2 - 6, q.y - 30, tw + 12, 20); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, q.x, q.y - 20); }
     if (S.cutLine) { const a = App.w2s(S.cutLine.a), b = App.w2s(S.cutLine.b); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
     drawScale();
     if (S.loupe) drawLoupe();
     if (App.ctx) App.ctx.placeOpbar();
+  }
+  /* meubles : murs touchés, axes de centrage, distances libres */
+  function drawGuides(g, live) {
+    ctx.lineCap = 'butt';
+    for (const e of g.contacts) {
+      const sp = g.Q.map((q) => G.dot(G.sub(q, e.a), e.d)); const t0 = Math.max(0, Math.min(...sp)), t1 = Math.min(e.el, Math.max(...sp));
+      const o = G.mul(e.n, -3 / S.view.z); ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(G.add(G.add(e.a, G.mul(e.d, t0)), o), G.add(G.add(e.a, G.mul(e.d, t1)), o));
+    }
+    for (const l of g.guides) {
+      ctx.strokeStyle = C.red; ctx.lineWidth = 1.4; ctx.setLineDash([7, 4]); segLine(l.a, l.b); ctx.setLineDash([]);
+      const q = App.w2s(l.at); const a = App.w2s(l.a); ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(a.x, a.y, 3.5, 0, Math.PI * 2); ctx.fill();
+      const v = G.norm(G.sub(q, a)); pill(l.label, q.x + v.x * 14, q.y + v.y * 14, true);
+    }
+    for (const dm of g.dims) {
+      const a = App.w2s(dm.a), b = App.w2s(dm.b); const L = G.dist(a, b); if (L < 18) continue;
+      const u = G.norm(G.sub(b, a)), t = { x: -u.y, y: u.x };
+      ctx.strokeStyle = live ? C.ink : C.ink2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      for (const p of [a, b]) { ctx.moveTo(p.x + t.x * 5, p.y + t.y * 5); ctx.lineTo(p.x - t.x * 5, p.y - t.y * 5); }
+      ctx.stroke();
+      const m = G.lerp(a, b, 0.5); const lbl = App.fmtCm(dm.v); ctx.font = font(700, 11); const tw = ctx.measureText(lbl).width;
+      if (L > tw + 14) { ctx.fillStyle = C.paper; ctx.fillRect(m.x - tw / 2 - 4, m.y - 8, tw + 8, 16); text(lbl, m.x, m.y + 0.5, 700, 11, live ? C.ink : C.ink2); }
+    }
   }
   function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
   const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };
@@ -2743,6 +2771,7 @@ details[open] summary::after{content:"–"}
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
       for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      if (S.tool === 'select' && ['meuble', 'poteau', 'forme'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
     for (const l of App.labelRects) if (G.dist(l, sp) < l.r) return { t: l.ang ? 'angle' : 'dim', id: l.id, i: l.i, x: l.x, y: l.y };
@@ -2820,12 +2849,12 @@ details[open] summary::after{content:"–"}
     }
     if (act.kind === 'opmove' || act.kind === 'opend') {
       const f = act.f, g = act.g0; const u = G.dot(G.sub(App.s2w(p), g.a), g.d); const r10 = (x) => Math.round(x / 10) * 10;
-      let pos = g.pos, wid = g.w;
-      if (act.kind === 'opmove') pos = r10(g.pos + u - act.u0);
-      else if (act.h.e === 0) { const end = g.pos + g.w; pos = Math.min(r10(u), end - 300); wid = end - Math.max(0, pos); }
-      else wid = r10(u - g.pos);
-      App.ops.setSpan(f.room, f.o, pos, wid); const ng = App.ops.geo(f.room, f.o);
-      S.opInfo = { p: ng.mid, txt: `${App.fmtCm(ng.w, 0)} cm · à ${App.fmtCm(ng.pos)} cm de ${String.fromCharCode(65 + f.o.wall)}` };
+      let cl;
+      if (act.kind === 'opmove') cl = App.ops.setSpan(f.room, f.o, r10(g.pos + u - act.u0), g.w);
+      else if (act.h.e === 0) cl = App.ops.setSpan(f.room, f.o, r10(u), g.pos + g.w - r10(u), { end: 0 });
+      else cl = App.ops.setSpan(f.room, f.o, g.pos, r10(u - g.pos), { end: 1 });
+      const ng = App.ops.geo(f.room, f.o);
+      S.opInfo = { p: ng.mid, txt: `${App.fmtCm(ng.w, 0)} cm · à ${App.fmtCm(ng.pos)} cm de ${String.fromCharCode(65 + f.o.wall)}${cl ? ' · butée' : ''}` };
       if (act.touch) S.loupe = p; S.calc = {}; App.render(); return;
     }
     if (act.kind === 'wmove') {
@@ -2839,6 +2868,10 @@ details[open] summary::after{content:"–"}
       const np = App.feat.moveEdgePts(act.orig, act.h.i, delta);
       if (G.area(np) > 0 && !G.isSelfIntersecting(np)) { s.pts = np; act.partners.forEach((q) => { const pp = App.feat.moveEdgePts(q.orig, q.j, -delta); if (G.area(pp) > 0 && !G.isSelfIntersecting(pp)) q.s.pts = pp; }); }
       S.edgeInfo = { delta, p: G.add(act.mid, G.mul(act.nin, delta)) }; S.calc = {}; App.render(); return;
+    }
+    if (act.kind === 'move' && App.byId(act.h.id).kind !== 'piece') {
+      const s = App.byId(act.h.id); const r = App.guides.solve(s, act.orig, G.sub(App.s2w(p), act.w0));
+      s.pts = r.Q; S.guides = r; S.snapMark = null; S.calc = {}; App.render(); return;
     }
     if (act.kind === 'move') {
       const s = App.byId(act.h.id); const w = App.s2w(p); let d = G.sub(w, act.w0);
@@ -2866,7 +2899,7 @@ details[open] summary::after{content:"–"}
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
-      S.snapMark = null; S.dragE = null; S.edgeInfo = null; App.end(true);
+      S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }
       App.render(); return;
     }
@@ -2919,7 +2952,7 @@ details[open] summary::after{content:"–"}
     if (tool === 'wand') { App.importer.wandAt(App.s2w(p)); return; }
     if (tool === 'place') { App.ui.placeAt(App.s2w(p)); return; }
     if (tool === 'elec') { App.ui.placeElec(App.s2w(p)); return; }
-    if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
+    if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.exist) { S.sel = { id: r.exist.room.id, oid: r.exist.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast('Il y a déjà une ouverture ici : la voici'); return; } if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
   }
 
   function wheel(e) {
@@ -3097,7 +3130,7 @@ details[open] summary::after{content:"–"}
     if (kind !== 'meuble') s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true })));
     App.mutate((P) => P.shapes.push(s)); S.sel = { id: s.id };
     if (kind === 'meuble' && S.mode !== 'mobilier' && !S.layers.mobilier) S.layers.mobilier = true;
-    ui.onSelect(); App.toast('Faites glisser la poignée rouge pour placer');
+    ui.onSelect(); App.toast(kind === 'meuble' ? 'Glissez le meuble : il se colle aux murs et se centre' : 'Glissez l\'objet pour le placer');
   };
   ui.placeElec = (w) => {
     const type = S.elecType || 'prise'; const r = App.placeOnWall(w, type);
@@ -3141,7 +3174,8 @@ details[open] summary::after{content:"–"}
   /* ---------- sélection ---------- */
   ui.onSelect = (again) => {
     const s = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
-    if (s && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
+    const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
+    if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {
       let p = null; const f = App.ops.selected();
       if (S.sel.oid && f) { const g = App.ops.geo(f.room, f.o); p = g && g.mid; }
@@ -3260,7 +3294,7 @@ details[open] summary::after{content:"–"}
     if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
     if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
-    if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button></div>`;
+    if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
     h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme.</p>
       <table class="dims"><thead><tr><th>Mur</th><th>Longueur (cm)</th><th></th><th>Angle (°)</th><th></th><th></th></tr></thead><tbody>
@@ -3886,7 +3920,7 @@ details[open] summary::after{content:"–"}
       let best = null;
       for (let i = 0; i < n; i++) {
         const c = pts[i], e = pts[(i + 1) % n], ed = G.sub(e, c), el = G.len(ed); if (el < 50) continue;
-        const u = G.mul(ed, 1 / el); if (Math.abs(G.cross(u, d)) > 0.03) continue;
+        const u = G.mul(ed, 1 / el); if (G.dot(u, d) < 0.999) continue; // même sens : la face du mur côté de cette pièce, pas celle de la voisine
         const dist = Math.abs(G.cross(G.sub(p0, c), u)); if (dist > 40) continue;
         const t0 = G.dot(G.sub(p0, c), u), t1 = G.dot(G.sub(p1, c), u); const lo = Math.min(t0, t1), hi = Math.max(t0, t1);
         if (hi < -10 || lo > el + 10) continue;
@@ -4076,6 +4110,7 @@ details[open] summary::after{content:"–"}
 
   /* ---------- jumelage : une porte entre deux pièces = deux ouvertures liées, une seule dessinée ---------- */
   O.relink = (p, fid) => {
+    for (const r of p.shapes) if (r.kind === 'piece' && r.floor === fid && r.openings && r.openings.length > 1) O.tidy(r);
     const items = [];
     for (const r of p.shapes) { if (r.kind !== 'piece' || r.floor !== fid) continue; r.openings = r.openings || []; for (const o of r.openings) { if (!o.oid) o.oid = App.uid(); const g = O.geo(r, o); if (g) items.push({ r, o, g }); } }
     const pairs = [];
@@ -4104,7 +4139,62 @@ details[open] summary::after{content:"–"}
     if (hi - lo > 50) { t.o.pos = lo; t.o.width = hi - lo; }
     t.o.type = o.type; t.o.h = o.h; t.o.sill = o.sill;
   };
-  O.setSpan = (room, o, pos, width) => { const W = O.wall(room, o.wall); width = Math.max(300, Math.min(width, W.el)); pos = Math.max(0, Math.min(pos, W.el - width)); o.pos = pos; o.width = width; O.syncTwin(room, o); };
+  /* ---------- pas de chevauchement : place libre sur un mur, des deux côtés de la cloison ---------- */
+  O.obstacles = (room, wi, skip = []) => {
+    const W = O.wall(room, wi); const out = [];
+    for (const r of App.shapesOn(room.floor)) {
+      if (r.kind !== 'piece') continue;
+      for (const q of r.openings || []) {
+        if (skip.includes(q)) continue; const g = O.geo(r, q); if (!g) continue; const dd = G.dot(g.d, W.d);
+        const off = G.dot(G.sub(g.p0, W.a), W.nin);
+        if (dd > 0.995 ? !(r === room && Math.abs(off) < 8) : !(dd < -0.995 && off < 8 && off > -520)) continue;
+        const t0 = G.dot(G.sub(g.p0, W.a), W.d), t1 = G.dot(G.sub(g.p1, W.a), W.d);
+        out.push({ lo: Math.min(t0, t1), hi: Math.max(t0, t1), o: q, room: r });
+      }
+    }
+    return out;
+  };
+  O.limits = (room, wi, t, skip = []) => {
+    const W = O.wall(room, wi); let lo = 0, hi = W.el, inside = null;
+    for (const b of O.obstacles(room, wi, skip)) {
+      if (b.hi <= 0 || b.lo >= W.el) continue;
+      if (t > b.lo + 1 && t < b.hi - 1) inside = b;
+      if ((b.lo + b.hi) / 2 <= t) lo = Math.max(lo, b.hi); else hi = Math.min(hi, b.lo);
+    }
+    return { lo, hi, inside };
+  };
+  const skipOf = (room, o) => { const t = O.twin(room, o); return t ? [o, t.o] : [o]; };
+  /* opt.end = 0 | 1 : seule cette extrémité bouge ; opt.jump : la cible peut passer de l'autre côté d'une ouverture */
+  O.setSpan = (room, o, pos, width, opt = {}) => {
+    const W = O.wall(room, o.wall), MIN = 300;
+    const L = O.limits(room, o.wall, opt.jump ? pos + width / 2 : o.pos + o.width / 2, skipOf(room, o));
+    const want = [pos, width];
+    if (opt.end === 0) { const end = Math.min(o.pos + o.width, L.hi); pos = Math.max(L.lo, Math.min(pos, end - MIN)); width = end - pos; }
+    else if (opt.end === 1) { pos = Math.max(L.lo, o.pos); width = Math.max(Math.min(MIN, L.hi - pos), Math.min(width, L.hi - pos)); }
+    else { const room2 = L.hi - L.lo; width = Math.max(Math.min(MIN, room2), Math.min(width, room2, W.el)); pos = Math.max(L.lo, Math.min(pos, L.hi - width)); }
+    o.pos = pos; o.width = width; O.syncTwin(room, o);
+    return Math.abs(want[0] - pos) > 2 || Math.abs(want[1] - width) > 2;
+  };
+
+  /* ouvertures superposées dans une même pièce (import, anciennes versions) : doublon retiré, chevauchement partagé au milieu */
+  O.overlaps = (room) => {
+    const res = []; const ops = room.openings || [];
+    for (let i = 0; i < ops.length; i++) for (let j = i + 1; j < ops.length; j++) {
+      const a = ops[i], b = ops[j]; if (a.wall !== b.wall) continue;
+      const ov = Math.min(a.pos + a.width, b.pos + b.width) - Math.max(a.pos, b.pos); if (ov > 1) res.push({ a, b, ov, dup: ov > 0.5 * Math.min(a.width, b.width) });
+    }
+    return res;
+  };
+  O.tidy = (room) => {
+    let changed = false;
+    for (let guard = 0; guard < 50; guard++) {
+      const ov = O.overlaps(room); if (!ov.length) break; const x = ov[0];
+      if (x.dup) { const score = (q) => (q.sw !== 0 ? 2 : 0) + (q.link ? 1 : 0); const drop = score(x.b) > score(x.a) ? x.a : x.b; room.openings = room.openings.filter((q) => q !== drop); }
+      else { const [l, r] = x.a.pos <= x.b.pos ? [x.a, x.b] : [x.b, x.a]; const cut = (Math.max(l.pos, r.pos) + Math.min(l.pos + l.width, r.pos + r.width)) / 2; l.width = Math.max(100, cut - l.pos); const end = r.pos + r.width; r.pos = cut; r.width = Math.max(100, end - cut); }
+      changed = true;
+    }
+    return changed;
+  };
 
   /* ---------- sens d'ouverture ---------- */
   O.opensInto = (room, o) => { const pr = O.primary(room, o); if (!pr.o.out) return pr.room; const t = O.twin(pr.room, pr.o); return t ? t.room : null; };
@@ -4142,8 +4232,10 @@ details[open] summary::after{content:"–"}
     if (!best) return { err: 'Touchez un mur de pièce' };
     if (best.r.locked) return { err: 'Pièce verrouillée' };
     const def = PL.lib.openings.find((x) => x.id === type) || { w: 830 };
-    const width = Math.min(def.w, best.W.el - 60); if (width < 300) return { err: 'Mur trop court pour cette ouverture' };
-    const pos = Math.max(0, Math.min(best.W.el - width, best.t - width / 2));
+    const L = O.limits(best.r, best.i, best.t);
+    if (L.inside) { const pr = O.primary(L.inside.room, L.inside.o); return { exist: pr, err: 'Il y a déjà une ouverture ici' }; }
+    const width = Math.min(def.w, best.W.el - 60, L.hi - L.lo); if (width < 300) return { err: L.hi - L.lo < best.W.el ? 'Pas assez de place entre les ouvertures voisines' : 'Mur trop court pour cette ouverture' };
+    const pos = Math.max(L.lo, Math.min(L.hi - width, best.t - width / 2));
     const o = { oid: App.uid(), type, wall: best.i, pos, width, h: def.h, sill: def.sill, sw: 1, hinge: 'g', out: false };
     App.mutate(() => {
       best.r.openings = best.r.openings || []; best.r.openings.push(o);
@@ -4166,10 +4258,12 @@ details[open] summary::after{content:"–"}
       const f = p.floors.find((x) => x.name === sf.name); if (!f) continue;
       const seedRooms = seed.shapes.filter((s) => s.floor === sf.id && s.kind === 'piece');
       for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) r.openings = App.feat.reattach(r.pts, seedRooms).map((o) => Object.assign({}, o, { oid: App.uid(), to: null }));
+      for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) O.tidy(r);
       O.relink(p, f.id);
     }
     p.seedApplied = seed.seedVersion; delete p.seedOffer;
   };
+  O.countDups = (p) => p.shapes.filter((r) => r.kind === 'piece').reduce((n, r) => n + O.overlaps(r).filter((x) => x.dup).length, 0);
 })();
 
 /* Calepin — cloisons : sélection d'un mur, verrou, déplacement parallèle avec aperçu et validation. */
@@ -4385,6 +4479,9 @@ details[open] summary::after{content:"–"}
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
+      const m = App.selected();
+      h = `<button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
       const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
       h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button><button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
@@ -4397,6 +4494,7 @@ details[open] summary::after{content:"–"}
     if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
+    else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
     if (!p) { bar.style.visibility = 'hidden'; return; }
     const q = App.w2s(p), st = $('stage').getBoundingClientRect(), bw = bar.offsetWidth, bh = bar.offsetHeight, ob = App.ui.obstruction();
     if (q.y > st.height - ob.bottom + 4 || q.y < ob.top - 10 || q.x < -20 || q.x > st.width + 20) { bar.style.visibility = 'hidden'; return; }
@@ -4425,7 +4523,7 @@ details[open] summary::after{content:"–"}
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
       case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(f.o.type))) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
-      case 'w': if (!f) return; App.mutate(() => { const g = App.ops.geo(f.room, f.o); const nw = +v * 10; App.ops.setSpan(f.room, f.o, g.pos + (g.w - nw) / 2, nw); }); break;
+      case 'w': { if (!f) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); const nw = +v * 10; cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - nw) / 2, nw); }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'hh': if (!f) return; App.mutate(() => { f.o.h = +v * 10; App.ops.syncTwin(f.room, f.o); }); break;
       case 'zoom': if (f) { const g = App.ops.geo(f.room, f.o); const pad = 1200; App.fitBox({ x0: g.mid.x - pad, y0: g.mid.y - pad, x1: g.mid.x + pad, y1: g.mid.y + pad, w: 2 * pad, h: 2 * pad }, 20); } break;
       case 'opsel': { const fo = App.ops.find(v); if (!fo) return; S.sel = { id: fo.room.id, oid: v }; App.ui.onSelect(); App.render(); break; }
@@ -4435,10 +4533,13 @@ details[open] summary::after{content:"–"}
       case 'lock': case 'wlock': { const r = App.selected(); if (!r) return; const lk = App.walls.toggleLock(r, S.sel.wall); App.toast(lk ? 'Cloison verrouillée (des deux côtés)' : 'Cloison déverrouillée'); break; }
       case 'door': case 'wadd': {
         const r = App.selected(); if (!r) return; const W = App.ops.wall(r, S.sel.wall); const p = G.add(G.lerp(W.a, W.b, 0.5), G.mul(W.nin, 5));
-        const res = App.ops.addAt(p, v || 'porte'); if (res.err) { App.toast(res.err); return; }
+        const res = App.ops.addAt(p, v || 'porte'); if (res.exist) { S.sel = { id: res.exist.room.id, oid: res.exist.o.oid }; App.ui.onSelect(); App.toast('Il y a déjà une ouverture au milieu de ce mur'); break; } if (res.err) { App.toast(res.err); return; }
         S.sel = { id: res.room.id, oid: res.o.oid }; App.ui.onSelect(); App.render(); App.toast(`${App.ops.name(res.o.type)} ajoutée au milieu du mur`); break;
       }
       case 'wsel': { const r = App.selected(); if (!r) return; S.sel = { id: r.id, wall: +v }; S.wallEnd = null; App.ui.onSelect(); break; }
+      case 'rot90': { const m = App.selected(); if (!m || m.locked) return; App.mutate(() => { const c = G.centroid(m.pts); m.pts = m.pts.map((q) => G.rotAround(q, c, Math.PI / 2)); }); break; }
+      case 'backwall': { const m = App.selected(); if (!m || m.locked) return; let ok = false; App.mutate(() => { ok = App.guides.backToWall(m); }); App.toast(ok ? 'Dos contre le mur le plus proche' : 'Aucun mur à proximité'); break; }
+      case 'sdel': App.ui.deleteSelected(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;
       case 'wmerge': {
@@ -4453,7 +4554,9 @@ details[open] summary::after{content:"–"}
     const f = App.ops.selected(); const v = num(val);
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
-      App.mutate(() => { const g = App.ops.geo(f.room, f.o); if (c === 'width') App.ops.setSpan(f.room, f.o, g.pos + (g.w - v * 10) / 2, v * 10); else if (c === 'pos') App.ops.setSpan(f.room, f.o, v * 10, g.w); else { f.o[c] = v == null ? null : v * 10; App.ops.syncTwin(f.room, f.o); } });
+      let cl = false;
+      App.mutate(() => { const g = App.ops.geo(f.room, f.o); if (c === 'width') cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - v * 10) / 2, v * 10); else if (c === 'pos') cl = App.ops.setSpan(f.room, f.o, v * 10, g.w, { jump: true }); else { f.o[c] = v == null ? null : v * 10; App.ops.syncTwin(f.room, f.o); } });
+      if (cl) App.toast('Ajusté : pas de chevauchement avec une autre ouverture');
       return;
     }
     const r = App.selected(); if (!r || S.sel.wall == null) return; const i = S.sel.wall;
@@ -4473,6 +4576,128 @@ details[open] summary::after{content:"–"}
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
     $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, null, b); });
+  };
+})();
+
+/* Calepin — meubles : aimantation sur les murs et les autres meubles, guides de centrage, distances aux murs. */
+(function () {
+  const PL = globalThis.PL, G = PL.geom, App = globalThis.App, S = App.state;
+  const Gd = (App.guides = {});
+  const SOFT = ['plafond', 'exclusion'];
+
+  /* côtés d'un polygone ; n = normale du côté où doit se trouver l'objet qu'on approche */
+  function sides(pts, outward) {
+    const sg = G.area(pts) >= 0 ? 1 : -1; const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], el = G.dist(a, b); if (el < 30) continue;
+      const d = G.mul(G.sub(b, a), 1 / el), nin = G.mul(G.perp(d), sg);
+      out.push({ a, b, d, el, i, n: outward ? G.mul(nin, -1) : nin });
+    }
+    return out;
+  }
+  function targets(s, Q) {
+    const fid = s.floor || S.p.floorId; const c = G.centroid(Q); const rooms = App.rooms(fid);
+    const home = rooms.find((r) => G.pointInPoly(c, r.pts));
+    const T = [];
+    for (const r of home ? [home] : rooms) for (const e of sides(r.pts, false)) T.push(Object.assign(e, { kind: 'mur', room: r }));
+    for (const o of App.shapesOn(fid)) {
+      if (o === s || o.kind === 'piece' || !o.pts || SOFT.includes(o.kind)) continue;
+      if (home && !G.pointInPoly(G.centroid(o.pts), home.pts)) continue;
+      for (const e of sides(o.pts, true)) T.push(Object.assign(e, { kind: 'meuble', shape: o }));
+    }
+    return { T, home };
+  }
+  /* distance de l'objet au côté (mesurée du côté autorisé) et étendue le long du côté */
+  function supp(Q, e) {
+    let m = Infinity, M = -Infinity, t0 = Infinity, t1 = -Infinity;
+    for (const q of Q) { const v = G.sub(q, e.a); const h = G.dot(v, e.n); m = Math.min(m, h); M = Math.max(M, h); const t = G.dot(v, e.d); t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+    return { m, M, t0, t1 };
+  }
+  function ray(p, dir, T) {
+    let best = null;
+    for (const e of T) {
+      const den = G.cross(dir, e.d); if (Math.abs(den) < 1e-9) continue; const w = G.sub(e.a, p);
+      const t = G.cross(w, e.d) / den, u = G.cross(w, dir) / den;
+      if (u < -1 || u > e.el + 1 || t < -2) continue; if (G.dot(dir, e.n) > 0) continue; // on ne voit que la face tournée vers soi
+      if (!best || t < best.t) best = { t, e };
+    }
+    return best;
+  }
+  const wallLabel = (e) => {
+    if (e.kind !== 'mur') return 'centré sur ' + (e.shape.name ? e.shape.name.replace(/ \(type .*\)/, '').toLowerCase() : 'le meuble');
+    const part = App.walls && App.walls.partners(e.room, e.i).length; return `centré sur ${part ? 'la cloison' : 'le mur'} ${App.walls ? App.walls.name(e.room, e.i) : ''}`.trim();
+  };
+
+  /* orig : points de départ, d : déplacement voulu. snap=false : analyse seule (objet sélectionné). */
+  Gd.solve = (s, orig, d, snap = true) => {
+    const z = S.view.z, R = snap ? 16 / z : 3, Rc = 10 / z;
+    let Q = orig.map((q) => G.add(q, d));
+    const { T } = targets(s, Q);
+    const shift = (v) => { d = G.add(d, v); Q = Q.map((q) => G.add(q, v)); };
+    const res = { contacts: [], guides: [], dims: [] };
+    const pick = (excl) => {
+      let best = null;
+      for (const e of T) {
+        if (excl && Math.abs(G.dot(e.n, excl.n)) > 0.2) continue;
+        const sp = supp(Q, e); const ov = Math.min(sp.t1, e.el) - Math.max(sp.t0, 0); if (ov <= 10) continue;
+        if (sp.m > R || sp.m < -R) continue;
+        if (!best || Math.abs(sp.m) < Math.abs(best.m)) best = { e, m: sp.m };
+      }
+      return best;
+    };
+    const c1 = pick(null);
+    if (c1) { if (snap) shift(G.mul(c1.e.n, -c1.m)); res.contacts.push(c1.e); const c2 = pick(c1.e); if (c2) { if (snap) shift(G.mul(c2.e.n, -c2.m)); res.contacts.push(c2.e); } }
+    // centrage sur le mur (ou le meuble) contre lequel on est posé
+    let axisDone = res.contacts.length > 1;
+    if (c1) {
+      const e = c1.e, sp = supp(Q, e), tc = (sp.t0 + sp.t1) / 2;
+      const cands = [{ t: e.el / 2, label: wallLabel(e) }];
+      if (e.kind === 'mur') for (const o of e.room.openings || []) if (o.wall === e.i && !['passage'].includes(o.type)) cands.push({ t: o.pos + o.width / 2, label: 'centré sur ' + (/fen|baie|fixe|velux/.test(o.type) ? 'la fenêtre' : 'la porte') });
+      let bc = null;
+      for (const c of cands) { const dd = c.t - tc; if (Math.abs(dd) < (snap ? Rc : 2) && (!bc || Math.abs(dd) < Math.abs(bc.dd))) bc = Object.assign({ dd }, c); }
+      if (bc && !axisDone) {
+        if (snap) shift(G.mul(e.d, bc.dd));
+        const p0 = G.add(e.a, G.mul(e.d, bc.t)); const depth = supp(Q, e).M;
+        res.guides.push({ a: G.add(p0, G.mul(e.n, -80)), b: G.add(p0, G.mul(e.n, depth + 350)), label: bc.label, at: G.add(p0, G.mul(e.n, depth + 350)) });
+        axisDone = true;
+      }
+    }
+    // distances libres autour de l'objet (rayons depuis le milieu de chaque côté)
+    const mine = sides(Q, true).filter((e) => e.el > 150);
+    const hits = mine.map((e) => ({ e, h: ray(G.lerp(e.a, e.b, 0.5), e.n, T) }));
+    // centré entre deux murs opposés
+    if (!axisDone || res.contacts.length === 1) {
+      for (let i = 0; i < hits.length; i++) for (let j = i + 1; j < hits.length; j++) {
+        const A = hits[i], B = hits[j]; if (!A.h || !B.h || G.dot(A.e.n, B.e.n) > -0.999) continue;
+        if (c1 && Math.abs(G.dot(A.e.n, c1.e.n)) > 0.5) continue; // l'axe du mur de contact est déjà réglé
+        if (axisDone && c1 && Math.abs(G.dot(A.e.n, c1.e.d)) > 0.5) continue;
+        const diff = (A.h.t - B.h.t) / 2; if (A.h.t < 5 || B.h.t < 5 || A.h.t > 6000 || B.h.t > 6000) continue;
+        if (Math.abs(diff) < (snap ? Rc : 2)) {
+          if (snap) shift(G.mul(A.e.n, diff));
+          const c = G.centroid(Q); const half = Math.max(...Q.map((q) => Math.abs(G.dot(G.sub(q, c), G.perp(A.e.n))))) + 300;
+          res.guides.push({ a: G.add(c, G.mul(G.perp(A.e.n), -half)), b: G.add(c, G.mul(G.perp(A.e.n), half)), label: 'centré entre les murs', at: G.add(c, G.mul(G.perp(A.e.n), half)), axis: true });
+        }
+      }
+    }
+    for (const e of sides(Q, true)) { if (e.el <= 150) continue; const m0 = G.lerp(e.a, e.b, 0.5); const h = ray(m0, e.n, T); if (h && h.t > 8 && h.t < 6000) res.dims.push({ a: m0, b: G.add(m0, G.mul(e.n, h.t)), v: h.t }); }
+    res.d = d; res.Q = Q;
+    return res;
+  };
+
+  /* pivoter pour mettre le dos du meuble contre le mur le plus proche */
+  Gd.backToWall = (s) => {
+    if (!s.pts || s.pts.length < 4) return false;
+    const { T } = targets(s, s.pts); const c = G.centroid(s.pts); let best = null;
+    for (const e of T) { if (e.kind !== 'mur') continue; const pr = G.projSeg(c, e.a, e.b); const dd = G.dist(pr.p, c); if (!best || dd < best.dd) best = { e, dd }; }
+    if (!best) return false;
+    const back = sides(s.pts, true).find((x) => x.i === 2) || sides(s.pts, true)[0];
+    const want = G.mul(best.e.n, -1); const ang = Math.atan2(want.y, want.x) - Math.atan2(back.n.y, back.n.x);
+    let P = s.pts.map((p) => G.rotAround(p, c, ang));
+    const sp = supp(P, best.e); P = P.map((p) => G.add(p, G.mul(best.e.n, -sp.m)));
+    // reste dans la longueur du mur
+    const sp2 = supp(P, best.e); let slide = 0; if (sp2.t0 < 0) slide = -sp2.t0; else if (sp2.t1 > best.e.el) slide = best.e.el - sp2.t1;
+    if (sp2.t1 - sp2.t0 <= best.e.el) P = P.map((p) => G.add(p, G.mul(best.e.d, slide)));
+    s.pts = P; return true;
   };
 })();
 
