@@ -5556,7 +5556,9 @@ details[open] summary::after{content:"–"}
   }));
 
   /* ---------- petite fabrique de géométrie (mm du plan → m, y vers le haut) ---------- */
-  const P3 = (p, h) => [p.x / 1000, h / 1000, p.y / 1000];
+  /* le plan a son axe y vers le haut de l'écran : dans la scène (y en haut, z vers soi), z = −y */
+  const P3 = (p, h) => [p.x / 1000, h / 1000, -p.y / 1000];
+  const H3 = (v, k = 1) => [k * v.x, 0, -k * v.y];
   const mk = () => ({ p: [], n: [], c: [], uv: [] });
   const tri = (B, a, b, c, hint, col, uv) => {
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
@@ -5578,7 +5580,7 @@ details[open] summary::after{content:"–"}
   /* prisme vertical : côtés, dessus (et dessous s'il décolle du sol), arêtes */
   const prism = (B, poly, y0, y1, col, smooth) => {
     const n = poly.length; if (n < 3 || y1 - y0 < 1) return;
-    for (let i = 0; i < n; i++) { const a = poly[i], b = poly[(i + 1) % n]; if (G.dist(a, b) < 0.5) continue; const o = outward(poly, a, b); quad(B, P3(a, y0), P3(b, y0), P3(b, y1), P3(a, y1), [o.x, 0, o.y], col); }
+    for (let i = 0; i < n; i++) { const a = poly[i], b = poly[(i + 1) % n]; if (G.dist(a, b) < 0.5) continue; const o = outward(poly, a, b); quad(B, P3(a, y0), P3(b, y0), P3(b, y1), P3(a, y1), H3(o), col); }
     fill(B, poly, [], () => y1, [0, 1, 0], col); if (y0 > 5) fill(B, poly, [], () => y0, [0, -1, 0], col);
     for (let i = 0; i < n; i++) { const a = poly[i], b = poly[(i + 1) % n]; ln(P3(a, y1), P3(b, y1)); ln(P3(a, y0), P3(b, y0)); if (!smooth) ln(P3(a, y0), P3(a, y1)); }
     if (smooth) for (const k of [0, Math.round(n / 4), Math.round(n / 2), Math.round((3 * n) / 4)]) ln(P3(poly[k % n], y0), P3(poly[k % n], y1));
@@ -5673,7 +5675,7 @@ details[open] summary::after{content:"–"}
   const buildStair = (B, m, Hc, rooms) => {
     const { s, pieces, risers, top, base, down, Hf } = m, P = s.pts, COL = st.col.stair;
     for (const pc of pieces) fill(B, pc.poly, [], () => top(pc.k), [0, 1, 0], COL);
-    for (const r of risers) { const y0 = base + r.k * m.rise, y1 = top(r.k); quad(B, P3(r.a, y0), P3(r.b, y0), P3(r.b, y1), P3(r.a, y1), [r.back.x, 0, r.back.y], COL); ln(P3(r.a, y1), P3(r.b, y1)); ln(P3(r.a, y0), P3(r.b, y0)); }
+    for (const r of risers) { const y0 = base + r.k * m.rise, y1 = top(r.k); quad(B, P3(r.a, y0), P3(r.b, y0), P3(r.b, y1), P3(r.a, y1), H3(r.back), COL); ln(P3(r.a, y1), P3(r.b, y1)); ln(P3(r.a, y0), P3(r.b, y0)); }
     // côtés : découpés aux extrémités des marches
     const ends = risers.flatMap((r) => [r.a, r.b]);
     for (let i = 0; i < P.length; i++) {
@@ -5683,15 +5685,15 @@ details[open] summary::after{content:"–"}
       for (let j = 0; j < us.length - 1; j++) { const mid = G.sub(G.add(a, G.mul(d, (us[j] + us[j + 1]) / 2)), G.mul(o, 4)); ks.push(m.kOf(mid)); }
       for (let j = 0; j < us.length - 1; j++) {
         const k = ks[j]; if (k == null) continue; const pa = G.add(a, G.mul(d, us[j])), pb = G.add(a, G.mul(d, us[j + 1])), h = top(k);
-        if (down) quad(B, P3(pa, base), P3(pb, base), P3(pb, 0), P3(pa, 0), [-o.x, 0, -o.y], st.col.wall);
-        else quad(B, P3(pa, 0), P3(pb, 0), P3(pb, h), P3(pa, h), [o.x, 0, o.y], COL);
+        if (down) quad(B, P3(pa, base), P3(pb, base), P3(pb, 0), P3(pa, 0), H3(o, -1), st.col.wall);
+        else quad(B, P3(pa, 0), P3(pb, 0), P3(pb, h), P3(pa, h), H3(o), COL);
         ln(P3(pa, h), P3(pb, h));
         const hn = j + 1 < ks.length && ks[j + 1] != null ? top(ks[j + 1]) : 0; ln(P3(pb, h), P3(pb, hn));
         if (j === 0) ln(P3(pa, 0), P3(pa, h));
       }
       if (!down) ln(P3(a, 0), P3(b, 0));
       // trémie : puits au-dessus (monte) ou garde-corps (descend)
-      if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), [-o.x, 0, -o.y], st.col.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
+      if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), H3(o, -1), st.col.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
       else {
         ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0));
         const open = !rooms.some((r) => G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40 && G.distPointPoly(a, r.pts) < 40 && G.distPointPoly(b, r.pts) < 40);
@@ -5733,8 +5735,8 @@ details[open] summary::after{content:"–"}
     const mine = !tw || String(o.oid) < String(tw.o.oid);
     if (mine && depth > 5) {
       const q0 = G.add(p0, G.mul(out, depth)), q1 = G.add(p1, G.mul(out, depth));
-      quad(B, P3(p0, sill), P3(q0, sill), P3(q0, top), P3(p0, top), [W.d.x, 0, W.d.y], WALL);
-      quad(B, P3(p1, sill), P3(q1, sill), P3(q1, top), P3(p1, top), [-W.d.x, 0, -W.d.y], WALL);
+      quad(B, P3(p0, sill), P3(q0, sill), P3(q0, top), P3(p0, top), H3(W.d), WALL);
+      quad(B, P3(p1, sill), P3(q1, sill), P3(q1, top), P3(p1, top), H3(W.d, -1), WALL);
       quad(B, P3(p0, top), P3(p1, top), P3(q1, top), P3(q0, top), [0, -1, 0], WALL);
       quad(B, P3(p0, sill), P3(p1, sill), P3(q1, sill), P3(q0, sill), [0, 1, 0], sill > 0 ? WALL : st.col.sill);
       for (const h of sill > 0 ? [sill, top] : [top]) { ln(P3(p0, h), P3(q0, h)); ln(P3(p1, h), P3(q1, h)); }
@@ -5814,7 +5816,7 @@ details[open] summary::after{content:"–"}
         for (let a = 0; a < us.length - 1; a++) for (let b = 0; b < vs.length - 1; b++) {
           const um = (us[a] + us[a + 1]) / 2, vm = (vs[b] + vs[b + 1]) / 2; if (ops.some((o) => um > o.u0 && um < o.u1 && vm > o.sill && vm < o.top)) continue;
           const pa = G.add(W.a, G.mul(W.d, us[a])), pb = G.add(W.a, G.mul(W.d, us[a + 1]));
-          quad(B, P3(pa, vs[b]), P3(pb, vs[b]), P3(pb, vs[b + 1]), P3(pa, vs[b + 1]), [nin.x, 0, nin.y], st.col.wall);
+          quad(B, P3(pa, vs[b]), P3(pb, vs[b]), P3(pb, vs[b + 1]), P3(pa, vs[b + 1]), H3(nin), st.col.wall);
         }
         ln(P3(W.a, 0), P3(W.b, 0)); if (!sl.length) ln(P3(W.a, Hc), P3(W.b, Hc));
         const Wp = App.ops.wall(r, (i - 1 + n) % n); if (Math.abs(G.cross(Wp.d, W.d)) > 0.1 || G.dot(Wp.d, W.d) < 0) ln(P3(W.a, 0), P3(W.a, sl.length ? Math.min(Hc, ...sl.filter((z) => z.inside(W.a)).map((z) => z.hAt(W.a))) : Hc));
@@ -5850,16 +5852,16 @@ details[open] summary::after{content:"–"}
 
   /* le soleil entre par les plus grandes baies extérieures */
   const placeSun = () => {
-    const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = (bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 3;
+    const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 3;
     if (st.sunBase == null) {
       let sx = 0, sy = 0;
       for (const r of st.rooms) for (const o of r.openings || []) { if (App.ops.twin(r, o)) continue; const g = App.ops.geo(r, o); if (!g) continue; let nin = g.nin; if (!G.pointInPoly(G.add(g.mid, G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1); const w = g.w * ((o.h || 1200) / 1000); sx -= nin.x * w; sy -= nin.y * w; }
       st.sunBase = sx || sy ? Math.atan2(sy, sx) + 0.45 : 0.8;
     }
     const az = st.sunBase + st.sunStep * (Math.PI / 4), el = 0.56;
-    const L = st.sun; L.position.set(cx + Math.cos(az) * Math.cos(el) * 40, Math.sin(el) * 40, cz + Math.sin(az) * Math.cos(el) * 40); L.target.position.set(cx, 0, cz); L.target.updateMatrixWorld();
+    const L = st.sun; L.position.set(cx + Math.cos(az) * Math.cos(el) * 40, Math.sin(el) * 40, cz - Math.sin(az) * Math.cos(el) * 40); L.target.position.set(cx, 0, cz); L.target.updateMatrixWorld();
     const cam = L.shadow.camera; cam.left = -R0; cam.right = R0; cam.top = R0; cam.bottom = -R0; cam.near = 1; cam.far = 90; cam.updateProjectionMatrix();
-    st.fill.position.set(cx + Math.cos(az + 1.9) * 30, 25, cz + Math.sin(az + 1.9) * 30); st.fill.target.position.set(cx, 0, cz); st.fill.target.updateMatrixWorld();
+    st.fill.position.set(cx + Math.cos(az + 1.9) * 30, 25, cz - Math.sin(az + 1.9) * 30); st.fill.target.position.set(cx, 0, cz); st.fill.target.updateMatrixWorld();
     st.R.shadowMap.needsUpdate = true; st.dirty = true;
   };
 
@@ -5879,7 +5881,7 @@ details[open] summary::after{content:"–"}
     // regarder vers la plus grande fenêtre, sinon vers le centre de la pièce
     let tgt = null, bw = 0; for (const o of r.openings || []) { const g = App.ops.geo(r, o); if (g && !App.ops.twin(r, o) && g.w > bw) { bw = g.w; tgt = g.mid; } }
     if (!tgt || G.dist(tgt, p) < 400) { let far = 0; for (const q of r.pts) { const d = G.dist(q, p); if (d > far) { far = d; tgt = G.lerp(p, q, 0.7); } } }
-    st.pos = { x: p.x, y: p.y }; const d = G.sub(tgt, p); st.yaw = Math.atan2(-d.x, -d.y); st.pitch = -0.05; st.eye = Math.min(EYE, ceilingAt(st.pos) - 140);
+    st.pos = { x: p.x, y: p.y }; const d = G.sub(tgt, p); st.yaw = Math.atan2(-d.x, d.y); st.pitch = -0.05; st.eye = Math.min(EYE, ceilingAt(st.pos) - 140);
   };
 
   /* ---------- trame : 8 × 8 de Bayer, encre / papier / accent ---------- */
@@ -5991,15 +5993,15 @@ details[open] summary::after{content:"–"}
   const onUp = (e) => { const p = st && st.ptr.get(e.pointerId); if (!p) return; st.ptr.delete(e.pointerId); if (p.joy) { st.joy = null; st.el.querySelector('.fps-joy').style.display = 'none'; } };
 
   /* plan de situation */
-  const mapFit = () => { const mp = st.el.querySelector('.fps-map'), bb = st.bb, W = mp.width, H = mp.height, pad = 8 * (W / mp.clientWidth || 1); const k = Math.min((W - 2 * pad) / (bb.x1 - bb.x0), (H - 2 * pad) / (bb.y1 - bb.y0)); return { mp, k, ox: (W - (bb.x1 - bb.x0) * k) / 2 - bb.x0 * k, oy: (H - (bb.y1 - bb.y0) * k) / 2 - bb.y0 * k }; };
-  const mapToWorld = (e) => { if (!st.bb) return null; const f = mapFit(), r = f.mp.getBoundingClientRect(), s = f.mp.width / r.width; return { x: ((e.clientX - r.left) * s - f.ox) / f.k, y: ((e.clientY - r.top) * s - f.oy) / f.k }; };
+  const mapFit = () => { const mp = st.el.querySelector('.fps-map'), bb = st.bb, W = mp.width, H = mp.height, pad = 8 * (W / mp.clientWidth || 1); const k = Math.min((W - 2 * pad) / (bb.x1 - bb.x0), (H - 2 * pad) / (bb.y1 - bb.y0)); return { mp, k, ox: (W - (bb.x1 - bb.x0) * k) / 2 - bb.x0 * k, oy: (H + (bb.y1 - bb.y0) * k) / 2 + bb.y0 * k }; };
+  const mapToWorld = (e) => { if (!st.bb) return null; const f = mapFit(), r = f.mp.getBoundingClientRect(), s = f.mp.width / r.width; return { x: ((e.clientX - r.left) * s - f.ox) / f.k, y: (f.oy - (e.clientY - r.top) * s) / f.k }; };
   const drawMap = () => {
     if (!st.bb) return; const f = mapFit(), x = f.mp.getContext('2d'), W = f.mp.width, H = f.mp.height, d = W / (f.mp.clientWidth || W);
     const rgb = (v) => `rgb(${v.toArray().map((c) => Math.round(c * 255)).join(',')})`, ink = rgb(st.post.uniforms.uInk.value), red = rgb(st.post.uniforms.uAcc.value);
     x.clearRect(0, 0, W, H); x.lineWidth = d; x.strokeStyle = ink;
-    const tp = (p) => [p.x * f.k + f.ox, p.y * f.k + f.oy];
+    const tp = (p) => [p.x * f.k + f.ox, f.oy - p.y * f.k];
     for (const r of st.rooms) { x.beginPath(); r.pts.forEach((p, i) => { const [a, b] = tp(p); i ? x.lineTo(a, b) : x.moveTo(a, b); }); x.closePath(); x.stroke(); }
-    if (!st.pos) return; const [px, py] = tp(st.pos), fx = -Math.sin(st.yaw), fy = -Math.cos(st.yaw), a = Math.atan2(fy, fx), L = 26 * d;
+    if (!st.pos) return; const [px, py] = tp(st.pos), fx = -Math.sin(st.yaw), fy = -Math.cos(st.yaw), a = Math.atan2(fy, fx) /* écran : y vers le bas */, L = 26 * d;
     x.fillStyle = red; x.globalAlpha = 0.28; x.beginPath(); x.moveTo(px, py); x.arc(px, py, L, a - 0.55, a + 0.55); x.closePath(); x.fill(); x.globalAlpha = 1;
     x.beginPath(); x.arc(px, py, 3.2 * d, 0, Math.PI * 2); x.fill();
   };
@@ -6014,13 +6016,13 @@ details[open] summary::after{content:"–"}
     if (st.joy) { fwd -= st.joy.y; side += st.joy.x; }
     if (st.pos && (fwd || side)) {
       const l = Math.hypot(fwd, side); if (l > 1) { fwd /= l; side /= l; }
-      const sp = WALK * (k.ShiftLeft || k.ShiftRight ? 1.9 : 1) * dt, f = { x: -Math.sin(st.yaw), y: -Math.cos(st.yaw) }, r = { x: Math.cos(st.yaw), y: -Math.sin(st.yaw) };
+      const sp = WALK * (k.ShiftLeft || k.ShiftRight ? 1.9 : 1) * dt, f = { x: -Math.sin(st.yaw), y: Math.cos(st.yaw) }, r = { x: Math.cos(st.yaw), y: Math.sin(st.yaw) };
       const old = st.pos, p = collide({ x: old.x + (f.x * fwd + r.x * side) * sp, y: old.y + (f.y * fwd + r.y * side) * sp });
       if (walkable(p)) st.pos = p; st.dirty = true; label();
     }
     if (st.pos) { const target = Math.max(900, Math.min(EYE, ceilingAt(st.pos) - 140)); if (Math.abs(target - st.eye) > 1) { st.eye += (target - st.eye) * Math.min(1, dt * 6); st.dirty = true; } }
     if (!st.dirty || !st.pos) return; st.dirty = false;
-    st.cam.position.set(st.pos.x / 1000, st.eye / 1000, st.pos.y / 1000); st.cam.rotation.set(st.pitch, st.yaw, 0);
+    st.cam.position.set(st.pos.x / 1000, st.eye / 1000, -st.pos.y / 1000); st.cam.rotation.set(st.pitch, st.yaw, 0);
     st.R.setRenderTarget(st.rt); st.R.render(st.scene, st.cam); st.R.setRenderTarget(null); st.R.render(st.pScene, st.pCam);
     drawMap();
   };
