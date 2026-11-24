@@ -102,5 +102,18 @@
     App.mutate(() => { s.pts = pts; s.locks = pts.map(() => ({ L: false, A: false })); s.stair = Object.assign({ dir: 'monte' }, s.stair, { start: S0 }); });
     App.toast(shape === 'droit' ? 'Escalier droit' : `Escalier ${shape === 'L' ? 'quart tournant' : 'demi-tournant'} ${side === 'd' ? 'à droite' : 'à gauche'} : ajustez-le avec le cadre (points au milieu des bords)`);
   };
+  /* escalier en U : le jour (deux côtés longs du vide central) et le mur central (le fond du vide) */
+  St.well = (s) => {
+    const inner = App.resize.inner(s); if (inner.length < 3) return null; const infos = inner.map((h) => ({ h, info: App.resize.innerInfo(s, s.pts, h.i) }));
+    const sides = infos.filter((x) => x.info.gap != null), tip = infos.find((x) => x.info.wallLen != null); if (sides.length < 2 || !tip) return null;
+    return { jour: sides[0].info.gap, wall: tip.info.wallLen, sides: sides.slice(0, 2).map((x) => x.h.i), tip: tip.h.i };
+  };
+  St.setWell = (s, key, val) => {
+    const W = St.well(s); if (!W || !(val > 0)) return;
+    App.mutate(() => {
+      if (key === 'jour') { const d = (val - W.jour) / 2; let P = s.pts; for (const i of W.sides) P = App.feat.moveEdgePts(P, i, d); if (!G.isSelfIntersecting(P) && St.layout(Object.assign({}, s, { pts: P }))) s.pts = P; }
+      else { const P = App.feat.moveEdgePts(s.pts, W.tip, val - W.wall); if (!G.isSelfIntersecting(P) && St.layout(Object.assign({}, s, { pts: P }))) s.pts = P; }
+    });
+  };
   St.flip = (s) => { const lay = St.layout(s); if (!lay) return; App.mutate(() => { s.stair = Object.assign({}, s.stair, { start: lay.fr.from(lay.path[lay.path.length - 1]), userSet: true }); }); };
 })();

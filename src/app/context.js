@@ -222,6 +222,7 @@
   };
   X.change = (c, val) => {
     const f = App.ops.selected(); const v = num(val);
+    if (c === 'stjour' || c === 'stwall') { const st = App.selected(); if (st && st.kind === 'escalier' && v != null) App.stairs.setWell(st, c === 'stjour' ? 'jour' : 'wall', v * 10); return; }
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
       let cl = false;

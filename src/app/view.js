@@ -526,7 +526,7 @@
     App.edgeHandles = [];
     if (App.resize && App.resize.active(s)) drawResizeBox(s);
     else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
-    if (S.tool === 'select') { const c = App.w2s(G.centroid(s.pts)); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
+    if (S.tool === 'select') { let cw = G.centroid(s.pts); if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay && lay.segs.length > 1) { const g = lay.segs[0]; cw = lay.fr.from(G.lerp(g.a, g.b, 0.5)); } } const c = App.w2s(cw); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
   }
 
   /* cadre de redimensionnement : réglettes (cotes du cadre), coins et points au milieu des bords */
@@ -544,6 +544,7 @@
     for (const sg of S.resizeSnap || []) { ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(sg[0], sg[1]); }
     for (const h of H.list) { const q = App.w2s(h.w);
       if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+      else if (h.kind === 'inner') { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); }
       else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }
   }
 

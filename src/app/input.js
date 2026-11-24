@@ -59,8 +59,8 @@
     if (so && H && H.oid === so.o.oid) { if (G.dist(H.s0, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 0 }; if (G.dist(H.s1, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 1 }; if (G.distPointSeg(sp, H.s0, H.s1) < 14) return { t: 'opmove', oid: so.o.oid }; }
     if (S.sel && S.sel.wall != null && App.wallHandle) { const h = App.wallHandle; if (G.dist(h, sp) < 24 || G.distPointSeg(sp, h.s0, h.s1) < 11) return { t: 'wmove', id: S.sel.id, i: S.sel.wall }; }
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
+      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh }; // poignées de taille d'abord (le mur central d'un U est près du centre)
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh };
       if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme', 'escalier'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }

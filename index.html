@@ -2775,7 +2775,7 @@ details[open] summary::after{content:"–"}
     App.edgeHandles = [];
     if (App.resize && App.resize.active(s)) drawResizeBox(s);
     else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
-    if (S.tool === 'select') { const c = App.w2s(G.centroid(s.pts)); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
+    if (S.tool === 'select') { let cw = G.centroid(s.pts); if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay && lay.segs.length > 1) { const g = lay.segs[0]; cw = lay.fr.from(G.lerp(g.a, g.b, 0.5)); } } const c = App.w2s(cw); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
   }
 
   /* cadre de redimensionnement : réglettes (cotes du cadre), coins et points au milieu des bords */
@@ -2793,6 +2793,7 @@ details[open] summary::after{content:"–"}
     for (const sg of S.resizeSnap || []) { ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(sg[0], sg[1]); }
     for (const h of H.list) { const q = App.w2s(h.w);
       if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+      else if (h.kind === 'inner') { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); }
       else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }
   }
 
@@ -2892,8 +2893,8 @@ details[open] summary::after{content:"–"}
     if (so && H && H.oid === so.o.oid) { if (G.dist(H.s0, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 0 }; if (G.dist(H.s1, sp) < 16) return { t: 'opend', oid: so.o.oid, e: 1 }; if (G.distPointSeg(sp, H.s0, H.s1) < 14) return { t: 'opmove', oid: so.o.oid }; }
     if (S.sel && S.sel.wall != null && App.wallHandle) { const h = App.wallHandle; if (G.dist(h, sp) < 24 || G.distPointSeg(sp, h.s0, h.s1) < 11) return { t: 'wmove', id: S.sel.id, i: S.sel.wall }; }
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
+      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh }; // poignées de taille d'abord (le mur central d'un U est près du centre)
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh };
       if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme', 'escalier'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
@@ -3429,7 +3430,7 @@ details[open] summary::after{content:"–"}
     if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
-      h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div><p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
+      h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div>${(() => { const U = cur && cur.shape === 'U' && App.stairs.well(s); return U ? `<div class="field"><label>Jour (vide entre les volées)</label><div class="unit"><input data-xc="stjour" inputmode="decimal" value="${fmt(U.jour / 10)}"><span>cm</span></div></div><div class="field"><label>Longueur du mur central</label><div class="unit"><input data-xc="stwall" inputmode="decimal" value="${fmt(U.wall / 10)}"><span>cm</span></div></div>` : ''; })()}<p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. Les points rouges pleins règlent le mur central (jour et longueur). « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
     if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
     if (s.kind !== 'piece' && s.kind !== 'elec' && s.pts && s.pts.length >= 3) h += `<h3>Taille</h3><div class="row"><button class="btn sm" data-x="fitwalls">Caler aux murs</button></div><div class="field"><label>Aimanter aux murs en redimensionnant</label><input type="checkbox" data-x="snapwalls" ${S.p.snapWalls !== false ? 'checked' : ''}></div><p class="hint2">Avec le cadre, le bord qui bouge se colle à la cloison la plus proche. « Caler aux murs » met d'un coup chaque côté contre la cloison voisine (à moins de 40 cm).</p>`;
     if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
@@ -4825,6 +4826,7 @@ details[open] summary::after{content:"–"}
   };
   X.change = (c, val) => {
     const f = App.ops.selected(); const v = num(val);
+    if (c === 'stjour' || c === 'stwall') { const st = App.selected(); if (st && st.kind === 'escalier' && v != null) App.stairs.setWell(st, c === 'stjour' ? 'jour' : 'wall', v * 10); return; }
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
       let cl = false;
@@ -5338,6 +5340,19 @@ details[open] summary::after{content:"–"}
     App.mutate(() => { s.pts = pts; s.locks = pts.map(() => ({ L: false, A: false })); s.stair = Object.assign({ dir: 'monte' }, s.stair, { start: S0 }); });
     App.toast(shape === 'droit' ? 'Escalier droit' : `Escalier ${shape === 'L' ? 'quart tournant' : 'demi-tournant'} ${side === 'd' ? 'à droite' : 'à gauche'} : ajustez-le avec le cadre (points au milieu des bords)`);
   };
+  /* escalier en U : le jour (deux côtés longs du vide central) et le mur central (le fond du vide) */
+  St.well = (s) => {
+    const inner = App.resize.inner(s); if (inner.length < 3) return null; const infos = inner.map((h) => ({ h, info: App.resize.innerInfo(s, s.pts, h.i) }));
+    const sides = infos.filter((x) => x.info.gap != null), tip = infos.find((x) => x.info.wallLen != null); if (sides.length < 2 || !tip) return null;
+    return { jour: sides[0].info.gap, wall: tip.info.wallLen, sides: sides.slice(0, 2).map((x) => x.h.i), tip: tip.h.i };
+  };
+  St.setWell = (s, key, val) => {
+    const W = St.well(s); if (!W || !(val > 0)) return;
+    App.mutate(() => {
+      if (key === 'jour') { const d = (val - W.jour) / 2; let P = s.pts; for (const i of W.sides) P = App.feat.moveEdgePts(P, i, d); if (!G.isSelfIntersecting(P) && St.layout(Object.assign({}, s, { pts: P }))) s.pts = P; }
+      else { const P = App.feat.moveEdgePts(s.pts, W.tip, val - W.wall); if (!G.isSelfIntersecting(P) && St.layout(Object.assign({}, s, { pts: P }))) s.pts = P; }
+    });
+  };
   St.flip = (s) => { const lay = St.layout(s); if (!lay) return; App.mutate(() => { s.stair = Object.assign({}, s.stair, { start: lay.fr.from(lay.path[lay.path.length - 1]), userSet: true }); }); };
 })();
 
@@ -5360,10 +5375,37 @@ details[open] summary::after{content:"–"}
     const sq = O.square(P); const ortho = !!sq && sq.every((q, i) => G.dist(q, P[i]) < 3);
     return { fr, x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1, w: b.w, h: b.h, ortho };
   };
+  /* côtés intérieurs (mur central d'un escalier en U, angle rentrant d'un L) : réglables un par un, parallèlement */
+  const INNER_KINDS = ['escalier', 'forme', 'meuble'];
+  R.inner = (s, pts = s.pts) => {
+    if (!INNER_KINDS.includes(s.kind)) return []; const b = R.box(s, pts); if (!b.ortho) return []; const fr = b.fr; const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = fr.to(pts[i]), c = fr.to(pts[(i + 1) % pts.length]); if (G.dist(a, c) < 10) continue;
+      const hor = Math.abs(a.y - c.y) < 2; const onBox = hor ? Math.abs(a.y - b.y0) < 2 || Math.abs(a.y - b.y1) < 2 : Math.abs(a.x - b.x0) < 2 || Math.abs(a.x - b.x1) < 2;
+      if (!onBox) out.push({ kind: 'inner', i, w: G.lerp(pts[i], pts[(i + 1) % pts.length], 0.5) });
+    }
+    return out;
+  };
+  /* largeurs autour d'un côté intérieur : jour (vide en face) et volée (matière derrière), ou longueur du mur central */
+  R.innerInfo = (s, pts, i) => {
+    const b = R.box(s, pts), fr = b.fr, n = pts.length; const a = fr.to(pts[i]), c = fr.to(pts[(i + 1) % n]); const hor = Math.abs(a.y - c.y) < 2;
+    const v = hor ? a.y : a.x, lo = Math.min(hor ? a.x : a.y, hor ? c.x : c.y), hi = Math.max(hor ? a.x : a.y, hor ? c.x : c.y);
+    const nin = G.perp(G.norm(G.sub(c, a))); const sgn = Math.sign(hor ? nin.y : nin.x) || 1; // vers la matière
+    let gap = null, mat = null;
+    for (let k = 0; k < n; k++) {
+      if (k === i) continue; const p = fr.to(pts[k]), q = fr.to(pts[(k + 1) % n]); const h2 = Math.abs(p.y - q.y) < 2; if (h2 !== hor) continue;
+      const v2 = h2 ? p.y : p.x, l2 = Math.min(h2 ? p.x : p.y, h2 ? q.x : q.y), u2 = Math.max(h2 ? p.x : p.y, h2 ? q.x : q.y); if (Math.min(hi, u2) - Math.max(lo, l2) < 20) continue;
+      const d = (v2 - v) * sgn; if (d > 1) { if (mat == null || d < mat) mat = d; } else if (d < -1) { if (gap == null || -d < gap) gap = -d; }
+    }
+    if (gap != null) return { txt: `jour ${App.fmtCm(gap, 0)} cm · volée ${App.fmtCm(mat || 0, 0)} cm`, gap, mat };
+    const boxSide = sgn > 0 ? (hor ? b.y0 : b.x0) : (hor ? b.y1 : b.x1); const wallLen = Math.abs(v - boxSide);
+    return { txt: `mur central ${App.fmtCm(wallLen, 0)} cm`, wallLen };
+  };
   R.handles = (s) => {
     const b = R.box(s); const pt = (x, y) => b.fr.from({ x, y }); const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; const out = [];
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) out.push({ kind: 'corner', sx, sy, w: pt(sx < 0 ? b.x0 : b.x1, sy < 0 ? b.y0 : b.y1) });
     out.push({ kind: 'edge', sx: -1, sy: 0, w: pt(b.x0, my) }, { kind: 'edge', sx: 1, sy: 0, w: pt(b.x1, my) }, { kind: 'edge', sx: 0, sy: -1, w: pt(mx, b.y0) }, { kind: 'edge', sx: 0, sy: 1, w: pt(mx, b.y1) });
+    out.push(...R.inner(s));
     return { b, list: out };
   };
   R.hit = (s, sp) => {
@@ -5401,6 +5443,14 @@ details[open] summary::after{content:"–"}
 
   /* nouveau contour depuis l'état de départ (orig), la poignée tenue et la position du doigt (monde) */
   R.apply = (s, orig, origOps, h, w) => {
+    if (h.kind === 'inner') { // côté intérieur déplacé parallèlement, au centimètre
+      const n = orig.length, a = orig[h.i], c = orig[(h.i + 1) % n], nin = G.perp(G.norm(G.sub(c, a))); const delta = Math.round(G.dot(G.sub(w, G.lerp(a, c, 0.5)), nin) / 10) * 10;
+      const valid = (dl) => { const pts = App.feat.moveEdgePts(orig, h.i, dl); if (G.isSelfIntersecting(pts) || !(G.area(pts) > 0.2e6) || (s.kind === 'escalier' && !App.stairs.layout(Object.assign({}, s, { pts })))) return null; const inf = R.innerInfo(s, pts, h.i); return (inf.gap == null || inf.gap >= 20) && (inf.mat == null || inf.mat >= 200) && (inf.wallLen == null || inf.wallLen >= 0) ? pts : null; };
+      let pts = valid(delta);
+      if (!pts) { let lo = 0, hi = delta; for (let it = 0; it < 14; it++) { const mid = (lo + hi) / 2; if (valid(mid)) lo = mid; else hi = mid; } pts = valid(Math.trunc(lo / 10) * 10) || valid(lo); } // butée : jour mini 2 cm, volée mini 20 cm
+      if (pts) s.pts = pts;
+      const nb = R.box(s); return { w: nb.w, h: nb.h, inner: R.innerInfo(s, s.pts, h.i).txt };
+    }
     const b = R.box(s, orig); const fr = b.fr; const p = fr.to(w);
     const ax = h.sx > 0 ? b.x0 : b.x1, ay = h.sy > 0 ? b.y0 : b.y1; // côté fixe (opposé à la poignée)
     const cx = h.sx > 0 ? b.x1 : b.x0, cy = h.sy > 0 ? b.y1 : b.y0;
@@ -5445,7 +5495,7 @@ details[open] summary::after{content:"–"}
     App.mutate(() => { s.pts = s.pts.map(T); if (s.stair && s.stair.start) s.stair.start = T(s.stair.start); });
     return n;
   };
-  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
+  R.label = (s, info) => info.inner ? info.inner : `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
   /* après coup : les longueurs verrouillées qui ont changé ne le sont plus (les angles restent) */
   R.finish = (s, orig) => {
     if (!s.locks) return; const n = s.pts.length;

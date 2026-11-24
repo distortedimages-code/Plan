@@ -17,10 +17,37 @@
     const sq = O.square(P); const ortho = !!sq && sq.every((q, i) => G.dist(q, P[i]) < 3);
     return { fr, x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1, w: b.w, h: b.h, ortho };
   };
+  /* côtés intérieurs (mur central d'un escalier en U, angle rentrant d'un L) : réglables un par un, parallèlement */
+  const INNER_KINDS = ['escalier', 'forme', 'meuble'];
+  R.inner = (s, pts = s.pts) => {
+    if (!INNER_KINDS.includes(s.kind)) return []; const b = R.box(s, pts); if (!b.ortho) return []; const fr = b.fr; const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = fr.to(pts[i]), c = fr.to(pts[(i + 1) % pts.length]); if (G.dist(a, c) < 10) continue;
+      const hor = Math.abs(a.y - c.y) < 2; const onBox = hor ? Math.abs(a.y - b.y0) < 2 || Math.abs(a.y - b.y1) < 2 : Math.abs(a.x - b.x0) < 2 || Math.abs(a.x - b.x1) < 2;
+      if (!onBox) out.push({ kind: 'inner', i, w: G.lerp(pts[i], pts[(i + 1) % pts.length], 0.5) });
+    }
+    return out;
+  };
+  /* largeurs autour d'un côté intérieur : jour (vide en face) et volée (matière derrière), ou longueur du mur central */
+  R.innerInfo = (s, pts, i) => {
+    const b = R.box(s, pts), fr = b.fr, n = pts.length; const a = fr.to(pts[i]), c = fr.to(pts[(i + 1) % n]); const hor = Math.abs(a.y - c.y) < 2;
+    const v = hor ? a.y : a.x, lo = Math.min(hor ? a.x : a.y, hor ? c.x : c.y), hi = Math.max(hor ? a.x : a.y, hor ? c.x : c.y);
+    const nin = G.perp(G.norm(G.sub(c, a))); const sgn = Math.sign(hor ? nin.y : nin.x) || 1; // vers la matière
+    let gap = null, mat = null;
+    for (let k = 0; k < n; k++) {
+      if (k === i) continue; const p = fr.to(pts[k]), q = fr.to(pts[(k + 1) % n]); const h2 = Math.abs(p.y - q.y) < 2; if (h2 !== hor) continue;
+      const v2 = h2 ? p.y : p.x, l2 = Math.min(h2 ? p.x : p.y, h2 ? q.x : q.y), u2 = Math.max(h2 ? p.x : p.y, h2 ? q.x : q.y); if (Math.min(hi, u2) - Math.max(lo, l2) < 20) continue;
+      const d = (v2 - v) * sgn; if (d > 1) { if (mat == null || d < mat) mat = d; } else if (d < -1) { if (gap == null || -d < gap) gap = -d; }
+    }
+    if (gap != null) return { txt: `jour ${App.fmtCm(gap, 0)} cm · volée ${App.fmtCm(mat || 0, 0)} cm`, gap, mat };
+    const boxSide = sgn > 0 ? (hor ? b.y0 : b.x0) : (hor ? b.y1 : b.x1); const wallLen = Math.abs(v - boxSide);
+    return { txt: `mur central ${App.fmtCm(wallLen, 0)} cm`, wallLen };
+  };
   R.handles = (s) => {
     const b = R.box(s); const pt = (x, y) => b.fr.from({ x, y }); const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; const out = [];
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) out.push({ kind: 'corner', sx, sy, w: pt(sx < 0 ? b.x0 : b.x1, sy < 0 ? b.y0 : b.y1) });
     out.push({ kind: 'edge', sx: -1, sy: 0, w: pt(b.x0, my) }, { kind: 'edge', sx: 1, sy: 0, w: pt(b.x1, my) }, { kind: 'edge', sx: 0, sy: -1, w: pt(mx, b.y0) }, { kind: 'edge', sx: 0, sy: 1, w: pt(mx, b.y1) });
+    out.push(...R.inner(s));
     return { b, list: out };
   };
   R.hit = (s, sp) => {
@@ -58,6 +85,14 @@
 
   /* nouveau contour depuis l'état de départ (orig), la poignée tenue et la position du doigt (monde) */
   R.apply = (s, orig, origOps, h, w) => {
+    if (h.kind === 'inner') { // côté intérieur déplacé parallèlement, au centimètre
+      const n = orig.length, a = orig[h.i], c = orig[(h.i + 1) % n], nin = G.perp(G.norm(G.sub(c, a))); const delta = Math.round(G.dot(G.sub(w, G.lerp(a, c, 0.5)), nin) / 10) * 10;
+      const valid = (dl) => { const pts = App.feat.moveEdgePts(orig, h.i, dl); if (G.isSelfIntersecting(pts) || !(G.area(pts) > 0.2e6) || (s.kind === 'escalier' && !App.stairs.layout(Object.assign({}, s, { pts })))) return null; const inf = R.innerInfo(s, pts, h.i); return (inf.gap == null || inf.gap >= 20) && (inf.mat == null || inf.mat >= 200) && (inf.wallLen == null || inf.wallLen >= 0) ? pts : null; };
+      let pts = valid(delta);
+      if (!pts) { let lo = 0, hi = delta; for (let it = 0; it < 14; it++) { const mid = (lo + hi) / 2; if (valid(mid)) lo = mid; else hi = mid; } pts = valid(Math.trunc(lo / 10) * 10) || valid(lo); } // butée : jour mini 2 cm, volée mini 20 cm
+      if (pts) s.pts = pts;
+      const nb = R.box(s); return { w: nb.w, h: nb.h, inner: R.innerInfo(s, s.pts, h.i).txt };
+    }
     const b = R.box(s, orig); const fr = b.fr; const p = fr.to(w);
     const ax = h.sx > 0 ? b.x0 : b.x1, ay = h.sy > 0 ? b.y0 : b.y1; // côté fixe (opposé à la poignée)
     const cx = h.sx > 0 ? b.x1 : b.x0, cy = h.sy > 0 ? b.y1 : b.y0;
@@ -102,7 +137,7 @@
     App.mutate(() => { s.pts = s.pts.map(T); if (s.stair && s.stair.start) s.stair.start = T(s.stair.start); });
     return n;
   };
-  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
+  R.label = (s, info) => info.inner ? info.inner : `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
   /* après coup : les longueurs verrouillées qui ont changé ne le sont plus (les angles restent) */
   R.finish = (s, orig) => {
     if (!s.locks) return; const n = s.pts.length;
