@@ -541,6 +541,7 @@
       const m = G.lerp(a, e, 0.5); pill(App.fmtCm(v, 0) + ' cm', m.x, m.y, false); };
     const P = (x, y) => b.fr.from({ x, y }); const dn = G.norm(G.sub(P(0, -1), P(0, 0))), rt = G.norm(G.sub(P(1, 0), P(0, 0)));
     ruler(P(b.x0, b.y0), P(b.x1, b.y0), dn, b.w); ruler(P(b.x1, b.y0), P(b.x1, b.y1), rt, b.h);
+    for (const sg of S.resizeSnap || []) { ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(sg[0], sg[1]); }
     for (const h of H.list) { const q = App.w2s(h.w);
       if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
       else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }

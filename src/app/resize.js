@@ -29,14 +29,50 @@
     return best ? best.h : null;
   };
 
+  /* faces de mur tournées vers la forme, parallèles à un côté du cadre (o : 'V' pour les côtés gauche/droit) */
+  R.snapOn = () => S.p.snapWalls !== false;
+  /* lignes où caler un côté : la face d'une pièce qui contient la forme (meuble contre son mur), ou, pour une forme
+     hors pièce (escalier dans sa trémie), la face de la pièce voisine et l'autre face de la cloison (épaisseur habituelle) */
+  function wallFor(s, fr, b, o, side, target, tol) {
+    const F = App.sketch.faces(fr), t = App.sketch.thickness(F); const lo = o === 'V' ? b.y0 : b.x0, hi = o === 'V' ? b.y1 : b.x1; let best = null;
+    for (const f of F) {
+      if (f.o !== o || f.room === s) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < Math.min(200, 0.3 * (hi - lo))) continue;
+      const cands = f.n === -side ? [f.v] : [f.v, f.v - side * t];
+      for (const v of cands) { const d = Math.abs(v - target); if (d <= tol && (!best || d < best.d)) best = { d, f, v }; }
+    }
+    return best && Object.assign({}, best.f, { v: best.v });
+  }
+  /* calage d'un côté : contre le mur de la pièce qui contient la forme, ou contre la pièce voisine si le côté la touche ou
+     déborde dessus ; un côté déjà séparé d'une pièce voisine par l'épaisseur d'un mur (6 à 30 cm) ne bouge pas */
+  function fitSide(s, fr, b, o, side, cur) {
+    const F = App.sketch.faces(fr); const lo = o === 'V' ? b.y0 : b.x0, hi = o === 'V' ? b.y1 : b.x1; const items = [];
+    for (const f of F) {
+      if (f.o !== o || f.room === s) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < Math.min(200, 0.3 * (hi - lo))) continue;
+      if (f.n === -side) { const d = Math.abs(f.v - cur); if (d <= 400) items.push({ d, v: f.v }); continue; }
+      const g = (f.v - cur) * side;
+      if (Math.abs(g) <= 60) items.push({ d: Math.abs(g), v: f.v }); else if (g > 60 && g <= 300) items.push({ d: g, v: null }); else if (g < -60 && g > -800) items.push({ d: -g, v: f.v });
+    }
+    items.sort((x, y) => x.d - y.d); return items.length ? items[0].v : null;
+  }
+  const faceSeg = (fr, f) => (f.o === 'V' ? [fr.from({ x: f.v, y: f.lo }), fr.from({ x: f.v, y: f.hi })] : [fr.from({ x: f.lo, y: f.v }), fr.from({ x: f.hi, y: f.v })]);
+
   /* nouveau contour depuis l'état de départ (orig), la poignée tenue et la position du doigt (monde) */
   R.apply = (s, orig, origOps, h, w) => {
     const b = R.box(s, orig); const fr = b.fr; const p = fr.to(w);
     const ax = h.sx > 0 ? b.x0 : b.x1, ay = h.sy > 0 ? b.y0 : b.y1; // côté fixe (opposé à la poignée)
     const cx = h.sx > 0 ? b.x1 : b.x0, cy = h.sy > 0 ? b.y1 : b.y0;
     const snapLen = (L) => Math.max(MIN, Math.round(L / 10) * 10);
-    let kx = 1, ky = 1;
-    if (h.sx) kx = snapLen(Math.abs(p.x - ax)) / Math.max(1, b.w); if (h.sy) ky = snapLen(Math.abs(p.y - ay)) / Math.max(1, b.h);
+    let kx = 1, ky = 1; const snaps = []; let onX = false, onY = false;
+    // aimant : le bord qui bouge se colle à la cloison la plus proche (longueur exacte, sans arrondi)
+    if (R.snapOn() && b.ortho && s.kind !== 'piece') {
+      const tol = Math.min(300, 18 / S.view.z);
+      const clip = (f, lo, hi) => Object.assign({}, f, { lo: Math.max(f.lo, lo - 300), hi: Math.min(f.hi, hi + 300) }); // trait rouge limité autour de la forme
+      if (h.sx) { const f = wallFor(s, fr, b, 'V', h.sx, p.x, tol); if (f) { p.x = f.v; onX = true; snaps.push(faceSeg(fr, clip(f, b.y0, b.y1))); } }
+      if (h.sy) { const f = wallFor(s, fr, b, 'H', h.sy, p.y, tol); if (f) { p.y = f.v; onY = true; snaps.push(faceSeg(fr, clip(f, b.x0, b.x1))); } }
+    }
+    if (h.sx) kx = (onX ? Math.max(MIN, Math.abs(p.x - ax)) : snapLen(Math.abs(p.x - ax))) / Math.max(1, b.w);
+    if (h.sy) ky = (onY ? Math.max(MIN, Math.abs(p.y - ay)) : snapLen(Math.abs(p.y - ay))) / Math.max(1, b.h);
+    S.resizeSnap = snaps;
     if (h.sx && Math.sign(p.x - ax) !== Math.sign(cx - ax)) kx = MIN / Math.max(1, b.w);
     if (h.sy && Math.sign(p.y - ay) !== Math.sign(cy - ay)) ky = MIN / Math.max(1, b.h);
     let uniform = !b.ortho;
@@ -57,7 +93,16 @@
     }
     const nb = R.box(s); return { w: nb.w, h: nb.h, uniform, k: kx };
   };
-  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}`;
+  /* caler d'un coup chaque côté du cadre sur la cloison voisine (moins de 40 cm) */
+  R.fitWalls = (s) => {
+    const b = R.box(s); if (!b.ortho) return 0; const fr = b.fr; let n = 0; const nb = { x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 };
+    for (const [o, side, key] of [['V', -1, 'x0'], ['V', 1, 'x1'], ['H', -1, 'y0'], ['H', 1, 'y1']]) { const v = fitSide(s, fr, b, o, side, b[key]); if (v != null && Math.abs(v - b[key]) > 0.5) { nb[key] = v; n++; } }
+    if (!n || nb.x1 - nb.x0 < MIN || nb.y1 - nb.y0 < MIN) return 0;
+    const T = (q) => { const f = fr.to(q); return fr.from({ x: nb.x0 + ((f.x - b.x0) * (nb.x1 - nb.x0)) / b.w, y: nb.y0 + ((f.y - b.y0) * (nb.y1 - nb.y0)) / b.h }); };
+    App.mutate(() => { s.pts = s.pts.map(T); if (s.stair && s.stair.start) s.stair.start = T(s.stair.start); });
+    return n;
+  };
+  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
   /* après coup : les longueurs verrouillées qui ont changé ne le sont plus (les angles restent) */
   R.finish = (s, orig) => {
     if (!s.locks) return; const n = s.pts.length;

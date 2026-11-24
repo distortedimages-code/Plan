@@ -220,6 +220,8 @@
     return out;
   }
 
+  K.faces = faces; K.thickness = typicalThickness;
+
   /* ---------- geste ---------- */
   K.begin = (w) => { K.cancel(true); S.sketch = [w]; };
   K.add = (w) => { const P = S.sketch; if (!P) return; if (G.dist(P[P.length - 1], w) * S.view.z > 3) P.push(w); };

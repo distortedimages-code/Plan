@@ -2790,6 +2790,7 @@ details[open] summary::after{content:"–"}
       const m = G.lerp(a, e, 0.5); pill(App.fmtCm(v, 0) + ' cm', m.x, m.y, false); };
     const P = (x, y) => b.fr.from({ x, y }); const dn = G.norm(G.sub(P(0, -1), P(0, 0))), rt = G.norm(G.sub(P(1, 0), P(0, 0)));
     ruler(P(b.x0, b.y0), P(b.x1, b.y0), dn, b.w); ruler(P(b.x1, b.y0), P(b.x1, b.y1), rt, b.h);
+    for (const sg of S.resizeSnap || []) { ctx.strokeStyle = C.red; ctx.lineWidth = 5; segLine(sg[0], sg[1]); }
     for (const h of H.list) { const q = App.w2s(h.w);
       if (h.kind === 'corner') { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.8; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
       else { ctx.beginPath(); ctx.arc(q.x, q.y, 6.5, 0, Math.PI * 2); ctx.fillStyle = C.paper; ctx.fill(); ctx.beginPath(); ctx.arc(q.x, q.y, 4.5, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); } }
@@ -3024,7 +3025,7 @@ details[open] summary::after{content:"–"}
     if (!act) return;
     const a = act; act = null; S.loupe = null; S.dragV = null;
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
-    if (a.kind === 'resize') { S.opInfo = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
+    if (a.kind === 'resize') { S.opInfo = null; S.resizeSnap = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
@@ -3430,6 +3431,7 @@ details[open] summary::after{content:"–"}
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
       h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div><p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
     if (s.kind === 'escalier') h += `<h3>Escalier</h3><div class="seg"><button data-a="stairdir" data-v="monte" aria-pressed="${!(s.stair && s.stair.dir === 'descend')}">Monte depuis cet étage</button><button data-a="stairdir" data-v="descend" aria-pressed="${!!(s.stair && s.stair.dir === 'descend')}">Descend (trémie)</button></div><div class="field"><label>Nombre de marches</label><input data-c="steps" inputmode="numeric" value="${(s.stair && s.stair.steps) || ''}"></div>`;
+    if (s.kind !== 'piece' && s.kind !== 'elec' && s.pts && s.pts.length >= 3) h += `<h3>Taille</h3><div class="row"><button class="btn sm" data-x="fitwalls">Caler aux murs</button></div><div class="field"><label>Aimanter aux murs en redimensionnant</label><input type="checkbox" data-x="snapwalls" ${S.p.snapWalls !== false ? 'checked' : ''}></div><p class="hint2">Avec le cadre, le bord qui bouge se colle à la cloison la plus proche. « Caler aux murs » met d'un coup chaque côté contre la cloison voisine (à moins de 40 cm).</p>`;
     if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
     h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme.</p>
@@ -4726,7 +4728,7 @@ details[open] summary::after{content:"–"}
       h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
       const st = App.selected(), cands = App.stairs.candidates(st);
-      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="fitwalls">Caler aux murs</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
@@ -4805,6 +4807,8 @@ details[open] summary::after{content:"–"}
       case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
       case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
       case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
+      case 'fitwalls': { const o = App.selected(); if (!o || o.locked) return; const n = App.resize.fitWalls(o); App.toast(n ? `Calé sur ${n} mur${n > 1 ? 's' : ''}` : 'Aucune cloison à moins de 40 cm'); break; }
+      case 'snapwalls': S.p.snapWalls = S.p.snapWalls === false; App.save(); App.ui.refresh(); App.toast(S.p.snapWalls === false ? 'Aimant aux murs désactivé' : 'Aimant aux murs activé'); break;
       case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'skok': App.sketch.validate(); break;
@@ -5192,6 +5196,8 @@ details[open] summary::after{content:"–"}
     return out;
   }
 
+  K.faces = faces; K.thickness = typicalThickness;
+
   /* ---------- geste ---------- */
   K.begin = (w) => { K.cancel(true); S.sketch = [w]; };
   K.add = (w) => { const P = S.sketch; if (!P) return; if (G.dist(P[P.length - 1], w) * S.view.z > 3) P.push(w); };
@@ -5366,14 +5372,50 @@ details[open] summary::after{content:"–"}
     return best ? best.h : null;
   };
 
+  /* faces de mur tournées vers la forme, parallèles à un côté du cadre (o : 'V' pour les côtés gauche/droit) */
+  R.snapOn = () => S.p.snapWalls !== false;
+  /* lignes où caler un côté : la face d'une pièce qui contient la forme (meuble contre son mur), ou, pour une forme
+     hors pièce (escalier dans sa trémie), la face de la pièce voisine et l'autre face de la cloison (épaisseur habituelle) */
+  function wallFor(s, fr, b, o, side, target, tol) {
+    const F = App.sketch.faces(fr), t = App.sketch.thickness(F); const lo = o === 'V' ? b.y0 : b.x0, hi = o === 'V' ? b.y1 : b.x1; let best = null;
+    for (const f of F) {
+      if (f.o !== o || f.room === s) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < Math.min(200, 0.3 * (hi - lo))) continue;
+      const cands = f.n === -side ? [f.v] : [f.v, f.v - side * t];
+      for (const v of cands) { const d = Math.abs(v - target); if (d <= tol && (!best || d < best.d)) best = { d, f, v }; }
+    }
+    return best && Object.assign({}, best.f, { v: best.v });
+  }
+  /* calage d'un côté : contre le mur de la pièce qui contient la forme, ou contre la pièce voisine si le côté la touche ou
+     déborde dessus ; un côté déjà séparé d'une pièce voisine par l'épaisseur d'un mur (6 à 30 cm) ne bouge pas */
+  function fitSide(s, fr, b, o, side, cur) {
+    const F = App.sketch.faces(fr); const lo = o === 'V' ? b.y0 : b.x0, hi = o === 'V' ? b.y1 : b.x1; const items = [];
+    for (const f of F) {
+      if (f.o !== o || f.room === s) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < Math.min(200, 0.3 * (hi - lo))) continue;
+      if (f.n === -side) { const d = Math.abs(f.v - cur); if (d <= 400) items.push({ d, v: f.v }); continue; }
+      const g = (f.v - cur) * side;
+      if (Math.abs(g) <= 60) items.push({ d: Math.abs(g), v: f.v }); else if (g > 60 && g <= 300) items.push({ d: g, v: null }); else if (g < -60 && g > -800) items.push({ d: -g, v: f.v });
+    }
+    items.sort((x, y) => x.d - y.d); return items.length ? items[0].v : null;
+  }
+  const faceSeg = (fr, f) => (f.o === 'V' ? [fr.from({ x: f.v, y: f.lo }), fr.from({ x: f.v, y: f.hi })] : [fr.from({ x: f.lo, y: f.v }), fr.from({ x: f.hi, y: f.v })]);
+
   /* nouveau contour depuis l'état de départ (orig), la poignée tenue et la position du doigt (monde) */
   R.apply = (s, orig, origOps, h, w) => {
     const b = R.box(s, orig); const fr = b.fr; const p = fr.to(w);
     const ax = h.sx > 0 ? b.x0 : b.x1, ay = h.sy > 0 ? b.y0 : b.y1; // côté fixe (opposé à la poignée)
     const cx = h.sx > 0 ? b.x1 : b.x0, cy = h.sy > 0 ? b.y1 : b.y0;
     const snapLen = (L) => Math.max(MIN, Math.round(L / 10) * 10);
-    let kx = 1, ky = 1;
-    if (h.sx) kx = snapLen(Math.abs(p.x - ax)) / Math.max(1, b.w); if (h.sy) ky = snapLen(Math.abs(p.y - ay)) / Math.max(1, b.h);
+    let kx = 1, ky = 1; const snaps = []; let onX = false, onY = false;
+    // aimant : le bord qui bouge se colle à la cloison la plus proche (longueur exacte, sans arrondi)
+    if (R.snapOn() && b.ortho && s.kind !== 'piece') {
+      const tol = Math.min(300, 18 / S.view.z);
+      const clip = (f, lo, hi) => Object.assign({}, f, { lo: Math.max(f.lo, lo - 300), hi: Math.min(f.hi, hi + 300) }); // trait rouge limité autour de la forme
+      if (h.sx) { const f = wallFor(s, fr, b, 'V', h.sx, p.x, tol); if (f) { p.x = f.v; onX = true; snaps.push(faceSeg(fr, clip(f, b.y0, b.y1))); } }
+      if (h.sy) { const f = wallFor(s, fr, b, 'H', h.sy, p.y, tol); if (f) { p.y = f.v; onY = true; snaps.push(faceSeg(fr, clip(f, b.x0, b.x1))); } }
+    }
+    if (h.sx) kx = (onX ? Math.max(MIN, Math.abs(p.x - ax)) : snapLen(Math.abs(p.x - ax))) / Math.max(1, b.w);
+    if (h.sy) ky = (onY ? Math.max(MIN, Math.abs(p.y - ay)) : snapLen(Math.abs(p.y - ay))) / Math.max(1, b.h);
+    S.resizeSnap = snaps;
     if (h.sx && Math.sign(p.x - ax) !== Math.sign(cx - ax)) kx = MIN / Math.max(1, b.w);
     if (h.sy && Math.sign(p.y - ay) !== Math.sign(cy - ay)) ky = MIN / Math.max(1, b.h);
     let uniform = !b.ortho;
@@ -5394,7 +5436,16 @@ details[open] summary::after{content:"–"}
     }
     const nb = R.box(s); return { w: nb.w, h: nb.h, uniform, k: kx };
   };
-  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}`;
+  /* caler d'un coup chaque côté du cadre sur la cloison voisine (moins de 40 cm) */
+  R.fitWalls = (s) => {
+    const b = R.box(s); if (!b.ortho) return 0; const fr = b.fr; let n = 0; const nb = { x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 };
+    for (const [o, side, key] of [['V', -1, 'x0'], ['V', 1, 'x1'], ['H', -1, 'y0'], ['H', 1, 'y1']]) { const v = fitSide(s, fr, b, o, side, b[key]); if (v != null && Math.abs(v - b[key]) > 0.5) { nb[key] = v; n++; } }
+    if (!n || nb.x1 - nb.x0 < MIN || nb.y1 - nb.y0 < MIN) return 0;
+    const T = (q) => { const f = fr.to(q); return fr.from({ x: nb.x0 + ((f.x - b.x0) * (nb.x1 - nb.x0)) / b.w, y: nb.y0 + ((f.y - b.y0) * (nb.y1 - nb.y0)) / b.h }); };
+    App.mutate(() => { s.pts = s.pts.map(T); if (s.stair && s.stair.start) s.stair.start = T(s.stair.start); });
+    return n;
+  };
+  R.label = (s, info) => `${App.fmtCm(info.w, 0)} × ${App.fmtCm(info.h, 0)} cm${info.uniform ? ' · proportions gardées' : ''}${S.resizeSnap && S.resizeSnap.length ? ' · calé sur le mur' : ''}`;
   /* après coup : les longueurs verrouillées qui ont changé ne le sont plus (les angles restent) */
   R.finish = (s, orig) => {
     if (!s.locks) return; const n = s.pts.length;

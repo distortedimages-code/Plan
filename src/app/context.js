@@ -125,7 +125,7 @@
       h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'escalier') {
       const st = App.selected(), cands = App.stairs.candidates(st);
-      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
+      h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="fitwalls">Caler aux murs</button><button data-ob="stflip">Inverser</button>${cands.length === 1 ? `<button data-ob="stjoin" data-v="${cands[0].id}">Assembler</button>` : ''}<button data-ob="more">Réglages</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
@@ -204,6 +204,8 @@
       case 'stflip': { const st = App.selected(); if (st && st.kind === 'escalier') { App.stairs.flip(st); App.toast('Départ et arrivée inversés'); } break; }
       case 'stjoin': { const st = App.selected(), o = App.byId(v); if (st && o) App.stairs.assemble(st, o); break; }
       case 'stjoin2': { const r = App.selected(), st = App.byId(v); if (r && st) App.stairs.assemble(st, r); break; }
+      case 'fitwalls': { const o = App.selected(); if (!o || o.locked) return; const n = App.resize.fitWalls(o); App.toast(n ? `Calé sur ${n} mur${n > 1 ? 's' : ''}` : 'Aucune cloison à moins de 40 cm'); break; }
+      case 'snapwalls': S.p.snapWalls = S.p.snapWalls === false; App.save(); App.ui.refresh(); App.toast(S.p.snapWalls === false ? 'Aimant aux murs désactivé' : 'Aimant aux murs activé'); break;
       case 'editpts': S.editPts = !S.editPts; App.ui.refresh(); App.render(); break;
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'skok': App.sketch.validate(); break;
