@@ -2165,6 +2165,7 @@ details[open] summary::after{content:"–"}
   App.changed = (noSave) => {
     S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded;
     S.calc = {};
+    if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);
     clearTimeout(saveT); saveT = setTimeout(App.save, 400);
     App.render && App.render();
@@ -4145,6 +4146,24 @@ details[open] summary::after{content:"–"}
   const PL = globalThis.PL, G = PL.geom, App = globalThis.App, S = App.state;
   const F = (App.feat = {});
 
+  /* ---------- sens des pièces : toujours anti-horaire (la normale « intérieure » des murs pointe dans la pièce).
+     Une pièce retournée (redimensionnée au-delà de son bord, importée à l'envers…) est remise à l'endroit
+     en gardant ses portes du même côté physique : mur, position, gonds et sens d'ouverture recalculés. ---------- */
+  F.normalize = (r) => {
+    if (r.kind !== 'piece' || !r.pts || r.pts.length < 3 || G.area(r.pts) >= 0) return false;
+    const n = r.pts.length, P = r.pts, E = (i) => (n - 2 - i + 2 * n) % n;
+    r.openings = (r.openings || []).map((o) => {
+      if (o.wall >= n) return o; const el = G.dist(P[o.wall], P[(o.wall + 1) % n]);
+      return Object.assign({}, o, { wall: E(o.wall), pos: Math.max(0, el - o.pos - o.width), hinge: o.hinge === 'd' ? 'g' : 'd', out: !o.out });
+    });
+    const old = r.locks || []; r.pts = P.map((_, k) => P[n - 1 - k]);
+    r.locks = PL.solver.syncLocks(r.pts, r.pts.map((_, k) => Object.assign({}, old[E(k)] || {}, { A: !!(old[n - 1 - k] || {}).A })));
+    if (r.cal && r.cal.start != null && r.cal.start !== 'auto') r.cal.start = 'auto';
+    if (S.sel && S.sel.id === r.id && S.sel.wall != null) S.sel.wall = E(S.sel.wall);
+    return true;
+  };
+  F.normalizeAll = () => { let k = 0; for (const s of S.p.shapes) if (F.normalize(s)) k++; return k; };
+
   /* ---------- rattacher des ouvertures à un nouveau contour ---------- */
   F.reattach = (pts, olds, skipTo = [], tol = 40) => {
     const out = []; const n = pts.length;
@@ -5952,15 +5971,16 @@ details[open] summary::after{content:"–"}
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
     if (o.sw !== 0 && ['porte', 'porte2', 'porte-fenetre'].includes(o.type)) {
-      const side = o.out ? -1 : 1; const leaves = o.type === 'porte' ? [[o.hinge === 'd' ? p1 : p0, g.w, o.hinge === 'd' ? -1 : 1]] : [[p0, g.w / 2, 1], [p1, g.w / 2, -1]];
+      const side = o.out ? -1 : 1; const leaves = App.ops.leaves(o) === 1 && o.type !== 'porte2' ? [[o.hinge === 'd' ? p1 : p0, g.w, o.hinge === 'd' ? -1 : 1]] : [[p0, g.w / 2, 1], [p1, g.w / 2, -1]];
       for (const [h, lw, sg] of leaves) {
-        const cd = G.mul(W.d, sg), od = G.mul(nin, side), a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
+        const cd = G.mul(g.d, sg), od = G.mul(g.nin, side), // même convention que le plan
+ a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
         const h0 = G.add(h, G.mul(od, 10)), poly = [h0, G.add(h0, G.mul(dir, lw - 20)), G.add(G.add(h0, G.mul(dir, lw - 20)), G.mul(pr, 40)), G.add(h0, G.mul(pr, 40))];
         prism(B, poly, 8, top - 8, st.col.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
       }
     } else if (o.sw !== 0 && o.type === 'coulissante') {
-      const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(nin, side * 30), back = G.sub(from, to);
-      const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(nin, side * 35)), G.add(a, G.mul(nin, side * 35))];
+      const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(g.nin, side * 30), back = G.sub(from, to);
+      const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(g.nin, side * 35)), G.add(a, G.mul(g.nin, side * 35))];
       prism(B, poly, 8, top - 8, st.col.acc);
     }
   };
@@ -6243,6 +6263,8 @@ details[open] summary::after{content:"–"}
     if (S.p.seeded) { S.mode = 'calepinage'; S.tab = 'calepinage'; }
     const cv = document.getElementById('cv');
     App.applyTheme(); App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init(); App.ctx.init();
+    // pièces retournées (sens horaire) : remises à l'endroit, portes gardées du même côté, puis portes rejumelées
+    if (App.feat.normalizeAll()) { App.ops.relinkAll(S.p); App.changed(); }
     // pièces simples d'abord : une fois par projet, les décrochements de moins de 30 cm sont redressés (annulable)
     if (!S.p.simpleRooms) {
       const all = S.p.floors.flatMap((f) => App.rooms(f.id)); const todo = all.filter((r) => App.walls.countFixable(r));

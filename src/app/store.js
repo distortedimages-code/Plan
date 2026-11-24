@@ -43,6 +43,7 @@
   App.changed = (noSave) => {
     S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded;
     S.calc = {};
+    if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);
     clearTimeout(saveT); saveT = setTimeout(App.save, 400);
     App.render && App.render();

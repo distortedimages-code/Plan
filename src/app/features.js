@@ -3,6 +3,24 @@
   const PL = globalThis.PL, G = PL.geom, App = globalThis.App, S = App.state;
   const F = (App.feat = {});
 
+  /* ---------- sens des pièces : toujours anti-horaire (la normale « intérieure » des murs pointe dans la pièce).
+     Une pièce retournée (redimensionnée au-delà de son bord, importée à l'envers…) est remise à l'endroit
+     en gardant ses portes du même côté physique : mur, position, gonds et sens d'ouverture recalculés. ---------- */
+  F.normalize = (r) => {
+    if (r.kind !== 'piece' || !r.pts || r.pts.length < 3 || G.area(r.pts) >= 0) return false;
+    const n = r.pts.length, P = r.pts, E = (i) => (n - 2 - i + 2 * n) % n;
+    r.openings = (r.openings || []).map((o) => {
+      if (o.wall >= n) return o; const el = G.dist(P[o.wall], P[(o.wall + 1) % n]);
+      return Object.assign({}, o, { wall: E(o.wall), pos: Math.max(0, el - o.pos - o.width), hinge: o.hinge === 'd' ? 'g' : 'd', out: !o.out });
+    });
+    const old = r.locks || []; r.pts = P.map((_, k) => P[n - 1 - k]);
+    r.locks = PL.solver.syncLocks(r.pts, r.pts.map((_, k) => Object.assign({}, old[E(k)] || {}, { A: !!(old[n - 1 - k] || {}).A })));
+    if (r.cal && r.cal.start != null && r.cal.start !== 'auto') r.cal.start = 'auto';
+    if (S.sel && S.sel.id === r.id && S.sel.wall != null) S.sel.wall = E(S.sel.wall);
+    return true;
+  };
+  F.normalizeAll = () => { let k = 0; for (const s of S.p.shapes) if (F.normalize(s)) k++; return k; };
+
   /* ---------- rattacher des ouvertures à un nouveau contour ---------- */
   F.reattach = (pts, olds, skipTo = [], tol = 40) => {
     const out = []; const n = pts.length;

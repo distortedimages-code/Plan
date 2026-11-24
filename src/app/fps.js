@@ -229,15 +229,16 @@
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
     if (o.sw !== 0 && ['porte', 'porte2', 'porte-fenetre'].includes(o.type)) {
-      const side = o.out ? -1 : 1; const leaves = o.type === 'porte' ? [[o.hinge === 'd' ? p1 : p0, g.w, o.hinge === 'd' ? -1 : 1]] : [[p0, g.w / 2, 1], [p1, g.w / 2, -1]];
+      const side = o.out ? -1 : 1; const leaves = App.ops.leaves(o) === 1 && o.type !== 'porte2' ? [[o.hinge === 'd' ? p1 : p0, g.w, o.hinge === 'd' ? -1 : 1]] : [[p0, g.w / 2, 1], [p1, g.w / 2, -1]];
       for (const [h, lw, sg] of leaves) {
-        const cd = G.mul(W.d, sg), od = G.mul(nin, side), a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
+        const cd = G.mul(g.d, sg), od = G.mul(g.nin, side), // même convention que le plan
+ a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
         const h0 = G.add(h, G.mul(od, 10)), poly = [h0, G.add(h0, G.mul(dir, lw - 20)), G.add(G.add(h0, G.mul(dir, lw - 20)), G.mul(pr, 40)), G.add(h0, G.mul(pr, 40))];
         prism(B, poly, 8, top - 8, st.col.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
       }
     } else if (o.sw !== 0 && o.type === 'coulissante') {
-      const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(nin, side * 30), back = G.sub(from, to);
-      const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(nin, side * 35)), G.add(a, G.mul(nin, side * 35))];
+      const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(g.nin, side * 30), back = G.sub(from, to);
+      const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(g.nin, side * 35)), G.add(a, G.mul(g.nin, side * 35))];
       prism(B, poly, 8, top - 8, st.col.acc);
     }
   };

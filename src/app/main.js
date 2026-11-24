@@ -6,6 +6,8 @@
     if (S.p.seeded) { S.mode = 'calepinage'; S.tab = 'calepinage'; }
     const cv = document.getElementById('cv');
     App.applyTheme(); App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init(); App.ctx.init();
+    // pièces retournées (sens horaire) : remises à l'endroit, portes gardées du même côté, puis portes rejumelées
+    if (App.feat.normalizeAll()) { App.ops.relinkAll(S.p); App.changed(); }
     // pièces simples d'abord : une fois par projet, les décrochements de moins de 30 cm sont redressés (annulable)
     if (!S.p.simpleRooms) {
       const all = S.p.floors.flatMap((f) => App.rooms(f.id)); const todo = all.filter((r) => App.walls.countFixable(r));
