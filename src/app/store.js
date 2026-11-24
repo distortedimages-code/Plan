@@ -33,17 +33,18 @@
   App.begin = () => { if (!pending) pending = App.snapshot(); };
   App.end = (changed = true) => { if (pending && changed) { hist.push(pending); if (hist.length > 80) hist.shift(); fut.length = 0; App.changed(); } pending = null; };
   App.mutate = (fn) => { const before = App.snapshot(); const r = fn(S.p); hist.push(before); if (hist.length > 80) hist.shift(); fut.length = 0; App.changed(); return r; };
-  App.undo = () => { if (!hist.length) return; fut.push(App.snapshot()); S.p = JSON.parse(hist.pop()); fixSel(); App.changed(true); App.toast('Annulé'); };
-  App.redo = () => { if (!fut.length) return; hist.push(App.snapshot()); S.p = JSON.parse(fut.pop()); fixSel(); App.changed(true); };
-  App.canUndo = () => hist.length > 0; App.canRedo = () => fut.length > 0;
-  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; };
+  App.undo = () => { if (S.pending && App.walls) { App.walls.cancel(); App.toast('Déplacement annulé'); return; } if (!hist.length) return; fut.push(App.snapshot()); S.p = JSON.parse(hist.pop()); fixSel(); App.changed(true); App.toast('Annulé'); };
+  App.redo = () => { if (S.pending && App.walls) App.walls.cancel(true); if (!fut.length) return; hist.push(App.snapshot()); S.p = JSON.parse(fut.pop()); fixSel(); App.changed(true); };
+  App.canUndo = () => hist.length > 0 || !!S.pending; App.canRedo = () => fut.length > 0;
+  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; if (S.sel && S.sel.oid && !(App.ops && App.ops.find(S.sel.oid))) S.sel = { id: S.sel.id }; if (S.sel && S.sel.wall != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || S.sel.wall >= r.pts.length) S.sel = { id: S.sel.id }; } };
 
   /* ---------- recalcul + rendu ---------- */
   let saveT = null;
   App.changed = (noSave) => {
     S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded;
     S.calc = {};
-    if (!noSave) { clearTimeout(saveT); saveT = setTimeout(App.save, 400); } else { clearTimeout(saveT); saveT = setTimeout(App.save, 400); }
+    if (App.ops) App.ops.relink(S.p, S.p.floorId);
+    clearTimeout(saveT); saveT = setTimeout(App.save, 400);
     App.render && App.render();
     App.ui && App.ui.refresh();
   };
@@ -64,15 +65,28 @@
   App.load = () => {
     let p = null;
     try { const t = localStorage.getItem(KEY); if (t) p = JSON.parse(t); } catch (e) { p = null; }
-    if (!p && globalThis.CALEPIN_SEED) { try { p = JSON.parse(JSON.stringify(globalThis.CALEPIN_SEED)); p.seeded = true; } catch (e) { p = null; } }
-    S.p = migrate(p || App.newProject());
+    S.p = migrate(App.seedPolicy(p) || App.newProject());
+  };
+  /* plan intégré : remplacé s'il n'a pas été touché, sinon mise à jour proposée */
+  App.seedPolicy = (p) => {
+    const seed = globalThis.CALEPIN_SEED; if (!seed) return p;
+    const fresh = () => { try { const q = JSON.parse(JSON.stringify(seed)); q.seeded = true; return q; } catch (e) { return null; } };
+    if (!p) return fresh();
+    const sv = seed.seedVersion || 1;
+    if (p.seeded && (p.seedVersion || 1) < sv) return fresh();
+    if (!p.seeded && (p.seedVersion || 1) < sv && (p.seedApplied || 1) < sv) {
+      const names = new Set(seed.shapes.filter((s) => s.kind === 'piece').map((s) => s.name));
+      if ((p.shapes || []).filter((s) => s.kind === 'piece' && names.has(s.name)).length >= 4) p.seedOffer = sv;
+    }
+    return p;
   };
   function migrate(p) {
     p.floors = p.floors && p.floors.length ? p.floors : [{ id: App.uid(), name: 'RDC', level: 0 }];
     if (!p.floors.find((f) => f.id === p.floorId)) p.floorId = p.floors[0].id;
     p.shapes = p.shapes || []; p.points = p.points || []; p.measures = p.measures || [];
     p.parquet = Object.assign({}, PL.layout.DEFAULTS, p.parquet || {});
-    p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; });
+    p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; s.openings.forEach((o) => { if (!o.oid) o.oid = App.uid(); }); });
+    if (App.ops) App.ops.relinkAll(p);
     return p;
   }
   App.migrate = migrate;
@@ -107,7 +121,7 @@
         this.ready = true;
         if (snap && snap.exists) {
           const d = snap.data(); const cloudAt = d.updatedAt || 0;
-          if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { S.p = migrate(JSON.parse(d.json)); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } catch (e) { /* */ } }
+          if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { const cp = App.seedPolicy(JSON.parse(d.json)); if (!(cp.seeded && S.p.seeded)) { S.p = migrate(cp); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } } catch (e) { /* */ } }
         }
         App.ui && App.ui.refresh();
       } catch (e) { this.db = null; }

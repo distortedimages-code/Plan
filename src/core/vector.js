@@ -396,7 +396,7 @@
       out.push({ pts: P, area: Math.abs(G.area(P)), net: r.net, thick: r.thick, holes: r.f.holes.map((h) => G.ensureCCW(h.P)), raw: r.f.P });
     }
     name(out, texts, ctx.labels);
-    const openings = attachOpenings(out, br);
+    const openings = attachOpenings(out, br, ctx, roles);
     return { rooms: out, openings, dom, wallSegs: wall, bridges: br, score };
   }
 
@@ -433,7 +433,47 @@
     });
   }
 
-  function attachOpenings(final, br) {
+  const bezPt = (c, t) => { const u = 1 - t; return { x: u * u * u * c.p0.x + 3 * u * u * t * c.c1.x + 3 * u * t * t * c.c2.x + t * t * t * c.p3.x, y: u * u * u * c.p0.y + 3 * u * u * t * c.c1.y + 3 * u * t * t * c.c2.y + t * t * t * c.p3.y }; };
+
+  /* arcs d'ouverture : centre = gonds, rayon = largeur du vantail */
+  const circum = (A, B, C) => { const d = 2 * (A.x * (B.y - C.y) + B.x * (C.y - A.y) + C.x * (A.y - B.y)); if (Math.abs(d) < 1e-9) return null; const a2 = A.x * A.x + A.y * A.y, b2 = B.x * B.x + B.y * B.y, c2 = C.x * C.x + C.y * C.y; return { x: (a2 * (B.y - C.y) + b2 * (C.y - A.y) + c2 * (A.y - B.y)) / d, y: (a2 * (C.x - B.x) + b2 * (A.x - C.x) + c2 * (B.x - A.x)) / d }; };
+
+  /* arcs d'ouverture : centre de l'arc = gonds, rayon = largeur du vantail, validé par le trait du vantail */
+  function findHinges(op, curves, leafSegs) {
+    const w = op.w, d = op.d, n = G.perp(d); const ts = op.faces.flatMap((f) => [G.dot(f.a, d), G.dot(f.b, d)]); const t0 = Math.min(...ts), t1 = Math.max(...ts); const cand = [];
+    const leaf = (H, tips, r) => !leafSegs || leafSegs.some((s) => { const e1 = Math.max(80, 0.11 * r), e2 = 0.16 * r; for (const [p, q] of [[s.a, s.b], [s.b, s.a]]) if (G.dist(p, H) < e1 && tips.some((t) => G.dist(q, t) < e2)) return true; return false; });
+    for (const c of curves) {
+      const M = c.m || bezPt(c, 0.5); if (G.dist(M, op.m) > 1.6 * w) continue;
+      const H = circum(c.p0, M, c.p3); if (!H) continue;
+      const r = G.dist(H, c.p0); if (r < 0.3 * w || r > 1.35 * w) continue;
+      const err = Math.abs(G.dist(H, c.p3) - r) + Math.abs(G.dist(H, M) - r); if (err > 0.12 * r) continue;
+      const along = G.dot(H, d); if (Math.min(Math.abs(along - t0), Math.abs(along - t1)) > 0.15 * w + 60) continue;
+      if (Math.abs(G.dot(G.sub(H, op.m), n)) > 520) continue;
+      if (Math.abs(G.dot(G.sub(M, H), n)) < 0.12 * r) continue;
+      if (!leaf(H, [c.p0, c.p3], r)) continue;
+      cand.push({ H, r, M, err, along });
+    }
+    cand.sort((x, y) => x.err - y.err); const out = [];
+    for (const c of cand) if (!out.some((o) => Math.abs(o.along - c.along) < 0.3 * w)) out.push(c);
+    return out;
+  }
+
+  /* vantail coulissant : trait parallèle à l'ouverture, juste devant */
+  function slidingLeaf(op, W, roles) {
+    const d = op.d, n = G.perp(d), w = op.w, t0 = Math.min(...op.faces.flatMap((f) => [G.dot(f.a, d), G.dot(f.b, d)])), t1 = t0 + w;
+    for (const s of W.segs) {
+      const r = roles[s.st]; if (r === 'masque' || r === 'cote') continue;
+      const sd = G.sub(s.b, s.a), l = G.len(sd); if (l < 0.6 * w || l > 1.5 * w) continue;
+      if (Math.abs(G.cross(G.mul(sd, 1 / l), d)) > 0.02) continue;
+      const off = Math.abs(G.dot(G.sub(G.lerp(s.a, s.b, 0.5), op.m), n)); if (off > 320 || off < 20) continue;
+      const u0 = Math.min(G.dot(s.a, d), G.dot(s.b, d)), u1 = Math.max(G.dot(s.a, d), G.dot(s.b, d));
+      const ov = Math.min(u1, t1) - Math.max(u0, t0); if (ov > 0.2 * w && ov < 0.97 * l) return true;
+    }
+    return false;
+  }
+
+  function attachOpenings(final, br, ctx, roles) {
+    const W = ctx ? ctx.W : null; const curves = W ? W.curves || [] : [];
     const ops = [];
     br.forEach((b) => {
       const d = G.norm(G.sub(b.b, b.a)), l = G.dist(b.a, b.b), m = G.lerp(b.a, b.b, 0.5);
@@ -443,31 +483,67 @@
     });
     const openings = ops.map((o2) => ({ faces: o2.faces, d: o2.d, w: o2.faces.reduce((s, f) => s + G.dist(f.a, f.b), 0) / o2.faces.length, m: G.mul(o2.faces.reduce((s, f) => G.add(s, G.lerp(f.a, f.b, 0.5)), { x: 0, y: 0 }), 1 / o2.faces.length) }));
     final.forEach((r) => { r.openings = []; });
-    openings.forEach((op) => {
-      const hits = [];
+    // 1. candidats : face d'ouverture sur un mur de pièce (ou dans son embrasure, jusqu'à 45 cm derrière)
+    const cands = [];
+    openings.forEach((op, oi) => {
       final.forEach((r, ri) => {
-        const n = r.pts.length;
+        const n = r.pts.length; let best = null;
         for (const f of op.faces) {
-          const fm = G.lerp(f.a, f.b, 0.5), fd = G.norm(G.sub(f.b, f.a));
+          const fm = G.lerp(f.a, f.b, 0.5), fd = G.norm(G.sub(f.b, f.a)), fl = G.dist(f.a, f.b);
           for (let i = 0; i < n; i++) {
             const a = r.pts[i], b = r.pts[(i + 1) % n], ed = G.sub(b, a), el = G.len(ed); if (el < 100) continue;
-            if (Math.abs(G.cross(fd, G.mul(ed, 1 / el))) > 0.03) continue;
-            if (Math.abs(G.cross(G.sub(fm, a), ed)) / el > 40) continue;
-            const ua = G.dot(G.sub(f.a, a), ed) / el, ub = G.dot(G.sub(f.b, a), ed) / el;
+            const eu = G.mul(ed, 1 / el); if (Math.abs(G.cross(fd, eu)) > 0.03) continue;
+            const off = G.dot(G.sub(fm, a), G.perp(eu)); if (off > 40 || off < -450) continue;
+            const ua = G.dot(G.sub(f.a, a), eu), ub = G.dot(G.sub(f.b, a), eu);
             const p0 = Math.max(0, Math.min(ua, ub)), p1 = Math.min(el, Math.max(ua, ub));
-            if (p1 - p0 < 0.6 * G.dist(f.a, f.b)) continue;
-            if (!hits.some((h) => h.ri === ri)) hits.push({ ri, wall: i, pos: p0, width: p1 - p0 });
+            if (p1 - p0 < 0.6 * fl) continue;
+            if (!best || Math.abs(off) < best.off) best = { oi, ri, wall: i, pos: p0, width: p1 - p0, off: Math.abs(off), fm, nin: G.perp(eu), a, eu };
           }
         }
+        if (best) cands.push(best);
       });
-      op.rooms = hits;
     });
+    // 2. une seule ouverture par pièce et par emplacement (la face la plus proche du mur l'emporte)
+    cands.sort((x, y) => x.off - y.off);
+    const kept = [];
+    for (const c of cands) {
+      const span = (x) => { const p0 = G.add(x.a, G.mul(x.eu, x.pos)), p1 = G.add(x.a, G.mul(x.eu, x.pos + x.width)); return [p0, p1]; };
+      const [c0, c1] = span(c), cd = x => G.dot(x, c.eu);
+      if (kept.some((k) => { if (k.ri !== c.ri || Math.abs(G.dot(k.eu, c.eu)) < 0.999) return false; const [k0, k1] = span(k); if (Math.abs(G.dot(G.sub(k0, c0), c.nin)) > 460) return false; const ov = Math.min(Math.max(cd(k0), cd(k1)), Math.max(cd(c0), cd(c1))) - Math.max(Math.min(cd(k0), cd(k1)), Math.min(cd(c0), cd(c1))); return ov > 0.5 * Math.min(k.width, c.width); })) continue;
+      kept.push(c);
+    }
+    openings.forEach((op, oi) => { op.rooms = kept.filter((k) => k.oi === oi).sort((x, y) => x.off - y.off).slice(0, 2); });
+    const exterior = (h) => {
+      for (const dd of [900, 1500]) { const p = G.add(h.fm, G.mul(h.nin, -dd)); if (final.some((r) => G.pointInPoly(p, r.pts) || G.distPointPoly(p, r.pts) < 550)) return false; }
+      return true;
+    };
+    const hasArcs = curves.length >= 2; let leafSegs = null;
     openings.forEach((op, oi) => {
-      const two = op.rooms.length >= 2;
-      op.rooms.forEach((h) => {
-        const other = two ? op.rooms.find((x) => x.ri !== h.ri) : null;
-        const type = two ? 'porte' : h.width >= 1800 ? 'baie' : 'fenetre';
-        final[h.ri].openings.push({ type, wall: h.wall, pos: Math.round(h.pos), width: Math.round(h.width), toIdx: other ? other.ri : null, op: oi });
+      const hs = op.rooms; if (!hs.length) return;
+      const two = hs.length >= 2; const ext = !two && exterior(hs[0]);
+      let type, hinges = [];
+      if (ext) type = op.w >= 1800 ? 'baie' : 'fenetre';
+      else {
+        if (!leafSegs) { const bb = G.bbox(final.flatMap((r) => r.pts)); leafSegs = W.segs.filter((sg) => roles[sg.st] !== 'masque' && roles[sg.st] !== 'cote' && G.dist(sg.a, sg.b) > 200 && G.dist(sg.a, sg.b) < 1500 && sg.a.x > bb.x0 - 2000 && sg.a.x < bb.x1 + 2000 && sg.a.y > bb.y0 - 2000 && sg.a.y < bb.y1 + 2000); }
+        hinges = curves.length ? findHinges(op, curves, leafSegs) : [];
+        if (hinges.length >= 2 && Math.abs(hinges[0].along - hinges[1].along) > 0.6 * op.w && hinges.every((h) => h.r < 0.75 * op.w)) type = 'porte2';
+        else if (hinges.length) type = 'porte';
+        else if (op.w <= 1300 && W && slidingLeaf(op, W, roles)) type = 'coulissante';
+        else if (two && hs.every((h) => h.off <= 40)) type = hasArcs ? 'passage' : 'porte';
+        else return; // trou dans une cloison sans porte ni passage : ignoré
+      }
+      op.type = type;
+      const H = hinges[0];
+      let prim = hs[0], out = false;
+      if (H) {
+        const into = hs.find((h) => G.dot(G.sub(H.M, H.H), h.nin) > 0);
+        if (into) prim = into; else out = true;
+      }
+      hs.forEach((h) => {
+        const other = two ? hs.find((x) => x.ri !== h.ri) : null;
+        let hinge = 'g';
+        if (H && h === prim) { const t = G.dot(G.sub(H.H, h.a), h.eu); hinge = t < h.pos + h.width / 2 ? 'g' : 'd'; }
+        final[h.ri].openings.push({ type, wall: h.wall, pos: Math.round(h.pos), width: Math.round(h.width), toIdx: other ? other.ri : null, op: oi, prim: h === prim, hinge, out: h === prim ? out : false });
       });
     });
     return openings;

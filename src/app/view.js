@@ -11,8 +11,17 @@
   const readColors = () => {
     if (!probe) { probe = document.createElement('i'); probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden'; document.body.appendChild(probe); }
     const r = (v) => { probe.style.color = 'var(' + v + ')'; return getComputedStyle(probe).color; };
-    C = { paper: r('--paper'), ink: r('--ink'), red: r('--red'), oak: r('--oak'), ink2: r('--ink-2'), ink3: r('--ink-3'), ink4: r('--ink-4'), ink5: r('--ink-5'), oakCut: r('--oak-cut'), oakReuse: r('--oak-reuse'), oakLine: r('--oak-line') };
+    const nc = { paper: r('--paper'), ink: r('--ink'), red: r('--red'), oak: r('--oak'), ink2: r('--ink-2'), ink3: r('--ink-3'), ink4: r('--ink-4'), ink5: r('--ink-5'), oakCut: r('--oak-cut'), oakReuse: r('--oak-reuse'), oakLine: r('--oak-line') };
+    const keep = nc.ink === C.ink && nc.paper === C.paper ? C.hatch : null; C = nc; C.hatch = keep;
   };
+  /* tramage des murs : hachures fines à 45° */
+  function makeHatch(ink, paper) {
+    const k = Math.max(1, Math.round(dpr)), sz = 6 * k; const c = document.createElement('canvas'); c.width = c.height = sz; const x = c.getContext('2d');
+    x.fillStyle = paper; x.fillRect(0, 0, sz, sz); x.strokeStyle = ink; x.lineWidth = 0.9 * k; x.lineCap = 'square'; x.beginPath();
+    for (const o of [-sz, 0, sz]) { x.moveTo(o, sz); x.lineTo(o + sz, 0); } x.stroke();
+    const pat = ctx.createPattern(c, 'repeat'); try { pat.setTransform(new DOMMatrix().scale(1 / k)); } catch (e) { /* ancien navigateur */ }
+    return pat;
+  }
   App.readColors = readColors;
 
   /* ---------- transformations ---------- */
@@ -59,7 +68,8 @@
     const shapes = App.shapesOn(fid);
     const rooms = shapes.filter((s) => s.kind === 'piece');
     const showCal = S.mode === 'calepinage' || S.layers.calepinage;
-    // pièces
+    // murs (tramage) puis pièces
+    if (S.mode !== 'calepinage' || true) drawPoche(rooms);
     for (const r of rooms) {
       path(r.pts); ctx.fillStyle = r.parquet === false && showCal ? C.ink5 : C.paper; ctx.globalAlpha = S.layers.fond && S.bgs[fid] && S.bgs[fid].img ? 0.82 : 1; ctx.fill(); ctx.globalAlpha = 1;
     }
@@ -69,8 +79,10 @@
     // zones et escaliers
     for (const s of shapes) if (s.kind === 'exclusion' || s.kind === 'escalier' || s.kind === 'poteau') drawObstacle(s);
     // murs (contours)
-    for (const r of rooms) { path(r.pts); ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1.6, Math.min(4, 120 * z)); ctx.lineJoin = 'miter'; ctx.stroke(); }
-    for (const r of rooms) drawOpenings(r);
+    for (const r of rooms) { path(r.pts); ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1, Math.min(1.8, 40 * z)); ctx.lineJoin = 'miter'; ctx.stroke(); }
+    App.opHandles = null; const selOp = App.ops.selected();
+    drawOpenings(rooms, selOp);
+    if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
     if (S.layers.mobilier || S.mode === 'mobilier') for (const s of shapes) if (s.kind === 'meuble') drawFurniture(s, showCal && S.mode !== 'mobilier');
@@ -78,21 +90,79 @@
     for (const r of rooms) drawRoomLabel(r, showCal);
     if (S.layers.cotes && S.mode !== 'elec' && !showCal) for (const r of rooms) drawDims(r, false);
     if (S.step && showCal) drawStep();
-    const sel = App.selected();
+    const sel = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     if (sel && sel.pts && sel.kind !== 'piece' && S.layers.cotes) drawDims(sel, true);
-    if (sel && sel.kind === 'piece') drawDims(sel, true);
+    if (sel && sel.kind === 'piece' && !ctxSel) drawDims(sel, true);
     // mesures
     for (const m of App.measuresOn(fid)) drawMeasure(m, S.sel && S.sel.id === m.id);
     // électricité
     if (S.layers.elec || S.mode === 'elec') for (const p of App.pointsOn(fid)) drawElec(p, S.sel && S.sel.id === p.id);
     // sélection
-    if (sel) drawSelection(sel);
+    App.wallHandle = null;
+    if (S.pending) drawPending();
+    else if (sel && S.sel.wall != null) drawWallSel(sel, S.sel.wall);
+    else if (sel && !ctxSel) drawSelection(sel);
+    if (S.opInfo) { const q = App.w2s(S.opInfo.p); pill(S.opInfo.txt, q.x, q.y - 30, true); }
     if (S.draft) drawDraft();
     if (S.snapMark) drawSnap(S.snapMark);
     if (S.edgeInfo) { const e = S.edgeInfo; const q = App.w2s(e.p); ctx.font = font(700, 12); const t = (e.delta >= 0 ? '+' : '') + App.fmtCm(e.delta) + ' cm'; const tw = ctx.measureText(t).width; ctx.fillStyle = C.red; ctx.fillRect(q.x - tw / 2 - 6, q.y - 30, tw + 12, 20); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, q.x, q.y - 20); }
     if (S.cutLine) { const a = App.w2s(S.cutLine.a), b = App.w2s(S.cutLine.b); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
     drawScale();
     if (S.loupe) drawLoupe();
+    if (App.ctx) App.ctx.placeOpbar();
+  }
+  function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
+  const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };
+
+  /* épaisseur des murs : contour de chaque pièce décalé vers l'extérieur, hachuré */
+  const POCHE = 170;
+  function drawPoche(rooms) {
+    if (!rooms.length || !ctx) return; if (!C.hatch) C.hatch = makeHatch(C.ink, C.paper);
+    ctx.save(); ctx.beginPath();
+    for (const r of rooms) {
+      const off = G.offset(r.pts, -POCHE).map((q, i) => { const p = r.pts[i]; const d = G.dist(p, q); return d > 3 * POCHE ? G.add(p, G.mul(G.sub(q, p), (3 * POCHE) / d)) : q; });
+      off.forEach((p, i) => { const q = App.w2s(p); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath();
+    }
+    ctx.fillStyle = C.hatch; ctx.globalAlpha = S.mode === 'calepinage' ? 0.55 : 0.9; ctx.fill('nonzero'); ctx.restore();
+  }
+  function drawWallLocks(r) {
+    for (let i = 0; i < r.pts.length; i++) {
+      if (!(r.locks && r.locks[i] && r.locks[i].P)) continue; const a = r.pts[i], b = r.pts[(i + 1) % r.pts.length]; if (G.dist(a, b) * S.view.z < 40) continue;
+      const W = App.ops.wall(r, i); const q = App.w2s(G.add(G.lerp(a, b, 0.5), G.mul(W.nin, 12 / S.view.z)));
+      ctx.fillStyle = C.ink; ctx.fillRect(q.x - 4, q.y - 1, 8, 6); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(q.x, q.y - 1, 2.6, Math.PI, 0); ctx.stroke();
+    }
+  }
+  function drawWallSel(r, i) {
+    if (i >= r.pts.length) return; const W = App.ops.wall(r, i); const parts = App.walls.partners(r, i); const locked = App.walls.isLocked(r, i);
+    ctx.lineCap = 'round';
+    for (const p of parts) { const V = App.ops.wall(p.room, p.j); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; segLine(V.a, V.b); }
+    // bande de la cloison
+    if (parts.length) { const th = Math.min(...parts.map((p) => p.off)); const q = [W.a, W.b, G.add(W.b, G.mul(W.nin, -th)), G.add(W.a, G.mul(W.nin, -th))]; path(q); ctx.fillStyle = C.red; ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = C.red; ctx.lineWidth = 4.5; segLine(W.a, W.b); ctx.lineCap = 'butt';
+    const s0 = App.w2s(W.a), s1 = App.w2s(W.b), m = G.lerp(s0, s1, 0.5); const ns = G.norm({ x: W.nin.x, y: -W.nin.y });
+    // cote du mur
+    const long = G.dist(s0, s1) > 190; const lab = long ? G.lerp(s0, s1, 0.24) : App.w2s(G.add(G.lerp(W.a, W.b, 0.5), G.mul(W.nin, 30 / S.view.z))); pill(App.fmtCm(W.el) + ' cm', lab.x, lab.y, false);
+    if (locked) { pill('Verrouillée', m.x, m.y, true); return; }
+    // poignée : double flèche perpendiculaire
+    const hpos = G.add(m, G.mul(ns, 0)); ctx.beginPath(); ctx.arc(hpos.x, hpos.y, 14, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.beginPath(); const a1 = G.add(hpos, G.mul(ns, 8)), a2 = G.add(hpos, G.mul(ns, -8)); const t = { x: -ns.y, y: ns.x };
+    ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y);
+    for (const [tip, sg] of [[a1, 1], [a2, -1]]) { const b = G.sub(tip, G.mul(ns, 4 * sg)); ctx.moveTo(b.x + t.x * 4, b.y + t.y * 4); ctx.lineTo(tip.x, tip.y); ctx.lineTo(b.x - t.x * 4, b.y - t.y * 4); }
+    ctx.stroke();
+    App.wallHandle = { x: hpos.x, y: hpos.y, s0, s1 };
+  }
+  function drawPending() {
+    const P = S.pending; ctx.lineCap = 'round';
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.4;
+    for (const m of P.moving) { const o = P.orig[m.id] && P.orig[m.id].pts; if (o) segLine(o[m.i], o[(m.i + 1) % o.length]); }
+    ctx.setLineDash([7, 5]); ctx.strokeStyle = C.red; ctx.lineWidth = 2.2;
+    for (const a of P.affected) { const r = App.byId(a.id); if (r) segLine(r.pts[a.i], r.pts[(a.i + 1) % r.pts.length]); }
+    ctx.setLineDash([]); ctx.lineWidth = 4.5; ctx.strokeStyle = C.red;
+    for (const m of P.moving) { const r = App.byId(m.id); if (r) segLine(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length]); }
+    ctx.lineCap = 'butt';
+    for (const a of P.affected) { const r = App.byId(a.id); if (!r) continue; const W = App.ops.wall(r, a.i); if (W.el * S.view.z < 30) continue; const q = App.w2s(G.add(G.lerp(W.a, W.b, 0.5), G.mul(W.nin, 22 / S.view.z))); pill(`${App.fmtCm(a.L0)} → ${App.fmtCm(a.L1)}${a.locked ? ' · verr.' : ''}`, q.x, q.y, false); }
+    const m0 = P.moving[0], r0 = App.byId(m0.id); if (r0) { const q = App.w2s(G.lerp(r0.pts[m0.i], r0.pts[(m0.i + 1) % r0.pts.length], 0.5)); pill((P.delta < 0 ? '− ' : '+ ') + App.fmtCm(Math.abs(P.delta)) + ' cm', q.x, q.y, true); }
+    const sel = App.selected(); if (sel && S.sel.wall != null) { const W = App.ops.wall(sel, S.sel.wall); const s0 = App.w2s(W.a), s1 = App.w2s(W.b); App.wallHandle = { ...G.lerp(s0, s1, 0.5), s0, s1 }; }
   }
 
   function drawBackground(fid) {
@@ -234,40 +304,58 @@
     if (S.view.z > 0.035 && s.name) { const c = App.w2s(G.centroid(s.pts)); const lbl = s.name.replace(/ \(type .*\)/, ''); text(lbl, c.x, c.y, 500, 10, C.ink2); }
   }
 
-  function drawOpenings(r) {
-    const n = r.pts.length, z = S.view.z;
-    for (const o of r.openings || []) {
-      if (o.wall >= n) continue;
-      const a = r.pts[o.wall], b = r.pts[(o.wall + 1) % n], el = G.dist(a, b); if (el < 1) continue;
-      const d = G.norm(G.sub(b, a)), nin = G.perp(d); // intérieur à gauche (CCW)
-      const p0 = G.add(a, G.mul(d, Math.max(0, o.pos))), p1 = G.add(a, G.mul(d, Math.min(el, o.pos + o.width)));
-      const s0 = App.w2s(p0), s1 = App.w2s(p1);
-      ctx.strokeStyle = C.paper; ctx.lineWidth = Math.max(2.4, Math.min(5, 120 * z)) + 1.2; ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
-      ctx.strokeStyle = C.ink; ctx.lineWidth = 1;
-      const tick = (p) => { const q1 = App.w2s(G.add(p, G.mul(nin, 60))), q2 = App.w2s(G.add(p, G.mul(nin, -60))); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.stroke(); };
+  function drawOpenings(rooms, selOp) {
+    const z = S.view.z; const selLink = selOp && selOp.o.link;
+    const items = [];
+    for (const r of rooms) for (const o of r.openings || []) {
+      const g = App.ops.geo(r, o); if (!g) continue;
+      let T = POCHE; if (o.link) { const tw = App.ops.twin(r, o); if (tw) { const tg = App.ops.geo(tw.room, tw.o); if (tg) T = Math.max(0, Math.min(POCHE, -G.dot(G.sub(tg.p0, g.p0), g.nin))); } }
+      items.push({ r, o, g, T, isSel: !!(selOp && (o.oid === selOp.o.oid || (selLink && o.link === selLink))) });
+    }
+    // 1. trouées dans les murs (toutes d'abord, pour ne pas effacer le symbole de la pièce voisine)
+    for (const it of items) {
+      const { p0, p1, nin } = it.g; const out = G.mul(nin, -1); const e = it.T + (it.o.link ? 0.5 / z : 4);
+      const gap = [G.add(p0, G.mul(nin, 2 / z)), G.add(p1, G.mul(nin, 2 / z)), G.add(p1, G.mul(out, e)), G.add(p0, G.mul(out, e))];
+      path(gap); ctx.fillStyle = C.paper; ctx.fill();
+      if (it.isSel) { path(gap); ctx.fillStyle = C.red; ctx.globalAlpha = 0.14; ctx.fill(); ctx.globalAlpha = 1; }
+    }
+    // 2. tableaux et symboles
+    for (const { r, o, g, T, isSel } of items) {
+      const { d, nin, p0, p1 } = g; const w = g.w; const col = isSel ? C.red : C.ink; const out = G.mul(nin, -1);
+      ctx.strokeStyle = col; ctx.lineWidth = isSel ? 1.6 : 1;
+      if (T > 15) { const jamb = (p) => segLine(p, G.add(p, G.mul(out, T))); jamb(p0); jamb(p1); }
+      else { const tk = 5 / z; segLine(G.add(p0, G.mul(nin, tk)), G.add(p0, G.mul(out, tk))); segLine(G.add(p1, G.mul(nin, tk)), G.add(p1, G.mul(out, tk))); }
       const t = o.type;
-      if (t === 'porte' || t === 'porte2') {
-        tick(p0); tick(p1); if (o.sw === 0) continue;
-        const leaves = t === 'porte2' ? [[p0, o.width / 2, 1], [p1, o.width / 2, -1]] : [[o.hinge === 'd' ? p1 : p0, o.width, o.hinge === 'd' ? -1 : 1]];
-        for (const [h, w, sg] of leaves) {
-          const side = o.out ? -1 : 1; const tip = G.add(h, G.mul(nin, w * side)); const hs = App.w2s(h), ts = App.w2s(tip);
-          ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(hs.x, hs.y); ctx.lineTo(ts.x, ts.y); ctx.stroke();
-          const closed = App.w2s(G.add(h, G.mul(d, w * sg)));
-          const a0 = Math.atan2(ts.y - hs.y, ts.x - hs.x), a1 = Math.atan2(closed.y - hs.y, closed.x - hs.x);
-          let da = G.normAng(a1 - a0); ctx.lineWidth = 0.7; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(hs.x, hs.y, w * z, a0, a0 + da, da < 0); ctx.stroke(); ctx.setLineDash([]);
+      if (o.sw !== 0) {
+        if (t === 'porte' || t === 'porte2' || t === 'porte-fenetre') {
+          const side = o.out ? -1 : 1;
+          const leaves = t === 'porte' ? [[o.hinge === 'd' ? p1 : p0, w, o.hinge === 'd' ? -1 : 1]] : [[p0, w / 2, 1], [p1, w / 2, -1]];
+          for (const [h, lw, sg] of leaves) {
+            const tip = G.add(h, G.mul(nin, lw * side)); const hs = App.w2s(h), ts = App.w2s(tip), closed = App.w2s(G.add(h, G.mul(d, lw * sg)));
+            ctx.lineWidth = isSel ? 2.4 : 1.6; ctx.beginPath(); ctx.moveTo(hs.x, hs.y); ctx.lineTo(ts.x, ts.y); ctx.stroke();
+            const a0 = Math.atan2(ts.y - hs.y, ts.x - hs.x), a1 = Math.atan2(closed.y - hs.y, closed.x - hs.x); const da = G.normAng(a1 - a0);
+            ctx.lineWidth = isSel ? 1.2 : 0.8; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(hs.x, hs.y, lw * z, a0, a0 + da, da < 0); ctx.stroke(); ctx.setLineDash([]);
+            if (isSel && t === 'porte') { ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(hs.x, hs.y, 4, 0, Math.PI * 2); ctx.fill(); }
+          }
+          if (t === 'porte-fenetre') { ctx.lineWidth = 0.8; segLine(G.add(p0, G.mul(out, T * 0.5)), G.add(p1, G.mul(out, T * 0.5))); }
+        } else if (t === 'coulissante' || t === 'galandage') {
+          const side = o.out ? -1 : 1; const from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1; const off = G.mul(nin, side * 45);
+          const leafA = t === 'galandage' ? G.add(from, G.mul(G.sub(from, to), 0.05)) : from;
+          ctx.lineWidth = isSel ? 3.2 : 2.4; segLine(G.add(leafA, off), G.add(to, off)); ctx.lineWidth = 1;
+          if (t === 'galandage') { ctx.setLineDash([4, 3]); segLine(G.add(from, G.mul(out, T / 2)), G.add(G.add(from, G.mul(G.sub(from, to), 1)), G.mul(out, T / 2))); ctx.setLineDash([]); }
+          const am = App.w2s(G.add(G.lerp(from, to, 0.5), G.mul(nin, side * 160))), ad = G.norm(G.sub(App.w2s(from), App.w2s(to)));
+          ctx.beginPath(); ctx.moveTo(am.x - ad.x * 10, am.y - ad.y * 10); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.moveTo(am.x + ad.x * 10 - ad.y * 4 - ad.x * 4, am.y + ad.y * 10 + ad.x * 4 - ad.y * 4); ctx.lineTo(am.x + ad.x * 10, am.y + ad.y * 10); ctx.lineTo(am.x + ad.x * 10 + ad.y * 4 - ad.x * 4, am.y + ad.y * 10 - ad.x * 4 - ad.y * 4); ctx.stroke();
+        } else if (t === 'velux') { const q = [p0, p1, G.add(p1, G.mul(nin, 600)), G.add(p0, G.mul(nin, 600))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]); }
+        else if (t !== 'passage') {
+          const fr = t === 'baie' ? [0.25, 0.5, 0.75] : t === 'fixe' ? [0.5] : [0.35, 0.65];
+          for (const f of fr) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
+          if (t === 'baie') { ctx.lineWidth = isSel ? 2.6 : 2; segLine(G.add(p0, G.mul(out, T * 0.38)), G.add(G.lerp(p0, p1, 0.55), G.mul(out, T * 0.38))); segLine(G.add(G.lerp(p0, p1, 0.45), G.mul(out, T * 0.62)), G.add(p1, G.mul(out, T * 0.62))); }
         }
-      } else if (t === 'coulissante' || t === 'galandage') {
-        tick(p0); tick(p1);
-        const off = G.mul(nin, 50); const q0 = App.w2s(G.add(p0, off)), q1 = App.w2s(G.add(G.add(p0, G.mul(d, o.width * (t === 'galandage' ? 0.6 : 1))), off));
-        ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke(); ctx.lineWidth = 1;
-      } else if (t === 'passage') { tick(p0); tick(p1); }
-      else if (t === 'velux') {
-        const q = [p0, p1, G.add(p1, G.mul(nin, 600)), G.add(p0, G.mul(nin, 600))]; ctx.setLineDash([4, 3]); path(q); ctx.stroke(); ctx.setLineDash([]);
-      } else {
-        tick(p0); tick(p1);
-        const offs = t === 'baie' ? [-35, 0, 35] : t === 'fixe' ? [0] : [-30, 30];
-        for (const of of offs) { const q0 = App.w2s(G.add(p0, G.mul(nin, of))), q1 = App.w2s(G.add(p1, G.mul(nin, of))); ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke(); }
-        if (t === 'porte-fenetre') { const m = App.w2s(G.add(G.lerp(p0, p1, 0.5), G.mul(nin, 120))); ctx.beginPath(); ctx.arc(m.x, m.y, 2, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill(); }
+      }
+      if (isSel && o.oid === selOp.o.oid) {
+        const s0 = App.w2s(p0), s1 = App.w2s(p1);
+        for (const q of [s0, s1]) { ctx.fillStyle = C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+        App.opHandles = { oid: o.oid, s0, s1 };
       }
     }
   }
@@ -374,11 +462,6 @@
     path(s.pts); ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.setLineDash(s.locked ? [5, 4] : []); ctx.stroke(); ctx.setLineDash([]);
     if (s.locked) { const c = App.w2s(G.centroid(s.pts)); ctx.fillStyle = C.red; text('Verrouillé', c.x, c.y + 34, 700, 10, C.red); return; }
     App.edgeHandles = [];
-    if (s.kind === 'piece' && S.tool === 'select') for (let i = 0; i < s.pts.length; i++) {
-      const a = s.pts[i], b = s.pts[(i + 1) % s.pts.length]; if (G.dist(a, b) * S.view.z < 70) continue; const m = App.w2s(G.lerp(a, b, 0.5)); const d = G.norm(G.sub(App.w2s(b), App.w2s(a)));
-      ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(Math.atan2(d.y, d.x)); ctx.fillStyle = S.dragE === i ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(-11, -4, 22, 8); ctx.strokeRect(-11, -4, 22, 8); ctx.restore();
-      App.edgeHandles.push({ i, x: m.x, y: m.y });
-    }
     for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
     if (S.tool === 'select') { const c = App.w2s(G.centroid(s.pts)); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
   }

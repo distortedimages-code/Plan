@@ -55,7 +55,7 @@
   function toRaw(text) {
     const d = parse(text);
     let k = UNITS[+(d.header.$INSUNITS || 0)] || null;
-    const styles = [], sIdx = {}, segs = [], curves = [], texts = [];
+    const styles = [], sIdx = {}, segs = [], curves = [], texts = [], bez = [];
     const styleOf = (layer, color, kind) => { const key = layer + '|' + color + '|' + kind; let s = sIdx[key]; if (s == null) { s = sIdx[key] = styles.length; styles.push({ key, kind: 'S', stroke: ACI[color % 10] || '#000000', fill: null, lw: 0.3, mc: layer, layer, n: 0, len: 0, dxfKind: kind }); } return s; };
     const T = (m, x, y) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] });
     const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
@@ -79,7 +79,16 @@
           let a0 = e.type === 'ARC' ? (num(e, 50) * Math.PI) / 180 : 0, a1 = e.type === 'ARC' ? (num(e, 51) * Math.PI) / 180 : 2 * Math.PI; if (a1 <= a0) a1 += 2 * Math.PI;
           const nseg = Math.max(6, Math.ceil(((a1 - a0) / (2 * Math.PI)) * 48)); let prev = null;
           for (let j = 0; j <= nseg; j++) { const a = a0 + ((a1 - a0) * j) / nseg; const p = T(m, cx + r * Math.cos(a), cy + r * Math.sin(a)); if (prev) addSeg(prev, p, st); prev = p; }
-          if (e.type === 'ARC') curves.push({ c: T(m, cx, cy), r: r * Math.hypot(m[0], m[1]), a0, a1, st });
+          if (e.type === 'ARC') {
+            curves.push({ c: T(m, cx, cy), r: r * Math.hypot(m[0], m[1]), a0, a1, st });
+            // en Bézier (≤ 90° par morceau), pour la détection des portes comme dans un PDF
+            const np = Math.max(1, Math.ceil((a1 - a0) / (Math.PI / 2) - 1e-9)), da = (a1 - a0) / np, kk = (4 / 3) * Math.tan(da / 4);
+            const F = (q) => ({ x: q.x, y: -q.y });
+            for (let j = 0; j < np; j++) {
+              const t0 = a0 + j * da, t1 = t0 + da; const c0 = Math.cos(t0), s0 = Math.sin(t0), c1 = Math.cos(t1), s1 = Math.sin(t1);
+              bez.push({ p0: F(T(m, cx + r * c0, cy + r * s0)), c1: F(T(m, cx + r * (c0 - kk * s0), cy + r * (s0 + kk * c0))), c2: F(T(m, cx + r * (c1 + kk * s1), cy + r * (s1 - kk * c1))), p3: F(T(m, cx + r * c1, cy + r * s1)), st });
+            }
+          }
         } else if (e.type === 'TEXT' || e.type === 'MTEXT') {
           let s = val(e, 1, ''); if (e.type === 'MTEXT') s = (e.g.filter((p) => p[0] === 3).map((p) => p[1]).join('') + s).replace(/\\P/g, ' ').replace(/\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, '');
           const p = T(m, num(e, 10), num(e, 20)); const h = num(e, 40, 2.5) * Math.hypot(m[0], m[1]); const rot = (num(e, 50) * Math.PI) / 180 + Math.atan2(m[1], m[0]);
@@ -100,7 +109,7 @@
     const ext = Math.max(x1 - x0, y1 - y0);
     let guessed = false;
     if (!k) { guessed = true; k = ext < 300 ? 1000 : ext < 6000 ? 10 : 1; }
-    return { raw: { width: x1 - x0, height: 0, styles, segs, curves: [], texts, dxfArcs: curves, bbox: { x0, y0, x1, y1 } }, k, guessed, units: d.header.$INSUNITS };
+    return { raw: { width: x1 - x0, height: 0, styles, segs, curves: bez, texts, dxfArcs: curves, bbox: { x0, y0, x1, y1 } }, k, guessed, units: d.header.$INSUNITS };
   }
 
   PL.dxf = { parse, toRaw };

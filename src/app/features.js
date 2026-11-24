@@ -20,7 +20,7 @@
         if (hi < -10 || lo > el + 10) continue;
         if (!best || dist < best.dist) best = { dist, wall: i, pos: Math.max(0, lo), width: Math.min(el, hi) - Math.max(0, lo) };
       }
-      if (best && best.width > 100) out.push(Object.assign({}, o, { wall: best.wall, pos: Math.round(best.pos), width: Math.round(best.width) }));
+      if (best && best.width > 100) out.push(Object.assign({}, o, { oid: App.uid(), wall: best.wall, pos: Math.round(best.pos), width: Math.round(best.width) }));
     }
     return out;
   };

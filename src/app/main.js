@@ -5,7 +5,7 @@
     App.load();
     if (S.p.seeded) { S.mode = 'calepinage'; S.tab = 'calepinage'; }
     const cv = document.getElementById('cv');
-    App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init();
+    App.readColors(); App.initView(cv); App.initInput(cv); App.ui.init(); App.ctx.init();
     requestAnimationFrame(() => { App.fitAll(true); App.importer.ensureBg(S.p.floorId); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => App.render());
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => App.render());

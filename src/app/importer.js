@@ -157,10 +157,15 @@
       const nm = r.name || 'Pièce';
       return Object.assign(App.makeShape('piece', r.pts, { name: nm, floor: fid, imported: true, areaLabel: r.areaLabel, areaKind: r.areaKind, areaSH: r.areaSH }), { parquet: !App.noParquetName.test(nm) });
     });
-    let openings = 0;
+    let openings = 0; const links = {}; const seenOp = new Set();
     det.rooms.forEach((r, i) => {
-      const seen = new Set();
-      rooms[i].openings = (r.openings || []).map((o) => { const other = o.toIdx != null ? rooms[o.toIdx] : null; const sw = other ? (seen.has(o.op) ? 0 : (rooms.indexOf(other) > i ? 1 : 0)) : 1; seen.add(o.op); openings++; return { type: o.type, wall: o.wall, pos: o.pos, width: o.width, to: other ? other.id : null, sw, h: o.type === 'porte' ? 2040 : o.type === 'baie' ? 2150 : 1250, sill: o.type === 'fenetre' ? 950 : 0 }; });
+      rooms[i].openings = (r.openings || []).map((o) => {
+        const other = o.toIdx != null ? rooms[o.toIdx] : null; if (!seenOp.has(o.op)) { seenOp.add(o.op); openings++; }
+        const def = PL.lib.openings.find((x) => x.id === o.type) || {};
+        const op = { oid: App.uid(), type: o.type, wall: o.wall, pos: o.pos, width: o.width, to: other ? other.id : null, sw: other ? (o.prim ? 1 : 0) : 1, hinge: o.hinge || 'g', out: !!o.out, h: def.h, sill: def.sill };
+        if (other) op.link = links[o.op] || (links[o.op] = App.uid());
+        return op;
+      });
     });
     // une porte ne se dessine qu'une fois
     const stairs = (det.stairs || []).map((s, i) => App.makeShape('escalier', s.pts, { name: 'Escalier' + (det.stairs.length > 1 ? ' ' + (i + 1) : ''), floor: fid, imported: true, stair: { dir: s.mark || 'monte', steps: s.steps } }));

@@ -5,7 +5,7 @@
   const ui = (App.ui = {});
   const LOCK = '<svg viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>';
   const UNLOCK = '<svg viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7"/><path d="M5 7V5a3 3 0 0 1 6 0"/></svg>';
-  const TABS = [['pieces', 'Plan'], ['calepinage', 'Calepinage'], ['mobilier', 'Mobilier'], ['elec', 'Électricité'], ['import', 'Importer'], ['projet', 'Projet']];
+  const TABS = [['pieces', 'Plan'], ['calepinage', 'Calepinage'], ['mobilier', 'Mobilier'], ['elec', 'Électricité', 'Élec.'], ['import', 'Importer', 'Import'], ['projet', 'Projet']];
   const KIND = { piece: 'Pièce', meuble: 'Meuble', poteau: 'Poteau', exclusion: 'Zone sans parquet', escalier: 'Escalier', plafond: 'Zone de plafond bas', forme: 'Forme' };
   const wallName = (i, n) => String.fromCharCode(65 + (i % 26)) + String.fromCharCode(65 + ((i + 1) % n) % 26);
   const num = (v) => { const x = parseFloat(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(x) ? x : null; };
@@ -30,7 +30,8 @@
     const sheet = $('sheet'); const wide = innerWidth >= 900;
     const top = innerWidth <= 640 ? 92 : 54;
     if (wide) return { bottom: 0, right: 0, top };
-    const h = sheet.getBoundingClientRect().height; return { bottom: Math.max(0, h - 4) + 60, right: 0, top };
+    const hmap = { min: 112, half: innerHeight * 0.48, full: innerHeight * 0.88 }; const h = hmap[sheet.dataset.h] || sheet.getBoundingClientRect().height;
+    return { bottom: Math.max(0, h - 4) + 12, right: 0, top };
   };
 
   /* ---------- initialisation ---------- */
@@ -52,8 +53,9 @@
     grip.addEventListener('pointermove', (e) => { if (gy == null) return; const h = Math.max(100, Math.min(innerHeight * 0.9, gh - (e.clientY - gy))); $('sheet').style.setProperty('--sheeth', h + 'px'); $('sheet').style.transition = 'none'; });
     grip.addEventListener('pointerup', (e) => { if (gy == null) return; const moved = Math.abs(e.clientY - gy) > 6; const h = gh - (e.clientY - gy); gy = null; $('sheet').style.transition = ''; $('sheet').style.removeProperty('--sheeth'); if (!moved) { ui.sheet($('sheet').dataset.h === 'min' ? 'half' : $('sheet').dataset.h === 'half' ? 'full' : 'min'); return; } ui.sheet(h < innerHeight * 0.3 ? 'min' : h < innerHeight * 0.7 ? 'half' : 'full'); });
     ui.sheet(innerWidth < 900 && S.p.shapes.length ? 'min' : 'half');
-    ui.refresh(true);
+    ui.refresh(true); ui.refreshHint();
   };
+  ui.sheetState = () => $('sheet').dataset.h || 'half';
   ui.sheet = (h) => { $('sheet').dataset.h = h; updateRail(); setTimeout(() => App.render(), 240); };
   function updateRail() { const wide = innerWidth >= 900; let b = 0; if (!wide) { const hmap = { min: 112, half: innerHeight * 0.48, full: innerHeight * 0.88 }; b = hmap[$('sheet').dataset.h] || 0; } $('stage').style.setProperty('--railb', (wide ? 0 : Math.max(0, b - (innerHeight - $('stage').getBoundingClientRect().bottom))) + 'px'); }
   addEventListener('resize', () => { updateRail(); });
@@ -66,14 +68,16 @@
     S.sel = { id: rooms[i].id }; App.fitShape(rooms[i]); ui.onSelect(); App.render();
   }
 
+  const dropPending = () => { if (S.pending && App.walls) App.walls.cancel(true); };
   ui.setMode = (m) => {
-    S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
+    dropPending(); S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
     if (S.tool === 'elec' && m !== 'elec') ui.setTool('select');
     S.sel = null; ui.setTab(tab); App.render();
   };
   ui.setTab = (t) => { S.tab = t; ui.refresh(); $('panel').scrollTop = 0; };
 
   ui.setTool = (t) => {
+    if (t !== 'select') dropPending();
     if (t === 'wand' && !(S.bgs[S.p.floorId] && S.bgs[S.p.floorId].img)) { App.toast('Importez d\'abord un plan (PDF ou image) sur cet étage'); ui.setTab('import'); return; }
     if (S.tool === 'draw' && t !== 'draw' && S.draft && S.draft.pts.length) S.draft = null;
     S.tool = t; S.measureA = null; S.tempMeasure = null; S.snapMark = null;
@@ -95,6 +99,8 @@
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
+    else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
+    else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
     h.hidden = !html; h.innerHTML = html;
     h.onclick = (e) => {
       const b = e.target.closest('[data-h]'); if (!b) return; const a = b.dataset.h;
@@ -103,7 +109,10 @@
       else if (a === 'finish') ui.finishDraft();
       else if (a === 'dir') { const L = num($('drawLen').value); if (!L) { App.toast('Saisissez une longueur en cm'); return; } const d = S.draft; const last = d.pts[d.pts.length - 1]; const ang = G.rad(+b.dataset.d); d.pts.push({ x: last.x + Math.cos(ang) * L * 10, y: last.y + Math.sin(ang) * L * 10 }); ui.refreshHint(); App.render(); setTimeout(() => { const i = $('drawLen'); if (i) i.focus(); }, 10); }
       else if (a === 'wandopt') ui.setTab('import');
+      else if (a === 'seed') { App.begin(); const n = App.ops.applySeed(S.p, globalThis.CALEPIN_SEED); App.end(true); ui.refreshHint(); App.toast(`Portes et fenêtres mises à jour${n ? ' · ' + n + ' pièces' : ''} — Annuler pour revenir`); }
+      else if (a === 'noseed') { S.p.seedApplied = S.p.seedOffer; delete S.p.seedOffer; App.save(); ui.refreshHint(); }
     };
+    const ot = h.querySelector('[data-h=optype]'); if (ot) ot.onchange = () => { S.opType = ot.value; };
     const sel = h.querySelector('[data-h=kind]'); if (sel) sel.onchange = () => { S.drawKind = sel.value; if (S.draft) S.draft.kind = sel.value; };
     const ct = h.querySelector('#cutThick'); if (ct) ct.onchange = () => { S.cutThick = num(ct.value) ?? 0; };
     updateRail();
@@ -173,11 +182,19 @@
 
   /* ---------- sélection ---------- */
   ui.onSelect = (again) => {
-    const s = App.selected();
+    const s = App.selected(); const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     if (s && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
+    if (ctxSel) {
+      let p = null; const f = App.ops.selected();
+      if (S.sel.oid && f) { const g = App.ops.geo(f.room, f.o); p = g && g.mid; }
+      else if (s && S.sel.wall != null) p = G.lerp(s.pts[S.sel.wall], s.pts[(S.sel.wall + 1) % s.pts.length], 0.5);
+      if (p) { const q = App.w2s(p), ob = ui.obstruction(), vs = App.viewSize(); if (q.x < 30 || q.x > vs.W - 30 || q.y < ob.top + 60 || q.y > vs.H - ob.bottom - 70) setTimeout(() => App.ctx.focus(p), 60); }
+    }
     ui.refresh();
   };
   ui.deleteSelected = async () => {
+    if (S.sel && S.sel.oid) { App.ctx.act('del'); return; }
+    if (S.sel && S.sel.wall != null) { App.toast('Pour supprimer une cloison : menu de la cloison › Supprimer la cloison'); return; }
     const s = App.selected(); if (!s) return; if (s.locked) { App.toast('Déverrouillez d\'abord cet objet'); return; }
     App.mutate((P) => { P.shapes = P.shapes.filter((x) => x.id !== s.id); P.points = P.points.filter((x) => x.id !== s.id); P.measures = P.measures.filter((x) => x.id !== s.id); P.shapes.forEach((r) => (r.openings || []).forEach((o) => { if (o.to === s.id) o.to = null; })); });
     S.sel = null; ui.refresh(); App.toast('Supprimé — Annuler pour revenir');
@@ -209,7 +226,8 @@
     document.querySelectorAll('#rail [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === S.tool || (b.dataset.tool === 'measure' && S.tool === 'calib')));
     const sel = App.selected(); const rooms = App.rooms();
     $('rnName').textContent = sel && sel.kind === 'piece' ? sel.name || 'Pièce' : rooms.length + ' pièce' + (rooms.length > 1 ? 's' : '');
-    $('tabs').innerHTML = TABS.map(([k, v]) => `<button role="tab" data-tab="${k}" aria-selected="${S.tab === k}">${v}</button>`).join('');
+    $('tabs').innerHTML = TABS.map(([k, v, sh]) => `<button role="tab" data-tab="${k}" aria-selected="${S.tab === k}"><span class="${sh ? 'tl hasS' : 'tl'}">${v}</span>${sh ? `<span class="ts">${sh}</span>` : ''}</button>`).join('');
+    if (App.ctx) App.ctx.renderOpbar();
     const panel = $('panel'); const ae = document.activeElement;
     if (!force && ae && panel.contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.type !== 'checkbox' && ae.type !== 'file') { pendingPanel = true; return; }
     renderPanel();
@@ -218,7 +236,7 @@
   document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { const ae = document.activeElement; if (!(ae && $('panel').contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) { pendingPanel = false; renderPanel(); } }, 0); });
 
   ui.switchFloor = (id) => {
-    if (id === S.p.floorId) return; const prev = App.floorBBox();
+    if (id === S.p.floorId) return; dropPending(); const prev = App.floorBBox();
     S.p.floorId = id; S.sel = null; S.draft = null; S.step = null; S.optRes = null; App.save();
     const bb = App.floorBBox(); const vw = App.s2w({ x: App.viewSize().W / 2, y: App.viewSize().H / 2 });
     if (!bb || !(vw.x > bb.x0 - 2000 && vw.x < bb.x1 + 2000 && vw.y > bb.y0 - 2000 && vw.y < bb.y1 + 2000)) App.fitAll();
@@ -230,7 +248,9 @@
   function renderPanel() {
     const panel = $('panel'); const sel = App.selected();
     let html = '';
-    if (sel) html = inspector(sel);
+    if (sel && S.sel.oid && App.ops.selected()) html = App.ctx.inspOpening();
+    else if (sel && S.sel.wall != null && sel.pts && S.sel.wall < sel.pts.length) html = App.ctx.inspWall();
+    else if (sel) html = inspector(sel);
     else if (S.tab === 'pieces') html = panelPieces();
     else if (S.tab === 'calepinage') html = panelCal();
     else if (S.tab === 'mobilier') html = panelMob();
@@ -277,7 +297,7 @@
       h += `<div class="field" style="margin-top:10px"><label>Parquet dans cette pièce</label><input type="checkbox" data-c="parquet" ${s.parquet !== false ? 'checked' : ''}></div>
         <div class="field"><label>Hauteur sous plafond</label><div class="unit"><input data-c="ceil" inputmode="decimal" placeholder="${App.feat.ceiling(Object.assign({}, s, { ceiling: null }))}" value="${s.ceiling || ''}"><span>cm</span></div></div>
         <h3>Transformer</h3><div class="row"><button class="btn sm" data-a="cut">Ajouter une cloison</button>${nb.length ? `<select id="mergeWith" style="height:36px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${nb.map((r) => `<option value="${r.id}">${esc(r.name || 'Pièce')}</option>`).join('')}</select><button class="btn sm" data-a="merge">Fusionner</button>` : ''}</div>
-        <p>Les poignées rouges au milieu des murs déplacent un mur ; si une pièce voisine est collée de l'autre côté, la cloison entière se déplace.</p>`;
+        <p>Touchez un mur sur le plan (ou son nom ci-dessous) pour passer en mode cloison : verrou, longueur, déplacement avec aperçu avant validation.</p>`;
     }
     if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
@@ -286,7 +306,7 @@
     // cotes
     h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme.</p>
       <table class="dims"><thead><tr><th>Mur</th><th>Longueur (cm)</th><th></th><th>Angle (°)</th><th></th><th></th></tr></thead><tbody>
-      ${s.pts.map((_, i) => { const lk = s.locks[i] || {}; return `<tr><td>${wallName(i, n)}</td><td><input data-c="L" data-i="${i}" inputmode="decimal" value="${fmt(m.L[i] / 10)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockL" data-i="${i}" aria-pressed="${!!lk.L}" title="Verrouiller la longueur">${lk.L ? LOCK : UNLOCK}</button></td><td><input data-c="A" data-i="${i}" inputmode="decimal" value="${fmt(G.deg(m.A[i]), 2)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockA" data-i="${i}" aria-pressed="${!!lk.A}" title="Verrouiller l'angle en ${String.fromCharCode(65 + i)}">${lk.A ? LOCK : UNLOCK}</button></td><td><button class="lock" data-a="split" data-i="${i}" title="Ajouter un point au milieu du mur">+</button></td></tr>`; }).join('')}
+      ${s.pts.map((_, i) => { const lk = s.locks[i] || {}; return `<tr><td>${s.kind === 'piece' ? `<button class="wname${lk.P ? ' lk' : ''}" data-x="wsel" data-v="${i}" title="Sélectionner ce mur">${wallName(i, n)}</button>` : wallName(i, n)}</td><td><input data-c="L" data-i="${i}" inputmode="decimal" value="${fmt(m.L[i] / 10)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockL" data-i="${i}" aria-pressed="${!!lk.L}" title="Verrouiller la longueur">${lk.L ? LOCK : UNLOCK}</button></td><td><input data-c="A" data-i="${i}" inputmode="decimal" value="${fmt(G.deg(m.A[i]), 2)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockA" data-i="${i}" aria-pressed="${!!lk.A}" title="Verrouiller l'angle en ${String.fromCharCode(65 + i)}">${lk.A ? LOCK : UNLOCK}</button></td><td><button class="lock" data-a="split" data-i="${i}" title="Ajouter un point au milieu du mur">+</button></td></tr>`; }).join('')}
       </tbody></table>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="lockAll">Tout verrouiller</button><button class="btn sm" data-a="unlockAll">Tout déverrouiller</button><button class="btn sm" data-a="square">Mettre d'équerre</button>${n > 3 ? '<button class="btn sm" data-a="delv">Retirer un point…</button>' : ''}</div>`;
     if (s.kind === 'piece') h += openingsUI(s) + calUI(s);
@@ -301,19 +321,12 @@
   }
 
   function openingsUI(s) {
-    const n = s.pts.length; const rooms = App.rooms().filter((r) => r.id !== s.id);
-    const types = PL.lib.openings;
-    return `<h3>Portes et fenêtres</h3>${(s.openings || []).map((o, k) => `<details ${S.openOpen === k ? 'open' : ''}><summary>${esc((types.find((t) => t.id === o.type) || {}).name || o.type)} · mur ${wallName(o.wall, n)} · ${fmt(o.width / 10)} cm</summary>
-      <div class="field"><label>Type</label><select data-c="o.type" data-k="${k}">${types.map((t) => `<option value="${t.id}" ${o.type === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div>
-      <div class="field"><label>Mur</label><select data-c="o.wall" data-k="${k}">${s.pts.map((_, i) => `<option value="${i}" ${o.wall === i ? 'selected' : ''}>${wallName(i, n)}</option>`).join('')}</select></div>
-      <div class="field"><label>Distance depuis ${String.fromCharCode(65 + o.wall)}</label><div class="unit"><input data-c="o.pos" data-k="${k}" inputmode="decimal" value="${fmt(o.pos / 10)}"><span>cm</span></div></div>
-      <div class="field"><label>Largeur</label><div class="unit"><input data-c="o.width" data-k="${k}" inputmode="decimal" value="${fmt(o.width / 10)}"><span>cm</span></div></div>
-      <div class="field"><label>Hauteur</label><div class="unit"><input data-c="o.h" data-k="${k}" inputmode="decimal" value="${o.h ? fmt(o.h / 10) : ''}"><span>cm</span></div></div>
-      ${/fenetre|fixe/.test(o.type) ? `<div class="field"><label>Allège</label><div class="unit"><input data-c="o.sill" data-k="${k}" inputmode="decimal" value="${o.sill != null ? fmt(o.sill / 10) : ''}"><span>cm</span></div></div>` : ''}
-      ${/porte|passage|coulissante|galandage/.test(o.type) && o.type !== 'porte-fenetre' ? `<div class="field"><label>Vers</label><select data-c="o.to" data-k="${k}"><option value="">—</option>${rooms.map((r) => `<option value="${r.id}" ${o.to === r.id ? 'selected' : ''}>${esc(r.name || 'Pièce')}</option>`).join('')}</select></div>` : ''}
-      ${o.type === 'porte' ? `<div class="seg"><button data-a="o.hinge" data-k="${k}" data-v="g" aria-pressed="${o.hinge !== 'd'}">Gonds à gauche</button><button data-a="o.hinge" data-k="${k}" data-v="d" aria-pressed="${o.hinge === 'd'}">À droite</button></div><div class="seg"><button data-a="o.sw" data-k="${k}" data-v="1" aria-pressed="${o.sw !== 0 && !o.out}">Ouvre ici</button><button data-a="o.sw" data-k="${k}" data-v="out" aria-pressed="${!!o.out}">Vers l'extérieur</button><button data-a="o.sw" data-k="${k}" data-v="0" aria-pressed="${o.sw === 0}">Non dessinée</button></div>` : ''}
-      <button class="link" data-a="o.del" data-k="${k}" style="margin:8px 0 12px">Retirer</button></details>`).join('')}
-      <div class="row" style="margin-top:10px"><select id="newOpType" style="height:44px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${types.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><select id="newOpWall" style="height:44px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${s.pts.map((_, i) => `<option value="${i}">Mur ${wallName(i, n)}</option>`).join('')}</select><button class="btn sm" data-a="o.add">Ajouter</button></div>`;
+    const ops = (s.openings || []).filter((o) => o.sw !== 0 || !App.ops.twin(s, o) || true);
+    const seen = new Set(); const items = [];
+    for (const o of ops) { const pr = App.ops.primary(s, o); if (seen.has(pr.o.oid)) continue; seen.add(pr.o.oid); items.push({ o, pr }); }
+    return `<h3>Portes et fenêtres</h3>${items.length ? `<div class="list">${items.map(({ o, pr }) => `<button class="item" data-x="opsel" data-v="${pr.o.oid}"><span class="nm">${esc(App.ops.name(o.type))}</span><span class="meta">${esc(App.ops.describe(s, o))}</span><span class="v">${App.fmtCm(o.width, 0)}<small style="font-size:12px"> cm</small></span></button>`).join('')}</div>` : '<p>Aucune ouverture.</p>'}
+      <div class="row" style="margin-top:10px"><button class="btn sm" data-x="optool">+ Ajouter sur le plan</button></div>
+      <p class="hint2">Touchez une porte sur le plan pour l'inverser, changer ses gonds ou la supprimer.</p>`;
   }
 
   function calUI(s) {
@@ -357,7 +370,7 @@
       <h2 style="margin-top:10px">${esc(r.name || 'Pièce')}</h2><p class="lead">Rang ${st.row} sur ${res.rows.length}${st.row === 1 ? ' — le long du mur de départ' : ''}</p>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div><b style="${rip ? 'color:var(--red)' : ''}">${rip ? Math.round(row.ripMax) : P.W}</b><span>${rip ? 'mm : lames délignées' + (row.ripMax - row.ripMin > 2 ? ' en biais (' + Math.round(row.ripMin) + '–' + Math.round(row.ripMax) + ')' : '') : 'mm : largeur entière'}</span></div><div><b>${pcs.length}</b><span>lames dans ce rang</span></div></div>
       <p style="margin:4px 0 8px">Ordre de pose depuis l'angle de départ, longueurs en mm :</p>
-      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px">${pcs.map(chip).join('<div style="align-self:center;color:var(--ink-3)">›</div>')}</div>
+      <div class="pcs">${pcs.map(chip).join('<i>›</i>')}</div>
       ${keeps.length ? `<p class="note">Gardez ${keeps.map((k) => k + ' mm').join(' et ')} de chute pour un rang suivant.</p>` : ''}
       ${row.warn.length ? `<p class="note">${esc(row.warn.join(' ; '))}</p>` : ''}
       <div class="row" style="margin-top:14px"><button class="btn" data-a="stepGo" data-v="-1" ${st.row <= 1 ? 'disabled' : ''} style="flex:1">‹ Rang précédent</button><button class="btn primary" data-a="stepGo" data-v="1" ${st.row >= res.rows.length ? 'disabled' : ''} style="flex:1">Rang suivant ›</button></div>`;
