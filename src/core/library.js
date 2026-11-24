@@ -39,5 +39,12 @@
     { id: 'fenetre', name: 'Fenêtre', w: 1000, h: 1250, sill: 950, leaves: 2 }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, leaves: 2 },
     { id: 'baie', name: 'Baie vitrée coulissante', w: 2400, h: 2150, sill: 0, leaves: 2 }, { id: 'fixe', name: 'Châssis fixe', w: 800, h: 1200, sill: 900 }, { id: 'velux', name: 'Fenêtre de toit', w: 780, h: 980, sill: 0 },
   ];
-  PL.lib = { furniture, structure, elec, elecDefaultH, openings };
+  /* références de parquet : dimensions et conditionnement relevés sur les fiches fabricant */
+  const TANGER = 'https://www.alsaflooring.com/stratifie/chene-tanger/';
+  const parquets = [
+    { id: 'alsa-allure-909', brand: 'Alsafloor', name: 'Alsafloor Allure · Chêne Tanger 909', short: 'Chêne Tanger · Allure 214 mm', L: 1286, W: 214, T: 10, perBox: 7, m2Box: 1.926, lay: 'flottante', note: 'Stratifié 10 mm, AC6, 4 chanfreins, clic 5G', url: TANGER },
+    { id: 'alsa-allurechic-909', brand: 'Alsafloor', name: 'Alsafloor Allure Chic · Chêne Tanger 909', short: 'Chêne Tanger · Allure Chic 172 mm', L: 1286, W: 172, T: 10, perBox: 7, m2Box: 1.548, lay: 'flottante', note: 'Stratifié 10 mm, lame étroite, AC6, 4 chanfreins, clic 5G', url: TANGER },
+    { id: 'alsa-solidplus-909', brand: 'Alsafloor', name: 'Alsafloor Solid Plus · Chêne Tanger 909', short: 'Chêne Tanger · Solid Plus 12 mm', L: 1286, W: 214, T: 12, perBox: 6, m2Box: 1.65, lay: 'flottante', note: 'Stratifié 12 mm, AC6, 4 chanfreins, clic 5G', url: TANGER },
+  ];
+  PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets };
 })();

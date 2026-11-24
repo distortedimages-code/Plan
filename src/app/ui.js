@@ -395,6 +395,8 @@
       <div class="legend"><span><i style="background:var(--oak)"></i>Lame entière</span><span><i style="background:var(--oak);border-right:3px solid var(--red)"></i>Coupe (trait rouge)</span><span><i style="background:var(--oak-reuse)"></i>Chute réemployée</span><span style="color:var(--red);font-weight:600">73 mm</span><span>rang déligné</span></div>
       ${S.mode !== 'calepinage' ? '<button class="btn primary" data-a="mode" data-v="calepinage" style="margin:6px 0">Afficher les lames sur le plan</button>' : ''}
       <details ${S.pqOpen ? 'open' : ''} data-d="pq"><summary>Référence du parquet</summary>
+        <div class="field"><label>Référence</label><select data-c="pq.ref"><option value="">Personnalisée</option>${PL.lib.parquets.map((q) => `<option value="${q.id}" ${P.ref === q.id ? 'selected' : ''}>${esc(q.short || q.name)}</option>`).join('')}</select></div>
+        ${(() => { const q = PL.lib.parquets.find((x) => x.id === P.ref); return q ? `<p class="note">${esc(q.note)} · ${q.perBox} lames par paquet (${String(q.m2Box).replace('.', ',')} m²) · <a href="${q.url}" target="_blank" rel="noopener">fiche produit</a></p>` : ''; })()}
         <div class="field"><label>Nom</label><input data-c="pq.name" value="${esc(P.name || '')}"></div>
         ${pr('L', 'Longueur de lame', 'mm')}${pr('W', 'Largeur utile', 'mm')}${pr('T', 'Épaisseur', 'mm')}
         <div class="field"><label>Motif</label><select data-c="pq.pattern"><option value="anglaise" ${P.pattern === 'anglaise' ? 'selected' : ''}>À l'anglaise (coupe perdue)</option><option value="pont12" ${P.pattern === 'pont12' ? 'selected' : ''}>Pont de bateau ½</option><option value="pont13" ${P.pattern === 'pont13' ? 'selected' : ''}>Pont de bateau ⅓</option></select></div>
@@ -573,7 +575,8 @@
       return;
     }
     if (c.startsWith('cal.')) { const f = c.slice(4); App.mutate(() => { s.cal = Object.assign({}, s.cal); s.cal[f] = f === 'group' ? val : val === 'auto' ? 'auto' : val; }); return; }
-    if (c.startsWith('pq.')) { const f = c.slice(3); S.pqOpen = true; App.mutate((P) => { P.parquet[f] = ['name', 'pattern', 'lay'].includes(f) ? val : num(val) ?? P.parquet[f]; }); return; }
+    if (c === 'pq.ref') { const q = PL.lib.parquets.find((x) => x.id === val); S.pqOpen = true; App.mutate((P) => { if (!q) { P.parquet.ref = null; return; } Object.assign(P.parquet, { ref: q.id, name: q.name, L: q.L, W: q.W, T: q.T, perBox: q.perBox, m2Box: q.m2Box, lay: q.lay }); }); if (q) App.toast(q.name + ' : ' + q.L + ' × ' + q.W + ' mm'); return; }
+    if (c.startsWith('pq.')) { const f = c.slice(3); S.pqOpen = true; App.mutate((P) => { P.parquet[f] = ['name', 'pattern', 'lay'].includes(f) ? val : num(val) ?? P.parquet[f]; if (['L', 'W', 'T', 'perBox', 'm2Box'].includes(f) && P.parquet.ref) { const q = PL.lib.parquets.find((x) => x.id === P.parquet.ref); if (q && q[f] !== P.parquet[f]) P.parquet.ref = null; } }); return; }
     if (c.startsWith('p.')) { const f = c.slice(2); App.mutate(() => { s[f] = f === 'h' ? num(val) : val; }); return; }
     if (c === 'm.label') { App.mutate(() => { s.label = val; }); return; }
     if (c.startsWith('layer.')) { S.layers[c.slice(6)] = val; App.render(); return; }
