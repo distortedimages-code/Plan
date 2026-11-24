@@ -112,7 +112,8 @@
   X.renderOpbar = () => {
     const bar = $('opbar'); if (!bar) return; let h = '';
     const P = S.pending; const f = App.ops.selected();
-    if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
+    if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
+    else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
       if (t === 'porte') h = '<button data-ob="flip">Inverser</button><button data-ob="hinge">Gonds</button>';
@@ -131,7 +132,8 @@
   X.placeOpbar = () => {
     const bar = $('opbar'); if (!bar || bar.hidden) return; let p = null;
     const P = S.pending; const f = App.ops.selected();
-    if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
+    if (S.skPlan) { const pts = (S.skPlan.zone || S.skPlan.strips.flat()).map(App.w2s); const top = Math.min(...pts.map((q) => q.y)); const cx = pts.reduce((a, q) => a + q.x, 0) / pts.length; p = App.s2w({ x: cx, y: top - 10 }); }
+    else if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
     else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
@@ -191,6 +193,8 @@
       case 'fixall': {
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
+      case 'skok': App.sketch.validate(); break;
+      case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;
       case 'wmerge': {

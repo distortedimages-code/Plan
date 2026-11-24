@@ -85,7 +85,7 @@
     const p = local(e); ptrs.set(e.pointerId, p);
     if (ptrs.size === 2) { // geste à deux doigts
       if (act && act.began) App.end(true);
-      act = null; S.loupe = null; S.snapMark = null;
+      act = null; S.loupe = null; S.snapMark = null; S.sketch = null;
       const [a, b] = [...ptrs.values()]; gest = { d: G.dist(a, b), m: G.lerp(a, b, 0.5), view: Object.assign({}, S.view) }; App.render(); return;
     }
     if (ptrs.size > 2) return;
@@ -109,6 +109,7 @@
       if (!S.measureA) S.tempMeasure = { a: act.a, b: act.a };
     } else if (tool === 'draw') { act.kind = 'drawpan'; act.view = Object.assign({}, S.view); if (touch) { S.loupe = p; } }
     else if (tool === 'cut') { const w = App.snap(p).p; act.kind = 'cut'; S.cutLine = { a: w, b: w }; }
+    else if (tool === 'sketch') { act.kind = 'sketch'; App.sketch.begin(App.s2w(p)); }
     else { act.kind = 'tap'; act.view = Object.assign({}, S.view); }
     App.render();
   }
@@ -179,6 +180,7 @@
       App.ui.measureLive(act.a, sn.p); App.render(); return;
     }
     if (act.kind === 'cut') { S.cutLine.b = App.snap(p).p; App.render(); return; }
+    if (act.kind === 'sketch') { App.sketch.add(App.s2w(p)); App.render(); return; }
   }
 
   function up(e) {
@@ -201,6 +203,7 @@
       } else { S.measureA = sn.p; S.tempMeasure = { a: sn.p, b: sn.p }; App.toast('Touchez le second point'); }
       App.render(); return;
     }
+    if (a.kind === 'sketch') { if (a.moved) App.sketch.finish(); else { S.sketch = null; App.render(); } return; }
     if (a.kind === 'cut') { const L = S.cutLine; S.cutLine = null; if (G.dist(App.w2s(L.a), App.w2s(L.b)) > 20) App.ui.cutSelected(L.a, L.b); App.render(); return; }
     if (a.moved) { App.render(); return; }
     // tap

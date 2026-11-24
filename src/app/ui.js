@@ -70,7 +70,7 @@
 
   const dropPending = () => { if (S.pending && App.walls) App.walls.cancel(true); };
   ui.setMode = (m) => {
-    dropPending(); S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
+    dropPending(); if (App.sketch) App.sketch.cancel(true); S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
     if (S.tool === 'elec' && m !== 'elec') ui.setTool('select');
     S.sel = null; ui.setTab(tab); App.render();
   };
@@ -78,6 +78,7 @@
 
   ui.setTool = (t) => {
     if (t !== 'select') dropPending();
+    if (t !== 'sketch' && App.sketch) App.sketch.cancel(true);
     if (t === 'wand' && !(S.bgs[S.p.floorId] && S.bgs[S.p.floorId].img)) { App.toast('Importez d\'abord un plan (PDF ou image) sur cet étage'); ui.setTab('import'); return; }
     if (S.tool === 'draw' && t !== 'draw' && S.draft && S.draft.pts.length) S.draft = null;
     S.tool = t; S.measureA = null; S.tempMeasure = null; S.snapMark = null;
@@ -99,6 +100,7 @@
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
+    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
     h.hidden = !html; h.innerHTML = html;
@@ -237,7 +239,7 @@
   document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { const ae = document.activeElement; if (!(ae && $('panel').contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) { pendingPanel = false; renderPanel(); } }, 0); });
 
   ui.switchFloor = (id) => {
-    if (id === S.p.floorId) return; dropPending(); const prev = App.floorBBox();
+    if (id === S.p.floorId) return; dropPending(); if (App.sketch) App.sketch.cancel(true); const prev = App.floorBBox();
     S.p.floorId = id; S.sel = null; S.draft = null; S.step = null; S.optRes = null; App.save();
     const bb = App.floorBBox(); const vw = App.s2w({ x: App.viewSize().W / 2, y: App.viewSize().H / 2 });
     if (!bb || !(vw.x > bb.x0 - 2000 && vw.x < bb.x1 + 2000 && vw.y > bb.y0 - 2000 && vw.y < bb.y1 + 2000)) App.fitAll();

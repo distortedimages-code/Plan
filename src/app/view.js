@@ -108,6 +108,8 @@
     else if (sel && !ctxSel && ['meuble', 'poteau', 'forme'].includes(sel.kind) && !S.pending && App.guides) drawGuides(App.guides.solve(sel, sel.pts, { x: 0, y: 0 }, false), false);
     if (S.snapMark) drawSnap(S.snapMark);
     if (S.edgeInfo) { const e = S.edgeInfo; const q = App.w2s(e.p); ctx.font = font(700, 12); const t = (e.delta >= 0 ? '+' : '') + App.fmtCm(e.delta) + ' cm'; const tw = ctx.measureText(t).width; ctx.fillStyle = C.red; ctx.fillRect(q.x - tw / 2 - 6, q.y - 30, tw + 12, 20); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, q.x, q.y - 20); }
+    if (S.skPlan) drawSketchPlan(S.skPlan);
+    if (S.sketch && S.sketch.length > 1) { ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); S.sketch.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.stroke(); ctx.lineCap = 'butt'; }
     if (S.cutLine) { const a = App.w2s(S.cutLine.a), b = App.w2s(S.cutLine.b); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
     drawScale();
     if (S.loupe) drawLoupe();
@@ -134,6 +136,17 @@
       const m = G.lerp(a, b, 0.5); const lbl = App.fmtCm(dm.v); ctx.font = font(700, 11); const tw = ctx.measureText(lbl).width;
       if (L > tw + 14) { ctx.fillStyle = C.paper; ctx.fillRect(m.x - tw / 2 - 4, m.y - 8, tw + 8, 16); text(lbl, m.x, m.y + 0.5, 700, 11, live ? C.ink : C.ink2); }
     }
+  }
+  /* aperçu d'une retouche à main levée : nouvelle pièce, cloisons ajoutées, pièces redécoupées */
+  function drawSketchPlan(p) {
+    for (const a of p.add) { if (a.isNew) continue; path(a.pts); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
+    if (p.zone) { path(p.zone); ctx.fillStyle = C.red; ctx.globalAlpha = 0.1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.stroke(); }
+    // cloisons créées : la bande, seulement là où une pièce redécoupée perd de la surface
+    ctx.save(); ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip();
+    for (const s of p.strips) { path(s); ctx.fillStyle = C.red; ctx.fill(); }
+    ctx.restore();
+    for (const a of p.add) { if (a.isNew) continue; const c = App.w2s(G.centroid(a.pts)); pill(`${App.fmtM2(Math.abs(G.area(a.pts)))} m²`, c.x, c.y, false); }
+    if (p.zone) { const c = App.w2s(G.centroid(p.zone)); pill(App.sketch.summary(), c.x, c.y, true); }
   }
   function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
   const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };

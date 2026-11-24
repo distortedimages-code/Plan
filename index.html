@@ -244,6 +244,9 @@ details[open] summary::after{content:"–"}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6}
 .pcs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:6px}
 .pcs i{font-style:normal;color:var(--ink-3)}
+
+/* téléphone : six outils dans la barre ; le zoom se fait aux doigts, seul « plan entier » reste */
+@media(max-width:640px){.rail button{width:44px;height:44px}.zoombox #zIn,.zoombox #zOut{display:none}}
 </style></head><body>
 <div class="app" id="app">
   <header class="top">
@@ -266,6 +269,7 @@ details[open] summary::after{content:"–"}
       <button data-tool="select" aria-label="Sélection"><svg viewBox="0 0 24 24"><path d="M5 3l13 8-6 1.5L9.5 19z"/></svg><span>Sélection</span></button>
       <button data-tool="measure" aria-label="Règle"><svg viewBox="0 0 24 24"><path d="M3 16 16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/></svg><span>Règle — mesurer</span></button>
       <button data-tool="draw" aria-label="Tracer"><svg viewBox="0 0 24 24"><path d="M4 19 9 6l7 4 4 9z"/><circle cx="4" cy="19" r="1.6"/><circle cx="9" cy="6" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg><span>Tracer une forme</span></button>
+      <button data-tool="sketch" aria-label="Retoucher"><svg viewBox="0 0 24 24"><path d="M5 7c4-2.5 10-2.2 14-.5.8 4 .6 8.5-.3 11.5-4.4 1-9.4 1.2-13.4-.3C4.4 14 4.4 10.4 5 7z"/><path d="M12 6.4V18"/></svg><span>Retoucher à main levée : un trait ferme une cloison, une zone entourée devient une pièce</span></button>
       <button data-tool="opening" aria-label="Porte ou fenêtre"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6 20V6"/><path d="M6 6a14 14 0 0 1 14 14"/></svg><span>Ajouter une porte ou une fenêtre</span></button>
       <button data-tool="wand" aria-label="Baguette"><svg viewBox="0 0 24 24"><path d="M4 20 15 9"/><path d="M17 3v4M15 5h4M20 9v2M19 10h2"/></svg><span>Baguette : détecter une pièce</span></button>
     </div>
@@ -445,6 +449,67 @@ details[open] summary::after{content:"–"}
   };
 
   PL.geom = G;
+})();
+
+/* Calepin — opérations sur des pièces à angles droits, par quadrillage.
+   On travaille dans un repère tourné (les murs y sont horizontaux ou verticaux) : toutes les abscisses et
+   ordonnées des sommets forment une grille ; chaque case est dedans ou dehors ; on retrace le contour des
+   cases gardées. Robuste aux bords communs (le cas normal quand on redécoupe une pièce le long de ses murs). */
+(function () {
+  const PL = (globalThis.PL = globalThis.PL || {}), G = PL.geom;
+  const O = (PL.ortho = {});
+
+  O.frame = (th) => ({ to: (p) => G.rot(p, -th), from: (p) => G.rot(p, th) });
+  /* direction dominante d'un contour : celle de son plus long côté, ramenée entre 0 et 90° */
+  O.angleOf = (pts) => {
+    let best = 0, ang = 0;
+    for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], l = G.dist(a, b); if (l > best) { best = l; ang = Math.atan2(b.y - a.y, b.x - a.x); } }
+    const q = Math.PI / 2; ang = ((ang % q) + q) % q; return ang > q - 1e-4 ? 0 : ang;
+  };
+  /* contour remis d'équerre dans le repère (écarts de quelques mm gommés) ; null s'il a un vrai mur en biais */
+  O.square = (P) => {
+    const n = P.length; const type = [];
+    for (let i = 0; i < n; i++) { const a = P[i], b = P[(i + 1) % n], dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y), l = Math.hypot(dx, dy); const lim = Math.max(3, 0.012 * l); type.push(dy <= lim && dx > dy ? 'H' : dx <= lim && dy > dx ? 'V' : l < 3 ? 'Z' : 'D'); }
+    if (type.includes('D')) return null;
+    const out = P.map((p) => ({ x: p.x, y: p.y }));
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; if (type[i] === 'H') { const y = (P[i].y + P[j].y) / 2; out[i].y = y; out[j].y = y; } }
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; if (type[i] === 'V') { const x = (P[i].x + P[j].x) / 2; out[i].x = x; out[j].x = x; } }
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; if (type[i] === 'H') out[j].y = out[i].y; } // la dernière passe l'emporte sur les côtés horizontaux
+    return out;
+  };
+  O.coords = (vals, tol = 1.5) => { const s = vals.slice().sort((a, b) => a - b); const out = []; for (const v of s) if (!out.length || v - out[out.length - 1] > tol) out.push(v); return out; };
+  /* contours (dans le repère) de l'ensemble des cases gardées : boucles extérieures (aire > 0) et trous (aire < 0) */
+  O.trace = (xs, ys, inside) => {
+    const nx = xs.length - 1, ny = ys.length - 1; if (nx < 1 || ny < 1) return [];
+    const In = []; for (let i = 0; i < nx; i++) { In.push([]); for (let j = 0; j < ny; j++) In[i].push(!!inside((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2, i, j)); }
+    const at = (i, j) => i >= 0 && j >= 0 && i < nx && j < ny && In[i][j];
+    const E = new Map(); const add = (a, b) => { const k = a[0] + ',' + a[1]; if (!E.has(k)) E.set(k, []); E.get(k).push({ a, b, used: false }); };
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      if (!In[i][j]) continue;
+      if (!at(i, j - 1)) add([i, j], [i + 1, j]);
+      if (!at(i + 1, j)) add([i + 1, j], [i + 1, j + 1]);
+      if (!at(i, j + 1)) add([i + 1, j + 1], [i, j + 1]);
+      if (!at(i - 1, j)) add([i, j + 1], [i, j]);
+    }
+    const loops = [];
+    for (const list of E.values()) for (const e0 of list) {
+      if (e0.used) continue; const loop = []; let cur = e0;
+      for (let guard = 0; guard < 100000; guard++) {
+        cur.used = true; loop.push(cur.a);
+        if (cur.b[0] === e0.a[0] && cur.b[1] === e0.a[1]) break;
+        const cand = (E.get(cur.b[0] + ',' + cur.b[1]) || []).filter((x) => !x.used); if (!cand.length) break;
+        const dx = cur.b[0] - cur.a[0], dy = cur.b[1] - cur.a[1];
+        cand.sort((p, q) => { const t = (x) => { const ex = x.b[0] - x.a[0], ey = x.b[1] - x.a[1]; return dx * ey - dy * ex; }; return t(q) - t(p); }); // le virage le plus à gauche d'abord
+        cur = cand[0];
+      }
+      const pts = loop.map(([i, j]) => ({ x: xs[i], y: ys[j] }));
+      const clean = pts.filter((p, k) => { const a = pts[(k - 1 + pts.length) % pts.length], b = pts[(k + 1) % pts.length]; return Math.abs(G.cross(G.sub(p, a), G.sub(b, p))) > 1e-6; });
+      if (clean.length >= 4) loops.push(clean);
+    }
+    return loops;
+  };
+  O.rect = (x0, y0, x1, y1) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  O.inRect = (r, x, y) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1;
 })();
 
 /* Calepin — solveur de cotes : longueurs de murs + angles intérieurs, verrous, fermeture. */
@@ -2292,6 +2357,8 @@ details[open] summary::after{content:"–"}
     else if (sel && !ctxSel && ['meuble', 'poteau', 'forme'].includes(sel.kind) && !S.pending && App.guides) drawGuides(App.guides.solve(sel, sel.pts, { x: 0, y: 0 }, false), false);
     if (S.snapMark) drawSnap(S.snapMark);
     if (S.edgeInfo) { const e = S.edgeInfo; const q = App.w2s(e.p); ctx.font = font(700, 12); const t = (e.delta >= 0 ? '+' : '') + App.fmtCm(e.delta) + ' cm'; const tw = ctx.measureText(t).width; ctx.fillStyle = C.red; ctx.fillRect(q.x - tw / 2 - 6, q.y - 30, tw + 12, 20); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, q.x, q.y - 20); }
+    if (S.skPlan) drawSketchPlan(S.skPlan);
+    if (S.sketch && S.sketch.length > 1) { ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); S.sketch.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.stroke(); ctx.lineCap = 'butt'; }
     if (S.cutLine) { const a = App.w2s(S.cutLine.a), b = App.w2s(S.cutLine.b); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
     drawScale();
     if (S.loupe) drawLoupe();
@@ -2318,6 +2385,17 @@ details[open] summary::after{content:"–"}
       const m = G.lerp(a, b, 0.5); const lbl = App.fmtCm(dm.v); ctx.font = font(700, 11); const tw = ctx.measureText(lbl).width;
       if (L > tw + 14) { ctx.fillStyle = C.paper; ctx.fillRect(m.x - tw / 2 - 4, m.y - 8, tw + 8, 16); text(lbl, m.x, m.y + 0.5, 700, 11, live ? C.ink : C.ink2); }
     }
+  }
+  /* aperçu d'une retouche à main levée : nouvelle pièce, cloisons ajoutées, pièces redécoupées */
+  function drawSketchPlan(p) {
+    for (const a of p.add) { if (a.isNew) continue; path(a.pts); ctx.setLineDash([6, 4]); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
+    if (p.zone) { path(p.zone); ctx.fillStyle = C.red; ctx.globalAlpha = 0.1; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.stroke(); }
+    // cloisons créées : la bande, seulement là où une pièce redécoupée perd de la surface
+    ctx.save(); ctx.beginPath(); for (const r of p.remove) { r.pts.forEach((w, i) => { const q = App.w2s(w); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath(); } ctx.clip();
+    for (const s of p.strips) { path(s); ctx.fillStyle = C.red; ctx.fill(); }
+    ctx.restore();
+    for (const a of p.add) { if (a.isNew) continue; const c = App.w2s(G.centroid(a.pts)); pill(`${App.fmtM2(Math.abs(G.area(a.pts)))} m²`, c.x, c.y, false); }
+    if (p.zone) { const c = App.w2s(G.centroid(p.zone)); pill(App.sketch.summary(), c.x, c.y, true); }
   }
   function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
   const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };
@@ -2796,7 +2874,7 @@ details[open] summary::after{content:"–"}
     const p = local(e); ptrs.set(e.pointerId, p);
     if (ptrs.size === 2) { // geste à deux doigts
       if (act && act.began) App.end(true);
-      act = null; S.loupe = null; S.snapMark = null;
+      act = null; S.loupe = null; S.snapMark = null; S.sketch = null;
       const [a, b] = [...ptrs.values()]; gest = { d: G.dist(a, b), m: G.lerp(a, b, 0.5), view: Object.assign({}, S.view) }; App.render(); return;
     }
     if (ptrs.size > 2) return;
@@ -2820,6 +2898,7 @@ details[open] summary::after{content:"–"}
       if (!S.measureA) S.tempMeasure = { a: act.a, b: act.a };
     } else if (tool === 'draw') { act.kind = 'drawpan'; act.view = Object.assign({}, S.view); if (touch) { S.loupe = p; } }
     else if (tool === 'cut') { const w = App.snap(p).p; act.kind = 'cut'; S.cutLine = { a: w, b: w }; }
+    else if (tool === 'sketch') { act.kind = 'sketch'; App.sketch.begin(App.s2w(p)); }
     else { act.kind = 'tap'; act.view = Object.assign({}, S.view); }
     App.render();
   }
@@ -2890,6 +2969,7 @@ details[open] summary::after{content:"–"}
       App.ui.measureLive(act.a, sn.p); App.render(); return;
     }
     if (act.kind === 'cut') { S.cutLine.b = App.snap(p).p; App.render(); return; }
+    if (act.kind === 'sketch') { App.sketch.add(App.s2w(p)); App.render(); return; }
   }
 
   function up(e) {
@@ -2912,6 +2992,7 @@ details[open] summary::after{content:"–"}
       } else { S.measureA = sn.p; S.tempMeasure = { a: sn.p, b: sn.p }; App.toast('Touchez le second point'); }
       App.render(); return;
     }
+    if (a.kind === 'sketch') { if (a.moved) App.sketch.finish(); else { S.sketch = null; App.render(); } return; }
     if (a.kind === 'cut') { const L = S.cutLine; S.cutLine = null; if (G.dist(App.w2s(L.a), App.w2s(L.b)) > 20) App.ui.cutSelected(L.a, L.b); App.render(); return; }
     if (a.moved) { App.render(); return; }
     // tap
@@ -3062,7 +3143,7 @@ details[open] summary::after{content:"–"}
 
   const dropPending = () => { if (S.pending && App.walls) App.walls.cancel(true); };
   ui.setMode = (m) => {
-    dropPending(); S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
+    dropPending(); if (App.sketch) App.sketch.cancel(true); S.mode = m; const tab = { plan: 'pieces', mobilier: 'mobilier', calepinage: 'calepinage', elec: 'elec' }[m];
     if (S.tool === 'elec' && m !== 'elec') ui.setTool('select');
     S.sel = null; ui.setTab(tab); App.render();
   };
@@ -3070,6 +3151,7 @@ details[open] summary::after{content:"–"}
 
   ui.setTool = (t) => {
     if (t !== 'select') dropPending();
+    if (t !== 'sketch' && App.sketch) App.sketch.cancel(true);
     if (t === 'wand' && !(S.bgs[S.p.floorId] && S.bgs[S.p.floorId].img)) { App.toast('Importez d\'abord un plan (PDF ou image) sur cet étage'); ui.setTab('import'); return; }
     if (S.tool === 'draw' && t !== 'draw' && S.draft && S.draft.pts.length) S.draft = null;
     S.tool = t; S.measureA = null; S.tempMeasure = null; S.snapMark = null;
@@ -3091,6 +3173,7 @@ details[open] summary::after{content:"–"}
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
+    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
     h.hidden = !html; h.innerHTML = html;
@@ -3229,7 +3312,7 @@ details[open] summary::after{content:"–"}
   document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { const ae = document.activeElement; if (!(ae && $('panel').contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) { pendingPanel = false; renderPanel(); } }, 0); });
 
   ui.switchFloor = (id) => {
-    if (id === S.p.floorId) return; dropPending(); const prev = App.floorBBox();
+    if (id === S.p.floorId) return; dropPending(); if (App.sketch) App.sketch.cancel(true); const prev = App.floorBBox();
     S.p.floorId = id; S.sel = null; S.draft = null; S.step = null; S.optRes = null; App.save();
     const bb = App.floorBBox(); const vw = App.s2w({ x: App.viewSize().W / 2, y: App.viewSize().H / 2 });
     if (!bb || !(vw.x > bb.x0 - 2000 && vw.x < bb.x1 + 2000 && vw.y > bb.y0 - 2000 && vw.y < bb.y1 + 2000)) App.fitAll();
@@ -4579,7 +4662,8 @@ details[open] summary::after{content:"–"}
   X.renderOpbar = () => {
     const bar = $('opbar'); if (!bar) return; let h = '';
     const P = S.pending; const f = App.ops.selected();
-    if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
+    if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
+    else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
       if (t === 'porte') h = '<button data-ob="flip">Inverser</button><button data-ob="hinge">Gonds</button>';
@@ -4598,7 +4682,8 @@ details[open] summary::after{content:"–"}
   X.placeOpbar = () => {
     const bar = $('opbar'); if (!bar || bar.hidden) return; let p = null;
     const P = S.pending; const f = App.ops.selected();
-    if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
+    if (S.skPlan) { const pts = (S.skPlan.zone || S.skPlan.strips.flat()).map(App.w2s); const top = Math.min(...pts.map((q) => q.y)); const cx = pts.reduce((a, q) => a + q.x, 0) / pts.length; p = App.s2w({ x: cx, y: top - 10 }); }
+    else if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
     else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
@@ -4658,6 +4743,8 @@ details[open] summary::after{content:"–"}
       case 'fixall': {
         let n = 0; App.mutate(() => { for (const r of App.rooms()) if (App.walls.simplify(r)) n++; }); App.toast(n ? `${n} pièce${n > 1 ? 's' : ''} simplifiée${n > 1 ? 's' : ''} — Annuler pour revenir` : 'Rien à simplifier'); break;
       }
+      case 'skok': App.sketch.validate(); break;
+      case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;
       case 'wmerge': {
@@ -4816,6 +4903,197 @@ details[open] summary::after{content:"–"}
     const sp2 = supp(P, best.e); let slide = 0; if (sp2.t0 < 0) slide = -sp2.t0; else if (sp2.t1 > best.e.el) slide = best.e.el - sp2.t1;
     if (sp2.t1 - sp2.t0 <= best.e.el) P = P.map((p) => G.add(p, G.mul(best.e.d, slide)));
     s.pts = P; return true;
+  };
+})();
+
+/* Calepin — retouche à main levée.
+   Un trait : ferme une cloison (prolongée jusqu'aux murs) et coupe la pièce.
+   Une zone entourée : nouvelle pièce à cet endroit, calée sur les murs voisins ; les pièces touchées sont
+   redécoupées autour, avec une cloison là où il n'y en avait pas. Aperçu d'abord, puis Valider. */
+(function () {
+  const PL = globalThis.PL, G = PL.geom, O = PL.ortho, App = globalThis.App, S = App.state;
+  const K = (App.sketch = {});
+  const AXIS = 0.012; // pente max d'un mur « d'équerre »
+
+  /* ---------- murs de l'étage dans le repère ---------- */
+  function faces(fr) {
+    const out = [];
+    for (const r of App.rooms()) {
+      const P = r.pts.map(fr.to), n = P.length, sg = G.area(P) >= 0 ? 1 : -1;
+      for (let i = 0; i < n; i++) {
+        const a = P[i], b = P[(i + 1) % n], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy); if (l < 40) continue;
+        const nin = G.mul(G.perp({ x: dx / l, y: dy / l }), sg);
+        if (Math.abs(dy) <= Math.max(3, AXIS * l)) out.push({ o: 'H', v: (a.y + b.y) / 2, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x), n: Math.sign(nin.y), room: r, i });
+        else if (Math.abs(dx) <= Math.max(3, AXIS * l)) out.push({ o: 'V', v: (a.x + b.x) / 2, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y), n: Math.sign(nin.x), room: r, i });
+      }
+    }
+    return out;
+  }
+  /* épaisseur du mur derrière une face (autre face, sens opposé, entre 3 et 30 cm) */
+  function thicknessOf(F, f) {
+    let best = null;
+    for (const g of F) { if (g.o !== f.o || g.n !== -f.n) continue; const d = (f.v - g.v) * f.n; if (d < 30 || d > 300) continue; if (Math.min(f.hi, g.hi) - Math.max(f.lo, g.lo) < 0.3 * Math.min(f.hi - f.lo, g.hi - g.lo)) continue; if (best == null || d < best) best = d; }
+    return best;
+  }
+  function typicalThickness(F) {
+    const t = []; for (const f of F) { const d = thicknessOf(F, f); if (d && d <= 200) t.push(d); }
+    if (!t.length) return (S.cutThick ?? 7) * 10; t.sort((a, b) => a - b); return Math.round(t[Math.floor(t.length / 2)]);
+  }
+  const tolMm = () => Math.max(120, Math.min(600, 34 / S.view.z));
+
+  /* ---------- reconnaissance du tracé ---------- */
+  function strokeLen(P) { let l = 0; for (let i = 1; i < P.length; i++) l += G.dist(P[i - 1], P[i]); return l; }
+  K.recognize = (W) => {
+    if (!W || W.length < 4) return { err: 'Tracé trop court' };
+    const z = S.view.z, len = strokeLen(W); if (len * z < 50) return { err: 'Tracé trop court' };
+    const gap = G.dist(W[0], W[W.length - 1]); const bb = G.bbox(W), diag = Math.hypot(bb.w, bb.h);
+    const closed = gap < Math.max(60 / z, 0.3 * diag) && len > 2.2 * diag;
+    return closed ? zone(W) : line(W);
+  };
+  const roomAt = (p) => App.rooms().find((r) => G.pointInPoly(p, r.pts));
+  function frameFor(room) {
+    let th = 0;
+    if (room) th = O.angleOf(room.pts); else { let best = 0; for (const r of App.rooms()) { const a = Math.abs(G.area(r.pts)); if (a > best) { best = a; th = O.angleOf(r.pts); } } }
+    return O.frame(th);
+  }
+
+  /* --- zone entourée → polygone d'équerre, calé sur les murs --- */
+  function orthoRuns(P, eps) {
+    const Q = G.simplifyDP(P.concat([P[0]]), eps, false); const segs = [];
+    for (let i = 1; i < Q.length; i++) { const dx = Q[i].x - Q[i - 1].x, dy = Q[i].y - Q[i - 1].y, l = Math.hypot(dx, dy); if (l < eps) continue; const o = Math.abs(dy) <= 0.5 * Math.abs(dx) ? 'H' : Math.abs(dx) <= 0.5 * Math.abs(dy) ? 'V' : null; if (!o) continue; segs.push({ o, l, v: o === 'H' ? (Q[i].y + Q[i - 1].y) / 2 : (Q[i].x + Q[i - 1].x) / 2 }); }
+    const runs = []; for (const s of segs) { const r = runs[runs.length - 1]; if (r && r.o === s.o) { r.v = (r.v * r.l + s.v * s.l) / (r.l + s.l); r.l += s.l; } else runs.push(Object.assign({}, s)); }
+    if (runs.length > 1 && runs[0].o === runs[runs.length - 1].o) { const a = runs[0], b = runs.pop(); a.v = (a.v * a.l + b.v * b.l) / (a.l + b.l); a.l += b.l; }
+    if (runs.length < 4 || runs.length % 2) return null;
+    return runs;
+  }
+  const runsToPoly = (runs) => runs.map((r, k) => { const nx = runs[(k + 1) % runs.length]; return r.o === 'H' ? { x: nx.v, y: r.v } : { x: r.v, y: nx.v }; });
+  function zone(W) {
+    const c = G.centroid(W); const home = roomAt(c) || App.rooms().slice().sort((a, b) => G.distPointPoly(c, a.pts) - G.distPointPoly(c, b.pts))[0];
+    const fr = frameFor(home); const P = W.map(fr.to); const bb = G.bbox(P); const z = S.view.z;
+    let runs = null; const fill = Math.abs(G.area(P)) / Math.max(1, bb.w * bb.h);
+    if (fill < 0.78) runs = orthoRuns(P, 16 / z);
+    if (runs) { const t = runsToPoly(runs); if (G.isSelfIntersecting(t) || Math.abs(G.area(t)) < 0.2e6) runs = null; }
+    if (!runs) runs = [{ o: 'H', v: bb.y0, l: bb.w }, { o: 'V', v: bb.x1, l: bb.h }, { o: 'H', v: bb.y1, l: bb.w }, { o: 'V', v: bb.x0, l: bb.h }];
+    // calage de chaque côté sur une face de mur proche, tournée vers l'intérieur de la zone
+    const F = faces(fr), tol = tolMm(), tDef = typicalThickness(F); let poly = runsToPoly(runs); const ctr = G.centroid(poly);
+    const snapRun = (r, k) => {
+      const prev = runs[(k - 1 + runs.length) % runs.length], next = runs[(k + 1) % runs.length]; const lo = Math.min(prev.v, next.v), hi = Math.max(prev.v, next.v);
+      const mid = (lo + hi) / 2; const inward = Math.sign((r.o === 'H' ? ctr.y : ctr.x) - r.v) || 1; let best = null;
+      // sens « vers l'intérieur » fiable même pour un L : on teste un point juste à côté du milieu du côté
+      const probe = (s) => (r.o === 'H' ? { x: mid, y: r.v + s * 30 } : { x: r.v + s * 30, y: mid }); const inn = G.pointInPoly(probe(1), poly) ? 1 : G.pointInPoly(probe(-1), poly) ? -1 : inward;
+      for (const f of F) { if (f.o !== r.o || f.n !== inn) continue; const d = Math.abs(f.v - r.v); if (d > tol) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < Math.min(200, 0.3 * (hi - lo))) continue; if (!best || d < best.d) best = { d, f }; }
+      r.inn = inn; r.snap = best ? best.f : null; r.v = best ? best.f.v : Math.round(r.v / 5) * 5; r.t = (best && thicknessOf(F, best.f)) || tDef;
+    };
+    runs.forEach(snapRun); poly = runsToPoly(runs);
+    if (G.isSelfIntersecting(poly) || Math.abs(G.area(poly)) < 0.15e6) return { err: 'Zone trop petite ou tracé à reprendre' };
+    if (G.area(poly) < 0) { poly.reverse(); }
+    // bandes de cloison le long de chaque côté (sans effet là où il y a déjà un mur)
+    const strips = runs.map((r, k) => {
+      const prev = runs[(k - 1 + runs.length) % runs.length], next = runs[(k + 1) % runs.length]; const lo = Math.min(prev.v, next.v) - r.t, hi = Math.max(prev.v, next.v) + r.t; const a = r.v, b = r.v - r.inn * r.t;
+      return r.o === 'H' ? { x0: lo, x1: hi, y0: Math.min(a, b), y1: Math.max(a, b) } : { y0: lo, y1: hi, x0: Math.min(a, b), x1: Math.max(a, b) };
+    });
+    return carve({ kind: 'zone', fr, zone: poly, strips, home, tDef });
+  }
+
+  /* --- trait → cloison, alignée sur un bout de cloison voisin et prolongée jusqu'aux murs --- */
+  function line(W) {
+    // pièce du trait : celle qui contient le plus de points du tracé (un trait posé sur un bout de cloison est entre deux)
+    const m = W[Math.floor(W.length / 2)]; let home = roomAt(m);
+    if (!home) { const cnt = new Map(); for (const w of W) { const r = roomAt(w); if (r) cnt.set(r, (cnt.get(r) || 0) + 1); } home = [...cnt.entries()].sort((x, y) => y[1] - x[1]).map((x) => x[0])[0]; }
+    if (!home) { const near = App.rooms().map((r) => ({ r, d: G.distPointPoly(m, r.pts) })).sort((x, y) => x.d - y.d)[0]; if (near && near.d < tolMm()) home = near.r; }
+    if (!home) return { err: 'Tracez le trait dans une pièce, d\'un mur à l\'autre' };
+    const fr = frameFor(home); const P = W.map(fr.to); const a = P[0], b = P[P.length - 1], dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y);
+    const o = dy <= 0.45 * dx ? 'H' : dx <= 0.45 * dy ? 'V' : null; if (!o) return { err: 'Tracez un trait droit, dans le sens d\'un mur' };
+    let v = P.reduce((s, p) => s + (o === 'H' ? p.y : p.x), 0) / P.length; const F = faces(fr), tol = tolMm(), tDef = typicalThickness(F);
+    const sLo = Math.min(o === 'H' ? a.x : a.y, o === 'H' ? b.x : b.y), sHi = Math.max(o === 'H' ? a.x : a.y, o === 'H' ? b.x : b.y);
+    // un bout de cloison (deux faces dos à dos) près du trait : on le prolonge exactement
+    let band = null;
+    for (const f of F) { if (f.o !== o || f.n !== 1) continue; for (const g of F) { if (g.o !== o || g.n !== -1) continue; const t = f.v - g.v; if (t < 30 || t > 300) continue; const mid = (f.v + g.v) / 2; if (Math.abs(mid - v) > tol) continue; if (Math.min(f.hi, g.hi) - Math.max(f.lo, g.lo) < 40) continue; if (Math.min(f.hi, g.hi) < sLo - tol || Math.max(f.lo, g.lo) > sHi + tol) continue; if (!band || Math.abs(mid - v) < Math.abs((band.a + band.b) / 2 - v)) band = { a: g.v, b: f.v }; } }
+    if (!band) {
+      // une seule face proche : la cloison part de cette face
+      let one = null; for (const f of F) { if (f.o !== o || Math.abs(f.v - v) > tol * 0.5) continue; if (f.hi < sLo - tol || f.lo > sHi + tol) continue; if (!one || Math.abs(f.v - v) < Math.abs(one.v - v)) one = f; }
+      if (one && one.room !== home) band = one.n > 0 ? { a: one.v - tDef, b: one.v } : { a: one.v, b: one.v + tDef };
+      else { v = Math.round(v / 5) * 5; band = { a: v - tDef / 2, b: v + tDef / 2 }; }
+    }
+    const c = (band.a + band.b) / 2;
+    // étendue : du milieu du trait jusqu'au premier mur de la pièce, de chaque côté
+    const R = O.square(home.pts.map(fr.to)); if (!R) return { err: 'Cette pièce a un mur en biais : utilisez « Couper » dans son menu' };
+    // étendue : tout le trait, prolongé de chaque bout jusqu'au premier mur (hors de la pièce, la bande n'a pas d'effet)
+    let lo = -Infinity, hi = Infinity;
+    for (let i = 0; i < R.length; i++) {
+      const p = R[i], q = R[(i + 1) % R.length]; const perp = o === 'H' ? Math.abs(p.x - q.x) < 1e-6 : Math.abs(p.y - q.y) < 1e-6; if (!perp) continue;
+      const pos = o === 'H' ? p.x : p.y, s0 = Math.min(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x), s1 = Math.max(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x);
+      if (s1 < band.a - 1 || s0 > band.b + 1) continue; if (pos <= sLo + 1) lo = Math.max(lo, pos); if (pos >= sHi - 1) hi = Math.min(hi, pos);
+    }
+    lo = isFinite(lo) ? Math.min(lo, sLo) : sLo; hi = isFinite(hi) ? Math.max(hi, sHi) : sHi;
+    if (hi - lo < 100) return { err: 'Trait trop court' };
+    const strip = o === 'H' ? { x0: lo - 6, x1: hi + 6, y0: band.a, y1: band.b } : { y0: lo - 6, y1: hi + 6, x0: band.a, x1: band.b };
+    return carve({ kind: 'line', fr, zone: null, strips: [strip], home, tDef, only: home });
+  }
+
+  /* ---------- redécoupage des pièces touchées ---------- */
+  function carve(q) {
+    const { fr } = q; const zb = q.zone ? G.bbox(q.zone) : null; const out = { kind: q.kind, fr, add: [], remove: [], strips: [], err: null };
+    const inStrip = (x, y) => q.strips.some((s) => O.inRect(s, x, y)); const inZone = (x, y) => q.zone && G.pointInPoly({ x, y }, q.zone);
+    const rooms = q.only ? [q.only] : App.rooms(); const skew = [];
+    for (const r of rooms) {
+      if (r.locked) continue; const P0 = r.pts.map(fr.to); const b = G.bbox(P0);
+      const near = q.strips.some((s) => s.x1 > b.x0 && s.x0 < b.x1 && s.y1 > b.y0 && s.y0 < b.y1) || (zb && zb.x1 > b.x0 && zb.x0 < b.x1 && zb.y1 > b.y0 && zb.y0 < b.y1); if (!near) continue;
+      const P = O.square(P0); if (!P) { skew.push(r); continue; }
+      const xs = O.coords(P.map((p) => p.x).concat(q.zone ? q.zone.map((p) => p.x) : [], q.strips.flatMap((s) => [s.x0, s.x1])));
+      const ys = O.coords(P.map((p) => p.y).concat(q.zone ? q.zone.map((p) => p.y) : [], q.strips.flatMap((s) => [s.y0, s.y1])));
+      let lost = 0; const loops = O.trace(xs, ys, (x, y, i, j) => { if (!G.pointInPoly({ x, y }, P)) return false; if (inZone(x, y) || inStrip(x, y)) { lost += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]); return false; } return true; });
+      if (lost < (q.kind === 'line' ? 1000 : 0.03e6)) continue; // la pièce n'est pas vraiment touchée (un trait peut ne fermer qu'une fente de quelques cm)
+      if (loops.some((l) => G.area(l) < 0)) return { err: 'La zone doit toucher au moins un mur de la pièce (sinon elle ferait un îlot au milieu)' };
+      const parts = loops.filter((l) => G.area(l) > 0.1e6).sort((a, b) => G.area(b) - G.area(a));
+      out.remove.push(r); parts.forEach((l, k) => out.add.push({ pts: l.map(fr.from), from: r, keep: k === 0 }));
+      out.touched = (out.touched || []).concat([{ r, lost, left: parts.length }]);
+    }
+    if (q.kind === 'line') {
+      const t = out.touched && out.touched[0]; if (!t || t.left < 2) return { err: 'Ce trait ne sépare pas la pièce en deux : tracez-le d\'un mur à l\'autre' };
+    } else {
+      if (skew.some((r) => G.pointInPoly(fr.to(G.centroid(r.pts)), q.zone))) return { err: 'Une pièce avec un mur en biais est dans la zone : utilisez « Couper » dans son menu' };
+      const main = (out.touched || []).slice().sort((a, b) => b.lost - a.lost)[0];
+      out.add.push({ pts: q.zone.map(fr.from), from: main ? main.r : q.home, isNew: true, replaces: main && main.left === 0 ? main.r : null });
+    }
+    out.strips = q.strips.map((s) => O.rect(s.x0, s.y0, s.x1, s.y1).map(fr.from));
+    out.zone = q.zone ? q.zone.map(fr.from) : null;
+    if (q.zone) { const b = G.bbox(q.zone); out.dims = [b.w, b.h]; out.area = Math.abs(G.area(q.zone)); }
+    out.count = out.add.length - out.remove.length;
+    return out;
+  }
+
+  /* ---------- geste ---------- */
+  K.begin = (w) => { K.cancel(true); S.sketch = [w]; };
+  K.add = (w) => { const P = S.sketch; if (!P) return; if (G.dist(P[P.length - 1], w) * S.view.z > 3) P.push(w); };
+  K.finish = () => {
+    const P = S.sketch; S.sketch = null; if (!P) return;
+    const plan = K.recognize(P); if (!plan || plan.err) { App.toast((plan && plan.err) || 'Tracé non reconnu'); App.render(); return; }
+    S.skPlan = plan; App.ui.refresh(); App.ui.refreshHint(); App.render();
+  };
+  K.cancel = (silent) => { const had = S.skPlan || S.sketch; S.sketch = null; S.skPlan = null; if (had && !silent) { App.ui.refresh(); App.ui.refreshHint(); App.render(); } };
+  K.validate = () => {
+    const plan = S.skPlan; if (!plan) return; S.skPlan = null; let sel = null;
+    App.mutate((P) => {
+      const olds = plan.remove; const made = [];
+      for (const a of plan.add) {
+        const src = a.from; const base = { floor: S.p.floorId, parquet: src ? src.parquet : true, ceiling: src ? src.ceiling : undefined, cal: src && src.cal ? Object.assign({}, src.cal, { start: 'auto' }) : undefined };
+        const sh = App.makeShape('piece', G.cleanPoly(a.pts, 0.2, 1), Object.assign(base, { name: a.isNew ? (a.replaces ? a.replaces.name : 'Pièce') : a.keep ? src.name : 'Pièce' }));
+        if (a.keep && !a.isNew) sh.id = src.id; if (a.isNew && a.replaces) sh.id = a.replaces.id;
+        if (src && src.noParquet != null) sh.noParquet = src.noParquet;
+        sh.openings = App.feat.reattach(sh.pts, olds.length ? olds : [], [], 40).map((o) => Object.assign({}, o, { oid: App.uid() }));
+        const m = PL.solver.measure(sh.pts); sh.locks = PL.solver.syncLocks(sh.pts, m.A.map((x) => ({ L: false, A: Math.abs(G.deg(x) - 90) < 0.05 || Math.abs(G.deg(x) - 270) < 0.05 })));
+        made.push(sh); if (a.isNew || (plan.kind === 'line' && !a.keep)) sel = sh;
+      }
+      const gone = new Set(olds.map((r) => r.id)); P.shapes = P.shapes.filter((x) => !gone.has(x.id)); P.shapes.push(...made);
+    });
+    App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
+    App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
+  };
+  K.summary = () => {
+    const p = S.skPlan; if (!p) return '';
+    if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
+    return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;
   };
 })();
 

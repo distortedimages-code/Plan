@@ -236,3 +236,6 @@ details[open] summary::after{content:"–"}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6}
 .pcs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:6px}
 .pcs i{font-style:normal;color:var(--ink-3)}
+
+/* téléphone : six outils dans la barre ; le zoom se fait aux doigts, seul « plan entier » reste */
+@media(max-width:640px){.rail button{width:44px;height:44px}.zoombox #zIn,.zoombox #zOut{display:none}}
