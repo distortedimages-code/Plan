@@ -2204,6 +2204,9 @@ details[open] summary::after{content:"–"}
     if (!p.floors.find((f) => f.id === p.floorId)) p.floorId = p.floors[0].id;
     p.shapes = p.shapes || []; p.points = p.points || []; p.measures = p.measures || [];
     p.parquet = Object.assign({}, PL.layout.DEFAULTS, p.parquet || {});
+    // une porte garde parfois l'allège de la fenêtre qu'elle remplace : elle part du sol
+    const DOORISH = ['porte', 'porte2', 'coulissante', 'galandage', 'passage'];
+    (p.shapes || []).forEach((s) => (s.openings || []).forEach((o) => { if (DOORISH.includes(o.type) && o.sill) o.sill = 0; }));
     p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; s.openings.forEach((o) => { if (!o.oid) o.oid = App.uid(); }); });
     // portes en double laissées par l'ancienne mise à jour du plan intégré : relecture propre depuis le plan
     if (App.ops && p.seedApplied && globalThis.CALEPIN_SEED && App.ops.countDups(p) > 0) {
@@ -4894,7 +4897,7 @@ details[open] summary::after{content:"–"}
         break;
       case 'more': App.ui.sheet(innerWidth < 900 ? 'half' : App.ui.sheetState()); App.ui.refresh(); break;
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
-      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
       case 'leaves': if (!f) return; App.mutate(() => { f.o.leaves = +v; App.ops.syncTwin(f.room, f.o); }); break;
       case 'vx': { if (!f) return; const q = ((PL.lib.openings.find((x) => x.id === 'velux') || {}).sizes || []).find((x) => x.code === v); if (!q) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - q.w) / 2, q.w); f.o.h = q.h; f.o.ref = q.code; }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
@@ -5909,7 +5912,8 @@ details[open] summary::after{content:"–"}
     if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
     const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
-    const sill = Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
+    const floorLevel = App.ops.DOORS.includes(o.type) || ['passage', 'porte-fenetre', 'baie'].includes(o.type); // une porte part du sol, même si elle était une fenêtre avant
+    const sill = floorLevel ? 0 : Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
     const tw = App.ops.twin(r, o), tg = tw && App.ops.geo(tw.room, tw.o);
     const depth = tg ? Math.abs(G.dot(G.sub(tg.p0, g.p0), nin)) : 300;
     return { o, g, lib, sill, top, u0: g.pos, u1: g.pos + g.w, win, tw, tg, depth, pass: !win && !!tg && o.type !== 'fixe' };

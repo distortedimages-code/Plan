@@ -178,7 +178,7 @@
         break;
       case 'more': App.ui.sheet(innerWidth < 900 ? 'half' : App.ui.sheetState()); App.ui.refresh(); break;
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
-      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; if (def.sill != null) f.o.sill = def.sill; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
       case 'leaves': if (!f) return; App.mutate(() => { f.o.leaves = +v; App.ops.syncTwin(f.room, f.o); }); break;
       case 'vx': { if (!f) return; const q = ((PL.lib.openings.find((x) => x.id === 'velux') || {}).sizes || []).find((x) => x.code === v); if (!q) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - q.w) / 2, q.w); f.o.h = q.h; f.o.ref = q.code; }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;

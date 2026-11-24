@@ -199,7 +199,8 @@
     if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
     const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
-    const sill = Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
+    const floorLevel = App.ops.DOORS.includes(o.type) || ['passage', 'porte-fenetre', 'baie'].includes(o.type); // une porte part du sol, même si elle était une fenêtre avant
+    const sill = floorLevel ? 0 : Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
     const tw = App.ops.twin(r, o), tg = tw && App.ops.geo(tw.room, tw.o);
     const depth = tg ? Math.abs(G.dot(G.sub(tg.p0, g.p0), nin)) : 300;
     return { o, g, lib, sill, top, u0: g.pos, u1: g.pos + g.w, win, tw, tg, depth, pass: !win && !!tg && o.type !== 'fixe' };

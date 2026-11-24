@@ -86,6 +86,9 @@
     if (!p.floors.find((f) => f.id === p.floorId)) p.floorId = p.floors[0].id;
     p.shapes = p.shapes || []; p.points = p.points || []; p.measures = p.measures || [];
     p.parquet = Object.assign({}, PL.layout.DEFAULTS, p.parquet || {});
+    // une porte garde parfois l'allège de la fenêtre qu'elle remplace : elle part du sol
+    const DOORISH = ['porte', 'porte2', 'coulissante', 'galandage', 'passage'];
+    (p.shapes || []).forEach((s) => (s.openings || []).forEach((o) => { if (DOORISH.includes(o.type) && o.sill) o.sill = 0; }));
     p.shapes.forEach((s) => { s.locks = s.locks || s.pts.map(() => ({ L: false, A: false })); while (s.locks.length < s.pts.length) s.locks.push({ L: false, A: false }); s.locks.length = s.pts.length; s.openings = s.openings || []; s.openings.forEach((o) => { if (!o.oid) o.oid = App.uid(); }); });
     // portes en double laissées par l'ancienne mise à jour du plan intégré : relecture propre depuis le plan
     if (App.ops && p.seedApplied && globalThis.CALEPIN_SEED && App.ops.countDups(p) > 0) {
