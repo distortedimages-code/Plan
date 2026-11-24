@@ -112,7 +112,7 @@
   X.renderOpbar = () => {
     const bar = $('opbar'); if (!bar) return; let h = '';
     const P = S.pending; const f = App.ops.selected();
-    if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
+    if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'stub' ? 'Bout de cloison' : S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span>${S.skPlan.kind === 'stub' && S.skPlan.canClose ? '<button data-ob="skclose">Jusqu\'au mur</button>' : ''}<button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
@@ -211,6 +211,7 @@
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
       case 'skok': App.sketch.validate(); break;
+      case 'skclose': App.sketch.closeStub(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
       case 'wend': S.wallEnd = v; App.ui.refresh(); break;
       case 'wdir': S.wallDir = v; App.ui.refresh(); break;

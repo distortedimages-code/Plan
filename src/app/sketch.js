@@ -90,7 +90,7 @@
   }
 
   /* --- trait → cloison, alignée sur un bout de cloison voisin et prolongée jusqu'aux murs --- */
-  function line(W) {
+  function line(W, mode) {
     // pièce du trait : celle qui contient le plus de points du tracé (un trait posé sur un bout de cloison est entre deux)
     const m = W[Math.floor(W.length / 2)]; let home = roomAt(m);
     if (!home) { const cnt = new Map(); for (const w of W) { const r = roomAt(w); if (r) cnt.set(r, (cnt.get(r) || 0) + 1); } home = [...cnt.entries()].sort((x, y) => y[1] - x[1]).map((x) => x[0])[0]; }
@@ -119,11 +119,25 @@
       const pos = o === 'H' ? p.x : p.y, s0 = Math.min(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x), s1 = Math.max(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x);
       if (s1 < band.a - 1 || s0 > band.b + 1) continue; if (pos <= sLo + 1) lo = Math.max(lo, pos); if (pos >= sHi - 1) hi = Math.min(hi, pos);
     }
+    // bout de cloison : le trait part d'un mur (ou du bout d'une cloison) et s'arrête au milieu de la pièce
+    const snap = Math.max(tol, 200), nearLo = isFinite(lo) && sLo - lo <= snap, nearHi = isFinite(hi) && hi - sHi <= snap;
+    const mk = (u0, u1) => (o === 'H' ? { x0: u0, x1: u1, y0: band.a, y1: band.b } : { y0: u0, y1: u1, x0: band.a, x1: band.b });
+    if (mode !== 'close' && nearLo !== nearHi) {
+      const from = nearLo ? lo : hi, tip = nearLo ? sHi : sLo, len = Math.round(Math.abs(tip - from) / 10) * 10, end = from + (nearLo ? len : -len);
+      if (len < 100) return { err: 'Trait trop court' };
+      const out = carve({ kind: 'stub', fr, zone: null, strips: [nearLo ? mk(from - 6, end) : mk(end, from + 6)], home, tDef, only: home });
+      if (!out.err) Object.assign(out, { len, t: band.b - band.a, stroke: W, canClose: isFinite(nearLo ? hi : lo) });
+      return out;
+    }
+    if (mode !== 'close' && !nearLo && !nearHi) return { err: 'Partez d\'un mur ou du bout d\'une cloison' };
     lo = isFinite(lo) ? Math.min(lo, sLo) : sLo; hi = isFinite(hi) ? Math.max(hi, sHi) : sHi;
     if (hi - lo < 100) return { err: 'Trait trop court' };
-    const strip = o === 'H' ? { x0: lo - 6, x1: hi + 6, y0: band.a, y1: band.b } : { y0: lo - 6, y1: hi + 6, x0: band.a, x1: band.b };
-    return carve({ kind: 'line', fr, zone: null, strips: [strip], home, tDef, only: home });
+    const out = carve({ kind: 'line', fr, zone: null, strips: [mk(lo - 6, hi + 6)], home, tDef, only: home });
+    if (!out.err) out.stroke = W;
+    return out;
   }
+  /* aperçu d'un bout de cloison : le prolonger jusqu'au mur d'en face */
+  K.closeStub = () => { const p = S.skPlan; if (!p || p.kind !== 'stub') return; const q = line(p.stroke, 'close'); if (!q || q.err) { App.toast((q && q.err) || 'Impossible de fermer ici'); return; } S.skPlan = q; App.ui.refresh(); App.ui.refreshHint(); App.render(); };
 
   /* ---------- joindre deux cloisons de pièces différentes : une seule cloison entre elles ---------- */
   const inAnyRoom = (p) => !!roomAt(p);
@@ -200,7 +214,7 @@
       const xs = O.coords(P.map((p) => p.x).concat(q.zone ? q.zone.map((p) => p.x) : [], q.strips.flatMap((s) => [s.x0, s.x1])));
       const ys = O.coords(P.map((p) => p.y).concat(q.zone ? q.zone.map((p) => p.y) : [], q.strips.flatMap((s) => [s.y0, s.y1])));
       let lost = 0; const loops = O.trace(xs, ys, (x, y, i, j) => { if (!G.pointInPoly({ x, y }, P)) return false; if (inZone(x, y) || inStrip(x, y)) { lost += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]); return false; } return true; });
-      if (lost < (q.kind === 'line' ? 1000 : 0.03e6)) continue; // la pièce n'est pas vraiment touchée (un trait peut ne fermer qu'une fente de quelques cm)
+      if (lost < (q.kind === 'line' || q.kind === 'stub' ? 1000 : 0.03e6)) continue; // la pièce n'est pas vraiment touchée (un trait peut ne fermer qu'une fente de quelques cm)
       if (loops.some((l) => G.area(l) < 0)) return { err: 'La zone doit toucher au moins un mur de la pièce (sinon elle ferait un îlot au milieu)' };
       const parts = loops.filter((l) => G.area(l) > 0.1e6).sort((a, b) => G.area(b) - G.area(a));
       out.remove.push(r); parts.forEach((l, k) => out.add.push({ pts: l.map(fr.from), from: r, keep: k === 0 }));
@@ -208,6 +222,8 @@
     }
     if (q.kind === 'line') {
       const t = out.touched && out.touched[0]; if (!t || t.left < 2) return { err: 'Ce trait ne sépare pas la pièce en deux : tracez-le d\'un mur à l\'autre' };
+    } else if (q.kind === 'stub') {
+      const t = out.touched && out.touched[0]; if (!t) return { err: 'Ce trait ne touche aucune pièce' }; if (t.left !== 1) return { err: 'Ce bout de cloison couperait la pièce : tracez-le moins loin' };
     } else {
       if (skew.some((r) => G.pointInPoly(fr.to(G.centroid(r.pts)), q.zone))) return { err: 'Une pièce avec un mur en biais est dans la zone : utilisez « Couper » dans son menu' };
       const main = (out.touched || []).slice().sort((a, b) => b.lost - a.lost)[0];
@@ -248,10 +264,12 @@
     });
     App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
     if (plan.kind === 'join') { App.toast(`Une seule cloison de ${App.fmtCm(plan.t, 0)} cm entre ${plan.names.join(' et ')}`); return; }
+    if (plan.kind === 'stub') { App.toast(`Bout de cloison de ${App.fmtCm(plan.len, 0)} cm ajouté. Ajustez sa longueur en déplaçant son extrémité`); return; }
     App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
   };
   K.summary = () => {
     const p = S.skPlan; if (!p) return '';
+    if (p.kind === 'stub') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} · bout de cloison ${App.fmtCm(p.len, 0)} cm × ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'join') return `${p.names.join(' + ')} · écart ${App.fmtCm(p.gap, 0)} → cloison ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
     return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;
