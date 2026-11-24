@@ -1,0 +1,39 @@
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><b>Calepin</b><span id="projName">Ma maison</span></div>
+    <nav class="floors" id="floors" aria-label="Étages"></nav>
+    <div class="topact">
+      <button class="ib" id="undo" title="Annuler" aria-label="Annuler"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2"/></svg></button>
+      <button class="ib" id="redo" title="Rétablir" aria-label="Rétablir"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2"/></svg></button>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <canvas id="cv" aria-label="Plan"></canvas>
+    <div class="modes" id="modes" role="group" aria-label="Vue">
+      <button data-mode="plan">Plan</button><button data-mode="mobilier">Mobilier</button><button data-mode="calepinage">Calepinage</button><button data-mode="elec">Électricité</button>
+    </div>
+    <div class="roomnav" id="roomnav">
+      <button id="rnPrev" aria-label="Pièce précédente">‹</button><button class="rn-name" id="rnName">Pièces</button><button id="rnNext" aria-label="Pièce suivante">›</button><button class="rn-all" id="rnAll">Plan entier</button>
+    </div>
+    <div class="rail" id="rail" role="toolbar" aria-label="Outils">
+      <button data-tool="select" aria-label="Sélection"><svg viewBox="0 0 24 24"><path d="M5 3l13 8-6 1.5L9.5 19z"/></svg><span>Sélection</span></button>
+      <button data-tool="measure" aria-label="Règle"><svg viewBox="0 0 24 24"><path d="M3 16 16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/></svg><span>Règle — mesurer</span></button>
+      <button data-tool="draw" aria-label="Tracer"><svg viewBox="0 0 24 24"><path d="M4 19 9 6l7 4 4 9z"/><circle cx="4" cy="19" r="1.6"/><circle cx="9" cy="6" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg><span>Tracer une forme</span></button>
+      <button data-tool="wand" aria-label="Baguette"><svg viewBox="0 0 24 24"><path d="M4 20 15 9"/><path d="M17 3v4M15 5h4M20 9v2M19 10h2"/></svg><span>Baguette : détecter une pièce</span></button>
+    </div>
+    <div class="zoombox">
+      <button id="zIn" aria-label="Zoom avant"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button id="zOut" aria-label="Zoom arrière"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button id="zFit" aria-label="Tout voir"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+    </div>
+    <div class="hint" id="hint" hidden></div>
+  </main>
+  <aside class="sheet" id="sheet" data-h="half">
+    <div class="grip" id="grip" aria-hidden="true"><i></i></div>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</div>
+<div class="pop" id="pop" hidden></div>
+<div class="modal" id="modal" hidden><div class="box" id="modalBox"></div></div>
+<div class="toast" id="toast" role="status"></div>
