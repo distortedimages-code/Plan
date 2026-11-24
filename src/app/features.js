@@ -4,7 +4,7 @@
   const F = (App.feat = {});
 
   /* ---------- rattacher des ouvertures à un nouveau contour ---------- */
-  F.reattach = (pts, olds, skipTo = []) => {
+  F.reattach = (pts, olds, skipTo = [], tol = 40) => {
     const out = []; const n = pts.length;
     for (const s of olds) for (const o of s.openings || []) {
       if (o.to && skipTo.includes(o.to)) continue;
@@ -15,10 +15,10 @@
       for (let i = 0; i < n; i++) {
         const c = pts[i], e = pts[(i + 1) % n], ed = G.sub(e, c), el = G.len(ed); if (el < 50) continue;
         const u = G.mul(ed, 1 / el); if (G.dot(u, d) < 0.999) continue; // même sens : la face du mur côté de cette pièce, pas celle de la voisine
-        const dist = Math.abs(G.cross(G.sub(p0, c), u)); if (dist > 40) continue;
+        const dist = Math.abs(G.cross(G.sub(p0, c), u)); if (dist > tol) continue;
         const t0 = G.dot(G.sub(p0, c), u), t1 = G.dot(G.sub(p1, c), u); const lo = Math.min(t0, t1), hi = Math.max(t0, t1);
-        if (hi < -10 || lo > el + 10) continue;
-        if (!best || dist < best.dist) best = { dist, wall: i, pos: Math.max(0, lo), width: Math.min(el, hi) - Math.max(0, lo) };
+        if (hi < -10 || lo > el + 10) continue; const width = Math.min(el, hi) - Math.max(0, lo); if (width <= 100) continue; // le mur doit porter vraiment l'ouverture
+        if (!best || dist < best.dist) best = { dist, wall: i, pos: Math.max(0, lo), width };
       }
       if (best && best.width > 100) out.push(Object.assign({}, o, { oid: App.uid(), wall: best.wall, pos: Math.round(best.pos), width: Math.round(best.width) }));
     }

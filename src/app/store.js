@@ -74,7 +74,8 @@
     if (!p) return fresh();
     const sv = seed.seedVersion || 1;
     if (p.seeded && (p.seedVersion || 1) < sv) return fresh();
-    if (!p.seeded && (p.seedVersion || 1) < sv && (p.seedApplied || 1) < sv) {
+    const ov = seed.offerVersion || sv; // version à partir de laquelle les ouvertures ont changé
+    if (!p.seeded && (p.seedVersion || 1) < ov && (p.seedApplied || 1) < ov) {
       const names = new Set(seed.shapes.filter((s) => s.kind === 'piece').map((s) => s.name));
       if ((p.shapes || []).filter((s) => s.kind === 'piece' && names.has(s.name)).length >= 4) p.seedOffer = sv;
     }

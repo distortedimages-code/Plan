@@ -168,7 +168,8 @@
     for (const sf of seed.floors) {
       const f = p.floors.find((x) => x.name === sf.name); if (!f) continue;
       const seedRooms = seed.shapes.filter((s) => s.floor === sf.id && s.kind === 'piece');
-      for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) r.openings = App.feat.reattach(r.pts, seedRooms).map((o) => Object.assign({}, o, { oid: App.uid(), to: null }));
+      const same = (r) => seedRooms.filter((sr) => G.pointInPoly(G.centroid(sr.pts), r.pts) || G.pointInPoly(G.centroid(r.pts), sr.pts)); // la même pièce sur le plan intégré
+      for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) r.openings = App.feat.reattach(r.pts, same(r).length ? same(r) : seedRooms, [], 300).map((o) => Object.assign({}, o, { oid: App.uid(), to: null }));
       for (const r of p.shapes.filter((s) => s.floor === f.id && s.kind === 'piece')) O.tidy(r);
       O.relink(p, f.id);
     }
