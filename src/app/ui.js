@@ -193,12 +193,28 @@
       opts.push({ k: 'L', j, d, r, label: `Mur ${nm(j)} : ${App.fmtCm(m.L[j])} → ${App.fmtCm(r.L[j])} cm` });
     }
     opts.sort((a, b) => Math.abs(a.d) - Math.abs(b.d));
+    // un seul mur hors d'équerre : on libère les angles à ses deux bouts (+ un voisin pour refermer exactement)
+    const deg = (a) => a.toLocaleString('fr-FR', { maximumFractionDigits: 1 }), vx = (k) => String.fromCharCode(65 + (k % 26));
+    const tilt = [];
+    for (let w = 0; w < n; w++) {
+      if (t === 'L' && w === i) continue; let best = null;
+      for (const third of [(w + 2) % n, (w - 1 + n) % n]) {
+        const free = [w, (w + 1) % n, third], lk = locks.map((l) => Object.assign({}, l)); free.forEach((k) => { lk[k].A = false; });
+        const r = PL.solver.solve(s.pts, lk, [{ t, i, v }]); if (!r.ok) continue;
+        if (r.L.some((x, k) => locks[k].L && k !== i && Math.abs(x - m.L[k]) > 0.5)) continue;
+        const ch = r.A.map((a, k) => ({ k, a0: G.deg(m.A[k]), a1: G.deg(a) })).filter((c) => Math.abs(c.a1 - c.a0) > 0.02), mx = Math.max(0, ...ch.map((c) => Math.abs(c.a1 - c.a0)));
+        if (ch.length && (!best || mx < best.mx)) best = { r, ch, mx };
+      }
+      if (best && best.mx < 5) { const main = best.ch.filter((c) => c.k === w || c.k === (w + 1) % n); tilt.push({ k: 'A', r: best.r, ch: best.ch, mx: best.mx, label: `Mur ${nm(w)} un peu hors d'équerre (${(main.length ? main : best.ch).map((c) => `${vx(c.k)} ${deg(c.a0)}° → ${deg(c.a1)}°`).join(', ')})` }); }
+    }
+    tilt.sort((a, b) => a.mx - b.mx); const seen = new Set();
+    opts.push(...tilt.filter((o) => { const sig = o.ch.map((c) => c.k + ':' + c.a1.toFixed(1)).join('|'); if (seen.has(sig)) return false; seen.add(sig); return true; }).slice(0, 3));
     const lkA = locks.map((l) => Object.assign({}, l, { A: false })), rA = PL.solver.solve(s.pts, lkA, [{ t, i, v }]);
-    if (rA.ok) { const ch = rA.A.map((a, k) => ({ k, a0: G.deg(m.A[k]), a1: G.deg(a) })).filter((c) => Math.abs(c.a1 - c.a0) > 0.05); if (ch.length) opts.push({ k: 'A', r: rA, ch, label: `Laisser ${ch.length > 2 ? 'les murs' : 'un mur'} légèrement de biais (${ch.slice(0, 2).map((c) => `${String.fromCharCode(65 + (c.k % 26))} ${c.a0.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}° → ${c.a1.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`).join(', ')}${ch.length > 2 ? '…' : ''})` }); }
+    if (rA.ok) { const ch = rA.A.map((a, k) => ({ k, a0: G.deg(m.A[k]), a1: G.deg(a) })).filter((c) => Math.abs(c.a1 - c.a0) > 0.05); if (ch.length) opts.push({ k: 'A', r: rA, ch, label: `Répartir sur tous les angles (${ch.length} coins, ${deg(Math.max(...ch.map((c) => Math.abs(c.a1 - c.a0))))}° au plus)` }); }
     const val = t === 'L' ? `${App.fmtCm(v)} cm` : `${G.deg(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`;
     if (!opts.length) { await ui.dialog('Cote incompatible', `<p>Avec toutes les autres cotes et tous les angles verrouillés, ${t === 'L' ? `le mur ${nm(i)}` : 'cet angle'} ne peut pas valoir ${val} : la pièce ne se refermerait pas. Déverrouillez au moins une cote ou un angle.</p>`, [{ label: 'Compris', cls: 'red', def: true }]); return; }
-    const gap = opts.find((o) => o.k === 'L'); const shown = opts.filter((o) => o.k === 'L').slice(0, 5).concat(opts.filter((o) => o.k === 'A'));
-    const pick = await ui.dialog('Cote incompatible avec les verrous', `<p>${t === 'L' ? `Le mur ${nm(i)} à ${val}` : `Cet angle à ${val}`} ne colle pas avec les autres cotes verrouillées${gap ? ` : il y a un écart d'environ ${App.fmtCm(Math.abs(gap.d))} cm pour refermer la pièce` : ''}. Choisissez ce qui s'ajuste pour le garder :</p><p class="hint2">La cote ajustée est déverrouillée, les autres restent telles que vous les avez mesurées.</p>`, shown.map((o) => ({ label: o.label, cls: 'ghost wrap' })).concat([{ label: 'Annuler', cls: '' }]));
+    const gap = opts.find((o) => o.k === 'L'); const shown = opts.filter((o) => o.k === 'A').concat(opts.filter((o) => o.k === 'L').slice(0, 4));
+    const pick = await ui.dialog('Cote incompatible avec les verrous', `<p>${t === 'L' ? `Le mur ${nm(i)} à ${val}` : `Cet angle à ${val}`} ne colle pas avec les autres cotes verrouillées${gap ? ` : il y a un écart d'environ ${App.fmtCm(Math.abs(gap.d))} cm pour refermer la pièce` : ''}. Choisissez ce qui s'ajuste pour le garder :</p><p class="hint2">Si vos longueurs sont sûres, c'est souvent un mur un peu hors d'équerre (fréquent, même dans le neuf). Ce qui s'ajuste est déverrouillé, le reste garde vos mesures.</p>`, shown.map((o) => ({ label: o.label, cls: 'ghost wrap' })).concat([{ label: 'Annuler', cls: '' }]));
     const o = shown[pick.i]; if (!o) return;
     App.mutate(() => {
       s.pts = o.r.pts; const L = s.locks;
@@ -206,7 +222,7 @@
       if (t === 'L') L[i].L = lock; else L[i].A = lock;
       s.locks = PL.solver.syncLocks(s.pts, L); if (t === 'L' && lock) s.locks[i].Lv = v; if (t === 'A' && lock) s.locks[i].Av = v;
     });
-    App.toast(o.k === 'L' ? `${nm(i)} = ${val} · ${o.label.replace('Mur ', '')} (déverrouillée)` : `${nm(i)} = ${val} · angles ajustés`);
+    App.toast(o.k === 'L' ? `${nm(i)} = ${val} · ${o.label.replace('Mur ', '')} (déverrouillée)` : `${nm(i)} = ${val} · ${o.label.replace(/ \(.*$/, '').toLowerCase()}`);
   }
 
   /* ---------- sélection ---------- */
