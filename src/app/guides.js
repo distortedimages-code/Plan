@@ -21,6 +21,7 @@
     for (const r of home ? [home] : rooms) for (const e of sides(r.pts, false)) T.push(Object.assign(e, { kind: 'mur', room: r }));
     for (const o of App.shapesOn(fid)) {
       if (o === s || o.kind === 'piece' || !o.pts || SOFT.includes(o.kind)) continue;
+      if (App.stack && (o.on === s.id || (o.on && o.on !== s.on) || (App.stack.canPut(s) && App.stack.isSupport(o)))) continue;
       if (home && !G.pointInPoly(G.centroid(o.pts), home.pts)) continue;
       for (const e of sides(o.pts, true)) T.push(Object.assign(e, { kind: 'meuble', shape: o }));
     }

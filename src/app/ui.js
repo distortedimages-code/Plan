@@ -190,7 +190,7 @@
     const r = best.r, n = r.pts.length, i = best.i, C = r.pts[i], Pp = r.pts[(i - 1 + n) % n], Pn = r.pts[(i + 1) % n];
     if (G.cross(G.sub(C, Pp), G.sub(Pn, C)) <= 0) { App.toast('Cet angle est rentrant : touchez un coin intérieur de la pièce'); return; }
     const walls = [{ k: (i - 1 + n) % n, e: G.norm(G.sub(Pp, C)), L: G.dist(Pp, C) }, { k: i, e: G.norm(G.sub(Pn, C)), L: G.dist(Pn, C) }];
-    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre'].includes(o.type));
+    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre', 'sautdeloup'].includes(o.type));
     let wi = win(walls[0].k) && !win(walls[1].k) ? 0 : win(walls[1].k) && !win(walls[0].k) ? 1 : walls[0].L >= walls[1].L ? 0 : 1;
     const old = App.shapesOn().filter((x) => x.grp === 'cuisine').length;
     const res = await ui.dialog('Poser la cuisine', `<p>Cuisine en U du plan Darty dans l'angle ${String.fromCharCode(65 + i)} de ${esc(r.name || 'la pièce')} : évier et lave-vaisselle sous la fenêtre, colonnes, plaque et hotte sur l'autre mur, presqu'île à 2,21 m du mur des colonnes.</p>
@@ -221,7 +221,7 @@
     const kind = it.kind || 'meuble';
     const s = App.makeShape(kind, pts, Object.assign({ name: it.name, lib: it.id, round: !!it.round, noParquet: !!it.noParquet }, it.h ? { h: it.h } : {}));
     if (kind !== 'meuble') s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true })));
-    App.mutate((P) => P.shapes.push(s)); S.sel = { id: s.id };
+    App.mutate((P) => { P.shapes.push(s); if (App.stack && App.stack.canPut(s)) App.stack.place(s); }); S.sel = { id: s.id };
     if (kind === 'meuble' && S.mode !== 'mobilier' && !S.layers.mobilier) S.layers.mobilier = true;
     ui.onSelect(); App.toast(kind === 'meuble' ? 'Glissez le meuble : il se colle aux murs et se centre' : 'Glissez l\'objet pour le placer');
   };
@@ -460,7 +460,7 @@
       h += `<h3>Type de zone</h3><div class="seg"><button data-a="zmode" data-v="rampant" aria-pressed="${!s.drop}">Sous toiture (rampant)</button><button data-a="zmode" data-v="fp" aria-pressed="${!!s.drop}">Faux plafond</button></div>`;
       if (s.drop) h += `<h3>Faux plafond</h3><div class="field"><label>Épaisseur sous le plafond</label><div class="unit"><input data-c="drop" inputmode="decimal" value="${s.drop}"><span>cm</span></div></div><div class="chips sm">${[10, 15, 20, 30, 40].map((v) => `<button data-a="dropq" data-v="${v}" aria-pressed="${s.drop === v}">${v}</button>`).join('')}</div><p>Hauteur sous le faux plafond : <b>${fmt(Hc - s.drop, 0)} cm</b> (plafond ${room ? 'de ' + esc(room.name || 'la pièce') : 'de l\'étage'} à ${fmt(Hc, 0)} cm).${Hc - s.drop < 180 ? ' Sous 180 cm, la surface n\'est pas comptée comme habitable.' : ''} La visite 3D l'abaisse, coffrage compris.</p>`; }
     if (s.kind === 'plafond' && !s.drop) h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
-    if (s.kind === 'meuble') h += furnitureDims(s);
+    if (s.kind === 'meuble') h += furnitureDims(s) + (App.stack ? App.stack.inspHTML(s) : '');
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
       h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div>${(() => { const U = cur && cur.shape === 'U' && App.stairs.well(s); return U ? `<div class="field"><label>Jour (vide entre les volées)</label><div class="unit"><input data-xc="stjour" inputmode="decimal" value="${fmt(U.jour / 10)}"><span>cm</span></div></div><div class="field"><label>Longueur du mur central</label><div class="unit"><input data-xc="stwall" inputmode="decimal" value="${fmt(U.wall / 10)}"><span>cm</span></div></div>` : ''; })()}<p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. Les points rouges pleins règlent le mur central (jour et longueur). « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
     if (s.kind === 'poteau') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur</label><div class="unit"><input data-c="sh" inputmode="decimal" placeholder="jusqu'au plafond" value="${s.h || ''}"><span>cm</span></div></div><div class="chips sm">${[90, 100, 110, 120].map((v) => `<button data-a="shq" data-v="${v}" aria-pressed="${s.h === v}">${v}</button>`).join('')}<button data-a="shq" data-v="0" aria-pressed="${!s.h}">Plafond</button></div><p class="hint2">Une hauteur fait un muret ou une cloison basse (le parquet passe autour, la visite 3D l'élève à cette hauteur).</p>`;
@@ -678,6 +678,11 @@
       case 'addLib': ui.placeLib(PL.lib.structure.find((x) => x.id === v)); break;
       case 'zmode': App.mutate(() => { if (v === 'fp') { s.drop = s.drop || 20; if (/^Zone de plafond bas/.test(s.name || '')) s.name = 'Faux plafond'; } else { delete s.drop; } }); break;
       case 'dropq': App.mutate(() => { s.drop = +v; }); break;
+      case 'stdeck': { const p = App.stack.support(s); if (!p) break; App.mutate(() => App.stack.setDeck(s, p, +v)); ui.refresh(); break; }
+      case 'ston': { const p = App.byId(v); if (!p) break; App.mutate(() => { const D = App.stack.decks(p); let k0 = 0; for (const q of D) { App.stack.setDeck(s, p, q.k); const F = App.stack.fit(s); if (F && !F.over && !F.tall) { k0 = q.k; break; } } App.stack.setDeck(s, p, k0); }); const q = App.stack.deck(s); App.toast(`Posée sur ${(p.name || 'le support').replace(/ \(.*\)$/, '')}${q ? ', ' + q.name : ''}`); ui.refresh(); break; }
+      case 'stfloor': App.mutate(() => { App.stack.toFloor(s); s.floorLock = true; }); ui.refresh(); break;
+      case 'stsel': S.sel = { id: v }; ui.onSelect(); App.render(); break;
+      case 'desktopq': App.mutate(() => { s.top = +v; }); break;
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
@@ -738,6 +743,8 @@
     if (c === 'ceil') { App.mutate(() => { s.ceiling = num(val) || null; }); return; }
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
+    if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
+    if (c === 'desktop') { const v = num(val); if (!(v >= 63 && v <= 127)) { App.toast('Le plateau Idåsen va de 63 à 127 cm'); ui.refresh(true); return; } App.mutate(() => { s.top = v; }); return; }
     if (c === 'drop') { const v = num(val); if (!(v > 0)) { App.toast('Épaisseur en cm, supérieure à 0'); ui.refresh(true); return; } App.mutate(() => { s.drop = v; }); return; }
     if (c === 'noParquet') { App.mutate(() => { s.noParquet = val; }); return; }
     if (c === 'guardH' || c === 'guardT') { const v = num(val); if (v > 0) App.mutate(() => { s.stair = Object.assign({}, s.stair, { [c]: v }); }); return; }

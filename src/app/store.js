@@ -41,7 +41,7 @@
   /* ---------- recalcul + rendu ---------- */
   let saveT = null;
   App.changed = (noSave) => {
-    S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded;
+    S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded; if (App.stack) App.stack.sync();
     S.calc = {};
     if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);

@@ -45,7 +45,7 @@
   /* ---------- menu porte / fenêtre ---------- */
   X.inspOpening = () => {
     const f = App.ops.selected(); if (!f) return '';
-    const { room, o } = f; const tw = App.ops.twin(room, o); const g = App.ops.geo(room, o); const isDoor = App.ops.DOORS.includes(o.type); const isWin = ['fenetre', 'porte-fenetre', 'baie', 'fixe', 'velux'].includes(o.type);
+    const { room, o } = f; const tw = App.ops.twin(room, o); const g = App.ops.geo(room, o); const isDoor = App.ops.DOORS.includes(o.type); const isWin = ['fenetre', 'porte-fenetre', 'baie', 'fixe', 'velux', 'sautdeloup'].includes(o.type);
     const where = tw ? `Entre ${esc(room.name || 'pièce')} et ${esc(tw.room.name || 'pièce')}` : `${esc(room.name || 'Pièce')} · mur ${App.walls.name(room, o.wall)}`;
     let h = `<button class="link" data-x="back">← ${esc(room.name || 'Pièce')}</button>
       <div class="ctxhead"><h2>${esc(App.ops.name(o.type))}</h2><span class="big2">${App.fmtCm(o.width, 0)}<small>cm</small></span></div><p class="lead">${where}${o.type === 'porte' ? ' · poussant ' + App.ops.handing(room, o) : ''}</p>`;
@@ -61,6 +61,7 @@
       <div class="field"><label>Hauteur</label><div class="unit"><input data-xc="h" inputmode="decimal" value="${o.h ? fmt(o.h / 10) : ''}"><span>cm</span></div></div>
       ${isDoor ? `<div class="chips sm">${[204, 215, 224].map((v) => `<button data-x="hh" data-v="${v}" aria-pressed="${o.h && Math.abs(o.h / 10 - v) < 0.5}">${v}</button>`).join('')}</div>` : ''}
       ${(() => { const L = PL.lib.openings.find((x) => x.id === o.type) || {}; if (L.widths) return `<div class="chips sm">${L.widths.map((v) => `<button data-x="w" data-v="${v}" aria-pressed="${Math.abs(o.width / 10 - v) < 0.5}">${v}</button>`).join('')}<span class="chipnote">largeurs courantes</span></div>`; if (L.sizes) return `<div class="chips sm">${L.sizes.map((q) => `<button data-x="vx" data-v="${q.code}" aria-pressed="${Math.abs(o.width - q.w) < 5 && Math.abs((o.h || L.h) - q.h) < 5}">${q.code} · ${q.w / 10} × ${q.h / 10}</button>`).join('')}</div><p class="hint2">Tailles Velux courantes (largeur × hauteur en cm). Sur le plan, le pointillé montre son emprise dans le rampant.</p>`; return ''; })()}
+      ${o.type === 'sautdeloup' ? `<div class="field"><label>Profondeur du puits (dehors)</label><div class="unit"><input data-xc="well" inputmode="decimal" value="${fmt((o.well || 500) / 10)}"><span>cm</span></div></div><p class="hint2">Fenêtre haute de sous-sol : l'allège se mesure depuis le sol de la pièce. Le puits de lumière (saut de loup) est dessiné dehors, devant la fenêtre, 10 cm plus large de chaque côté.</p>` : ''}
       ${isWin ? `<div class="field"><label>Allège</label><div class="unit"><input data-xc="sill" inputmode="decimal" value="${o.sill != null ? fmt(o.sill / 10) : ''}"><span>cm</span></div></div>` : ''}
       <div class="field"><label>Distance à l'angle ${L(o.wall)}</label><div class="unit"><input data-xc="pos" inputmode="decimal" value="${fmt(g.pos / 10)}"><span>cm</span></div></div>
       <p class="hint2">Sur le plan : glissez l'ouverture le long du mur, tirez ses extrémités pour l'élargir.</p>
@@ -108,7 +109,7 @@
       <h3>Ouvertures sur ce mur</h3>`;
     const ops = (room.openings || []).filter((o) => o.wall === i);
     h += ops.length ? `<div class="list">${ops.map((o) => { const pr = App.ops.primary(room, o); return `<button class="item" data-x="opsel" data-v="${pr.o.oid}"><span class="nm">${esc(App.ops.name(o.type))}</span><span class="meta">${esc(App.ops.describe(room, o))}</span><span class="v">${App.fmtCm(o.width, 0)}<small style="font-size:12px"> cm</small></span></button>`; }).join('')}</div>` : '<p>Aucune.</p>';
-    h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-x="wadd" data-v="porte">+ Porte</button><button class="btn sm" data-x="wadd" data-v="fenetre">+ Fenêtre</button><button class="btn sm" data-x="wadd" data-v="passage">+ Passage</button></div>`;
+    h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-x="wadd" data-v="porte">+ Porte</button><button class="btn sm" data-x="wadd" data-v="fenetre">+ Fenêtre</button><button class="btn sm" data-x="wadd" data-v="passage">+ Passage</button>${(App.floor().level || 0) < 0 ? '<button class="btn sm" data-x="wadd" data-v="sautdeloup">+ Saut de loup</button>' : ''}</div>`;
     return h;
   };
 
@@ -187,7 +188,7 @@
         break;
       case 'more': App.ui.sheet(innerWidth < 900 ? 'half' : App.ui.sheetState()); App.ui.refresh(); break;
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
-      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux' || v === 'sautdeloup' || was === 'sautdeloup')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
       case 'leaves': if (!f) return; App.mutate(() => { f.o.leaves = +v; App.ops.syncTwin(f.room, f.o); }); break;
       case 'vx': { if (!f) return; const q = ((PL.lib.openings.find((x) => x.id === 'velux') || {}).sizes || []).find((x) => x.code === v); if (!q) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - q.w) / 2, q.w); f.o.h = q.h; f.o.ref = q.code; }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
@@ -254,6 +255,7 @@
   X.change = (c, val) => {
     const f = App.ops.selected(); const v = num(val);
     if (c === 'stjour' || c === 'stwall') { const st = App.selected(); if (st && st.kind === 'escalier' && v != null) App.stairs.setWell(st, c === 'stjour' ? 'jour' : 'wall', v * 10); return; }
+    if (f && c === 'well') { if (v > 0) App.mutate(() => { f.o.well = v * 10; App.ops.syncTwin(f.room, f.o); }); return; }
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
       let cl = false;

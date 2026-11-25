@@ -59,7 +59,7 @@
 
   /* ---------- dessin principal ---------- */
   function draw() {
-    if (!ctx || !S.p) return; readColors();
+    if (!ctx || !S.p) return; readColors(); if (App.stack) App.stack.sync();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
     App.labelRects = [];
@@ -86,7 +86,7 @@
     if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
-    if (S.layers.mobilier || S.mode === 'mobilier') for (const s of shapes) if (s.kind === 'meuble') drawFurniture(s, showCal && S.mode !== 'mobilier');
+    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
     // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
     for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes
@@ -480,11 +480,12 @@
     else path(s.pts);
     if (faint) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke(); ctx.restore(); return; }
     // meuble modélisé (vasques, WC, étagères…) : contour et détails du symbole
-    const md = !s.round && s.pts.length === 4 && PL.furnModel ? (() => { const P = s.pts, U = G.norm(G.sub(P[1], P[0])), V = G.norm(G.sub(P[3], P[0])), w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); const M = PL.furnModel(s.lib, w, d); return M && { M, at: ([u, v]) => G.add(G.add(P[0], G.mul(U, u)), G.mul(V, v)) }; })() : null;
+    const md = !s.round && s.pts.length === 4 && PL.furnModel ? (() => { const P = s.pts, U = G.norm(G.sub(P[1], P[0])), V = G.norm(G.sub(P[3], P[0])), w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); const M = PL.furnModel(s.lib, w, d, s); return M && { M, at: ([u, v]) => G.add(G.add(P[0], G.mul(U, u)), G.mul(V, v)) }; })() : null;
     if (md && md.M.outline) { ctx.beginPath(); path(md.M.outline.map(md.at)); }
     if (md && md.M.dash) ctx.setLineDash([6, 4]);
     if (!md || md.M.fill) { ctx.fillStyle = C.paper; ctx.globalAlpha = md && md.M.dash ? 0.55 : 0.92; ctx.fill(); ctx.globalAlpha = 1; }
-    ctx.strokeStyle = md && !md.M.fill ? C.ink2 : C.ink; ctx.lineWidth = md && !md.M.fill ? 1 : 1.2; ctx.stroke(); ctx.setLineDash([]);
+    const FIT = App.stack && s.on ? App.stack.fit(s) : null, BAD = FIT && (FIT.over || FIT.tall);
+    ctx.strokeStyle = BAD ? C.red : md && !md.M.fill ? C.ink2 : C.ink; ctx.lineWidth = BAD ? 2 : md && !md.M.fill ? 1 : 1.2; ctx.stroke(); ctx.setLineDash([]);
     if (md && S.view.z > 0.025) { ctx.lineWidth = 0.8; for (const q of md.M.plan) { const W = q.pts.map(md.at).map(App.w2s); ctx.beginPath(); W.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); if (!q.open) ctx.closePath(); if (q.dash) ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]); } }
     // détail : oreillers pour les lits, dossier et accoudoirs pour les canapés
     const sp = App.sofaParts && App.sofaParts(s);
@@ -494,7 +495,7 @@
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();
     }
     ctx.restore();
-    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); text(lbl, c.x, c.y, 500, 10, C.ink2); } }
+    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
   }
 
   function drawOpenings(rooms, selOp) {
@@ -545,6 +546,11 @@
           for (const f of fr) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
           if (t === 'baie') { ctx.lineWidth = isSel ? 2.6 : 2; segLine(G.add(p0, G.mul(out, T * 0.38)), G.add(G.lerp(p0, p1, 0.55), G.mul(out, T * 0.38))); segLine(G.add(G.lerp(p0, p1, 0.45), G.mul(out, T * 0.62)), G.add(p1, G.mul(out, T * 0.62))); }
         }
+      }
+      if (t === 'sautdeloup') { // puits de lumière dehors, devant la fenêtre
+        const dw = o.well || 500, a0 = G.add(G.add(p0, G.mul(out, T)), G.mul(d, -100)), a1 = G.add(G.add(p1, G.mul(out, T)), G.mul(d, 100));
+        ctx.save(); ctx.setLineDash([5, 3]); ctx.lineWidth = isSel ? 1.4 : 1; ctx.strokeStyle = col; ctx.beginPath(); [a0, G.add(a0, G.mul(out, dw)), G.add(a1, G.mul(out, dw)), a1].map(App.w2s).forEach((q, k) => (k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke(); ctx.restore();
+        if (z > 0.04) { const c = App.w2s(G.add(G.lerp(a0, a1, 0.5), G.mul(out, dw / 2))); text('saut de loup', c.x, c.y, 400, 9, C.ink2); }
       }
       if (isSel && o.oid === selOp.o.oid) {
         const s0 = App.w2s(p0), s1 = App.w2s(p1);

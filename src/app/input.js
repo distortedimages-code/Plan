@@ -70,7 +70,7 @@
     const elecOn = S.layers.elec || S.mode === 'elec';
     if (S.mode === 'elec') for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     const shapes = App.shapesOn(fid);
-    if (S.mode === 'mobilier') for (const s of shapes.filter((x) => x.kind === 'meuble').reverse()) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id };
+    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
     const ho2 = ho || hitOpening(sp, w); if (ho2) return ho2;
     if (elecOn) for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     for (const m of App.measuresOn(fid)) { const a = App.w2s(m.a), b = App.w2s(m.b); if (G.distPointSeg(sp, a, b) < 10) { if (S.sel && S.sel.id === m.id) { if (G.dist(a, sp) < 14) return { t: 'mend', id: m.id, e: 'a' }; if (G.dist(b, sp) < 14) return { t: 'mend', id: m.id, e: 'b' }; } return { t: 'measure', id: m.id }; } }
@@ -208,7 +208,10 @@
       App.render(); return;
     }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
+      let put = null; const ms = a.kind === 'move' && a.moved && App.stack && App.byId(a.h.id); if (ms && App.stack.canPut(ms)) put = App.stack.place(ms);
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
+      if (put && put.deck) { const F = App.stack.fit(ms); App.toast(`Posée sur ${(put.support.name || 'le support').replace(/ \(.*\)$/, '')}, ${put.deck.name} (${(Math.round(put.deck.z) / 10).toLocaleString('fr-FR')} cm)${F && (F.over || F.tall) ? ' — attention : ' + [F.over ? 'dépasse du plateau' : '', F.tall ? 'trop haute sous l\'étage du dessus' : ''].filter(Boolean).join(', ') : ''}`); App.ui.refresh(); }
+      else if (put && put.floor) { App.toast('Posée au sol'); App.ui.refresh(); }
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }
       App.render(); return;
     }

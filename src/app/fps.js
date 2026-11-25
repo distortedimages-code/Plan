@@ -14,7 +14,8 @@
 
   /* ---------- petite fabrique de géométrie (mm du plan → m, y vers le haut) ---------- */
   /* le plan a son axe y vers le haut de l'écran : dans la scène (y en haut, z vers soi), z = −y */
-  const P3 = (p, h) => [p.x / 1000, h / 1000, -p.y / 1000];
+  let ZO = 0; // machine posée sur un support : tout son modèle est remonté de la hauteur de l'étage
+  const P3 = (p, h) => [p.x / 1000, (h + ZO) / 1000, -p.y / 1000];
   const H3 = (v, k = 1) => [k * v.x, 0, -k * v.y];
   const mk = () => ({ p: [], n: [], c: [], uv: [] });
   const tri = (B, a, b, c, hint, col, uv) => {
@@ -111,7 +112,7 @@
     if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
-    const M = PL.furnModel && PL.furnModel(id, w, d); // meubles modélisés (bibliothèque)
+    const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
     if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
@@ -226,7 +227,7 @@
   const opInfo = (r, o, Hc, nin) => {
     if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
-    const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
+    const win = ['fenetre', 'fixe', 'velux', 'sautdeloup'].includes(o.type);
     const floorLevel = App.ops.DOORS.includes(o.type) || ['passage', 'porte-fenetre', 'baie'].includes(o.type); // une porte part du sol, même si elle était une fenêtre avant
     const sill = floorLevel ? 0 : Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
     const tw = App.ops.twin(r, o), tg = tw && App.ops.geo(tw.room, tw.o);
@@ -254,6 +255,16 @@
         rect(g0, g1, sill + e, top - e);
         const leaves = o.type === 'fixe' ? 1 : App.ops.leaves(o); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
       }
+    }
+    // saut de loup : puits de lumière en béton devant la fenêtre, dehors (fond en caillebotis, 3 parois)
+    if (o.type === 'sautdeloup' && !tw) {
+      const e = depth > 5 ? depth : 0, dw = o.well || lib.well || 500, sx = 100, zb = Math.max(0, sill - 160), zt = top + 320;
+      const a0 = G.add(G.add(p0, G.mul(out, e)), G.mul(W.d, -sx)), a1 = G.add(G.add(p1, G.mul(out, e)), G.mul(W.d, sx)), b0 = G.add(a0, G.mul(out, dw)), b1 = G.add(a1, G.mul(out, dw));
+      quad(B, P3(a0, zb), P3(a1, zb), P3(b1, zb), P3(b0, zb), [0, 1, 0], st.col.sill);
+      const CW = st.col.well || WALL; quad(B, P3(a0, zb), P3(b0, zb), P3(b0, zt), P3(a0, zt), H3(W.d), CW); quad(B, P3(a1, zb), P3(b1, zb), P3(b1, zt), P3(a1, zt), H3(W.d, -1), CW); quad(B, P3(b0, zb), P3(b1, zb), P3(b1, zt), P3(b0, zt), H3(nin), CW);
+      for (let z = zb + 250; z < zt; z += 250) { ln(P3(G.add(b0, G.mul(nin, 2)), z), P3(G.add(b1, G.mul(nin, 2)), z)); ln(P3(a0, z), P3(b0, z)); ln(P3(a1, z), P3(b1, z)); } // joints de coffrage
+      for (const [p, q] of [[a0, b0], [a1, b1], [b0, b1]]) { ln(P3(p, zb), P3(q, zb)); ln(P3(p, zt), P3(q, zt)); } ln(P3(b0, zb), P3(b0, zt)); ln(P3(b1, zb), P3(b1, zt));
+      for (let k = 1; k < 8; k++) { const t = k / 8; ln(P3(G.lerp(a0, a1, t), zb + 2), P3(G.lerp(b0, b1, t), zb + 2)); }
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
     if (o.sw !== 0 && ['porte', 'porte2', 'porte-fenetre'].includes(o.type)) {
@@ -349,7 +360,7 @@
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
-      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); furniture(B, s, home ? App.feat.ceiling(home) * 10 : Hc0, st.col.furn);
+      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(B, s, home ? App.feat.ceiling(home) * 10 : Hc0, st.col.furn); ZO = 0;
       if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '')) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
@@ -429,7 +440,7 @@
     catch (e) { host.remove(); App.toast && App.toast('La 3D n\'est pas disponible sur cet appareil.'); return; }
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
-    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
+    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], well: [0.8, 0.8, 0.8], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
     st.scene = new T.Scene(); st.cam = new T.PerspectiveCamera(70, 1, 0.05, 300); st.cam.rotation.order = 'YXZ';
     st.scene.add(new T.AmbientLight(0xffffff, 0.62)); st.scene.add(new T.HemisphereLight(0xffffff, 0xbbbbbb, 0.22));
     const sun = new T.DirectionalLight(0xffffff, 1.0); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; st.scene.add(sun, sun.target); st.sun = sun;

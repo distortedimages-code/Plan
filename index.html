@@ -2140,6 +2140,7 @@ details[open] summary::after{content:"–"}
     F('bureau140', 'Bureau', 'Bureau 140 × 65', 140, 65), F('bureau160', 'Bureau', 'Bureau 160 × 80', 160, 80), F('caisson', 'Bureau', 'Caisson', 36, 58), F('fauteuilbur', 'Bureau', 'Fauteuil de bureau', 65, 65, { round: true }),
     F('canape2', 'Salon', 'Canapé 2 places', 180, 90), F('canape3', 'Salon', 'Canapé 3 places', 228, 95), F('angle', 'Salon', 'Canapé d\'angle', 250, 160, { shape: 'L', t: 95 }), F('fauteuil', 'Salon', 'Fauteuil', 68, 82),
     F('piano', 'Salon', 'Piano droit (piano d\'étude)', 150, 60, { short: 'Piano droit', m: 'pianodroit' }), F('pianon', 'Salon', 'Piano numérique', 140, 40, { m: 'pianonum' }), F('banquette', 'Salon', 'Banquette de piano', 57, 33, { m: 'banquette' }),
+    F('lindakra', 'Salon', 'Canapé convertible Lindåkra, méridienne à droite', 206, 87, { short: 'Lindåkra', m: 'lindakra', ref: 'couchage 200 × 80 · assise 43' }),
     F('meublebas', 'Cuisine', 'Meuble bas 60', 60, 60), F('colonne', 'Cuisine', 'Colonne 60', 60, 60), F('frigo', 'Cuisine', 'Réfrigérateur', 60, 65), F('lv', 'Cuisine', 'Lave-vaisselle', 60, 60),
     F('ilot', 'Cuisine', 'Îlot 180 × 90', 180, 90, { noParquet: true }),
     // meubles vasque suspendus (cotes type Godmorgon : caisson 47 cm de profondeur, plan vasque 49 cm, dessus à 86 cm)
@@ -2182,6 +2183,61 @@ details[open] summary::after{content:"–"}
     F('kjoue82', 'Cuisine commandée', 'Joue 82 × 88', 1.6, 82, { short: '', m: 'kpanneau', z: [0, 880], ref: 'panneau 1,6' }),
     F('khab135', 'Cuisine commandée', 'Habillage arrière 135 × 78', 135, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
     F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
+    // ---- studio : supports (cotes fabricant) ----
+    F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
+    F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
+    // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
+    ...[
+      ['terra', 'synthés', 'Soma Terra', 40.5, 36.5, { h: 57, k: [6, 2, 0.1, 0.9, 0.62, 0.9], plates: [12, 0.08, 0.92, 0.12, 0.5] }],
+      ['grandmother', 'synthés', 'Moog Grandmother', 58, 36.2, { h: 139, keys: { n: 19, d: 0.44, h: 70, l: 0.13, start: 'F' }, k: [9, 3, 0.03, 0.97, 0.12, 0.88] }],
+      ['minifreak', 'synthés', 'Arturia MiniFreak', 57.8, 23.1, { h: 55, keys: { n: 22, d: 0.52, h: 40, l: 0.11 }, k: [12, 2, 0.04, 0.96, 0.15, 0.85], scr: [0.45, 0.55, 0.3, 0.75] }],
+      ['echon6', 'synthés', 'Morphor Echon 6', 45, 18.5, { h: 53, k: [12, 3, 0.04, 0.96, 0.12, 0.88] }],
+      ['perfourmer', 'synthés', 'Vermona PERfourMER MKII', 43.5, 31.5, { h: 105, step: [0.35, 45], k: [8, 4, 0.05, 0.95, 0.42, 0.95] }],
+      ['malevolent', 'synthés', 'PWM Malevolent', 49, 25, { h: 80, keys: { n: 19, d: 0.45, h: 45, l: 0.12, start: 'F' }, k: [8, 3, 0.04, 0.96, 0.15, 0.85] }],
+      ['medusa', 'synthés', 'Polyend / Dreadbox Medusa', 49, 21.3, { h: 54, k: [6, 4, 0.03, 0.42, 0.1, 0.9], pads: [8, 8, 0.48, 0.97, 0.08, 0.92] }],
+      ['monomachine', 'synthés', 'Elektron Monomachine MKII', 34, 17.6, { h: 63, k: [8, 1, 0.3, 0.97, 0.72, 0.92], scr: [0.04, 0.26, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['sidstation', 'synthés', 'Elektron SidStation', 24, 20, { h: 70, k: [4, 1, 0.1, 0.9, 0.2, 0.4], scr: [0.25, 0.75, 0.6, 0.85] }],
+      ['strega', 'synthés', 'Make Noise Strega', 23, 14, { h: 19, kh: 20, k: [5, 3, 0.08, 0.92, 0.12, 0.88] }],
+      ['spectravox', 'synthés', 'Moog Spectravox', 32.6, 14.3, { h: 107, step: [0.3, 60], k: [7, 3, 0.04, 0.72, 0.35, 0.95], jacks: [4, 8, 0.76, 0.97, 0.35, 0.95] }],
+      ['volcamod', 'synthés', 'Korg Volca Modular', 19.3, 11.5, { h: 39, k: [6, 2, 0.05, 0.95, 0.5, 0.92], pads: [16, 1, 0.05, 0.95, 0.06, 0.22] }],
+      ['op1field', 'synthés', 'Teenage Engineering OP-1 Field', 28.8, 10.2, { h: 15, kh: 10, keys: { n: 14, d: 0.5, h: 15, l: 0.02 }, k: [4, 1, 0.45, 0.95, 0.55, 0.9], scr: [0.05, 0.35, 0.55, 0.92] }],
+      ['opxy', 'synthés', 'Teenage Engineering OP-XY', 28.8, 10.2, { h: 18, kh: 11, keys: { n: 14, d: 0.42, h: 18, l: 0.02 }, k: [8, 1, 0.3, 0.97, 0.55, 0.9], scr: [0.03, 0.27, 0.5, 0.92] }],
+      ['pom400', 'synthés', 'Teenage Engineering POM-400', 45, 25, { h: 80, k: [8, 3, 0.05, 0.95, 0.15, 0.85], est: true }],
+      ['pom170', 'synthés', 'Teenage Engineering POM-170', 30, 20, { h: 70, k: [5, 3, 0.05, 0.95, 0.15, 0.85], est: true }],
+      ['kastle2', 'synthés', 'Bastl Kastle 2', 9.5, 7, { h: 45, k: [3, 2, 0.12, 0.88, 0.2, 0.8] }],
+      ['roat', 'synthés', 'Soma Rumble of Ancient Times', 15, 10, { h: 35, k: [4, 1, 0.1, 0.9, 0.6, 0.85], pads: [4, 1, 0.1, 0.9, 0.12, 0.4], est: true }],
+      ['theremin', 'synthés', 'Moog Etherwave (thérémine)', 63, 16, { theremin: true }],
+      ['machinedrum', 'rythmiques', 'Elektron Machinedrum SPS-1 UW+', 34, 17.6, { h: 63, k: [8, 1, 0.3, 0.97, 0.72, 0.92], scr: [0.04, 0.26, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['tonverk', 'rythmiques', 'Elektron Tonverk', 28.6, 17.6, { h: 63, k: [8, 1, 0.32, 0.97, 0.72, 0.92], scr: [0.04, 0.28, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['pulsar23', 'rythmiques', 'Soma Pulsar-23', 38, 28, { h: 80, k: [8, 5, 0.04, 0.96, 0.1, 0.92] }],
+      ['dfam', 'rythmiques', 'Moog DFAM', 31.9, 13.3, { h: 107, step: [0.3, 60], k: [8, 3, 0.04, 0.75, 0.35, 0.95], jacks: [3, 8, 0.78, 0.97, 0.35, 0.95] }],
+      ['metalfet', 'rythmiques', 'Body Synths Metal Fetishist', 19, 12.4, { h: 55, k: [4, 3, 0.08, 0.92, 0.3, 0.92], sw: 1 }],
+      ['sds3', 'rythmiques', 'Behringer SDS-3', 37.4, 13.6, { h: 93, step: [0.3, 55], k: [10, 4, 0.04, 0.96, 0.33, 0.95] }],
+      ['monotribe', 'rythmiques', 'Korg Monotribe', 20.7, 14.5, { h: 70, step: [0.4, 40], k: [6, 2, 0.06, 0.94, 0.5, 0.92], pads: [8, 1, 0.08, 0.92, 0.08, 0.3] }],
+      ['ep133', 'rythmiques', 'Teenage Engineering EP-133 K.O. II', 24, 17.6, { h: 16, kh: 10, pads: [4, 3, 0.5, 0.95, 0.08, 0.7], k: [2, 1, 0.08, 0.4, 0.75, 0.92], scr: [0.08, 0.42, 0.35, 0.65] }],
+      ['po', 'rythmiques', 'Teenage Engineering Pocket Operator', 15, 7.5, { h: 6, kh: 6, k: [2, 1, 0.55, 0.95, 0.7, 0.92], pads: [4, 4, 0.06, 0.5, 0.06, 0.94], scr: [0.55, 0.95, 0.15, 0.6], est: true }],
+      ['oxione', 'séquenceurs', 'OXI One MKII', 37.5, 13, { h: 19, kh: 11, pads: [16, 8, 0.2, 0.97, 0.06, 0.94], k: [4, 1, 0.03, 0.17, 0.65, 0.9], scr: [0.03, 0.17, 0.2, 0.55] }],
+      ['zeroctrl', 'séquenceurs', 'Make Noise 0-Ctrl', 23, 14, { h: 19, kh: 20, k: [8, 3, 0.06, 0.94, 0.3, 0.92], pads: [8, 1, 0.06, 0.94, 0.06, 0.24] }],
+      ['cosmos', 'effets', 'Soma Cosmos', 34.2, 15.3, { h: 68, k: [8, 2, 0.05, 0.95, 0.2, 0.8] }],
+      ['twopole', 'effets', 'Waldorf 2-Pole', 18.5, 18.5, { h: 65, k: [3, 3, 0.15, 0.85, 0.25, 0.9] }],
+      ['lossy', 'effets', 'Chase Bliss Lossy', 6.8, 12.4, { h: 60, kh: 0, k: [3, 2, 0.15, 0.85, 0.55, 0.9], sw: 2 }],
+      ['lostfound', 'effets', 'Chase Bliss Lost + Found', 12, 12.4, { h: 60, kh: 0, k: [3, 2, 0.12, 0.88, 0.55, 0.9], sw: 2, est: true }],
+      ['ether', 'effets', 'Soma Ether V2', 5.8, 10.3, { h: 17, kh: 0, k: [1, 2, 0.4, 0.6, 0.3, 0.7] }],
+      ['ij7u', 'eurorack', 'Intellijel Performance Case 7U 104HP', 54.6, 31.2, { case7u: true, h: 83 }],
+      ['af16rig', 'audio', 'Arturia AudioFuse 16Rig', 44, 26, { h: 45, k: [3, 1, 0.6, 0.95, 0.08, 0.2], scr: [0.35, 0.55, 0.05, 0.22] }],
+      ['apollotwin', 'audio', 'Universal Audio Apollo Twin Duo', 16, 14.9, { h: 66, k: [1, 1, 0.3, 0.7, 0.3, 0.7], kr: 30 }],
+      ['mioxl', 'audio', 'iConnectivity mioXL (19" 1U)', 48.3, 11, { h: 44, rack: 1, scr: [0.42, 0.58, 0.03, 0.2], est: true }],
+      ['ada8200', 'audio', 'Behringer ADA8200 (19" 1U)', 48.3, 21.7, { h: 44, rack: 1, k: [8, 1, 0.12, 0.88, 0.04, 0.14] }],
+      ['tx6', 'audio', 'Teenage Engineering TX-6', 6.2, 9, { h: 23, kh: 8, k: [6, 3, 0.1, 0.9, 0.35, 0.95], scr: [0.25, 0.75, 0.06, 0.25] }],
+      ['tp7', 'audio', 'Teenage Engineering TP-7', 6.8, 9.6, { h: 16, kh: 2, reel: true, scr: [0.2, 0.8, 0.75, 0.92] }],
+      ['kh120', 'enceintes', 'Neumann KH 120 (enceinte)', 18.2, 22, { spk: { h: 277, drv: [[0.5, 0.36, 0.33], [0.5, 0.78, 0.16]] } }],
+      ['kh750', 'enceintes', 'Neumann KH 750 DSP (caisson)', 33, 38.3, { low: true, spk: { h: 383, drv: [[0.5, 0.48, 0.38]] } }],
+      ['ob4', 'enceintes', 'Teenage Engineering OB-4', 23.3, 5.8, { spk: { h: 284, drv: [[0.5, 0.3, 0.3], [0.5, 0.66, 0.3]], handle: true } }],
+      ['mbp16', 'ordinateurs', 'MacBook Pro 16" M2 Max', 35.6, 24.8, { laptop: 17, screen: 235 }],
+      ['mbp15', 'ordinateurs', 'MacBook Pro 15" 2017', 34.9, 24.1, { laptop: 16, screen: 225 }],
+      ['macpro13', 'ordinateurs', 'Mac Pro 2013 (cylindre)', 16.7, 16.7, { cyl: 251 }],
+      ['boitier', 'synthés', 'Boîtier sur mesure (cotes à saisir)', 30, 20, { h: 60, est: true }],
+    ].map(([id, cat, name, w, d, g]) => F(id, 'Studio · ' + cat, name, w, d, { m: 'gear', g, put: true, low: !!g.low, short: name.replace(/^(Soma|Moog|Arturia|Morphor|Vermona|PWM|Polyend \/ Dreadbox|Elektron|Make Noise|Korg|Teenage Engineering|Bastl|Body Synths|Behringer|OXI|Chase Bliss|Waldorf|Intellijel|Universal Audio|iConnectivity|Neumann) /, '').replace(/ \(.*\)$/, ''), ref: g.est ? 'cotes estimées, à vérifier' : '' })),
   ];
   const structure = [
     F('poteau20', 'Structure', 'Poteau 20 × 20', 20, 20, { kind: 'poteau' }), F('poteau30', 'Structure', 'Poteau 30 × 30', 30, 30, { kind: 'poteau' }),
@@ -2200,7 +2256,7 @@ details[open] summary::after{content:"–"}
   const openings = [
     { id: 'porte', name: 'Porte', w: 830, h: 2040 }, { id: 'porte2', name: 'Porte double', w: 1400, h: 2040 }, { id: 'coulissante', name: 'Porte coulissante', w: 830, h: 2040 },
     { id: 'galandage', name: 'Porte à galandage', w: 830, h: 2040 }, { id: 'passage', name: 'Passage libre', w: 900, h: 2100 },
-    { id: 'fenetre', name: 'Fenêtre', w: 1200, h: 1250, sill: 950, widths: [60, 80, 100, 120, 140] }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, widths: [80, 90, 120, 140] },
+    { id: 'fenetre', name: 'Fenêtre', w: 1200, h: 1250, sill: 950, widths: [60, 80, 100, 120, 140] }, { id: 'sautdeloup', name: 'Fenêtre saut de loup', w: 1000, h: 600, sill: 1650, well: 500, widths: [60, 80, 100, 120] }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, widths: [80, 90, 120, 140] },
     { id: 'baie', name: 'Baie vitrée coulissante', w: 2400, h: 2150, sill: 0, leaves: 2 }, { id: 'fixe', name: 'Châssis fixe', w: 800, h: 1200, sill: 900 },
     { id: 'velux', name: 'Velux (fenêtre de toit)', w: 780, h: 980, sill: 0, sizes: [{ code: 'CK02', w: 550, h: 780 }, { code: 'CK04', w: 550, h: 980 }, { code: 'MK04', w: 780, h: 980 }, { code: 'MK06', w: 780, h: 1180 }, { code: 'MK08', w: 780, h: 1400 }, { code: 'SK06', w: 1140, h: 1180 }, { code: 'UK04', w: 1340, h: 980 }] },
   ];
@@ -2271,6 +2327,47 @@ details[open] summary::after{content:"–"}
       M.lines.push(...rf);
       M.plan.push({ pts: rect(fr, fr, w - fr, d - fr) }); for (const [a, b] of rf) M.plan.push({ pts: [[a[0], a[1]], [b[0], b[1]]], open: true });
       M.plan.push({ pts: rect(lg, lg, w - lg, d - lg), dash: true }); // tablette sous le verre
+      M.decks = [{ pts: rect(lg, lg, w - lg, d - lg), z: zs1, name: 'tablette basse' }, { pts: rect(0, 0, w, d), z: H, name: 'plateau' }];
+    },
+    gear: (w, d, M, it) => gear(w, d, M, it.g),
+    // stand Jaspers 4D-120B : deux flancs inclinés (montant + pied), 4 étages réglables (barre transversale + 2 bras),
+    // bras de 60 cm en bas, 40 cm au-dessus ; entre montants 120 cm, h 140, profondeur max 70
+    jaspers: (w, d, M, it, sh) => {
+      const side = Math.max(20, (w - 1200) / 2), H = 1400, T = PL.jaspersTiers(sh).map((v) => v * 10); M.h = H; M.fill = false;
+      const vup = (z) => d - 140 + (120 * z) / H;
+      for (const u0 of [0, w - side]) {
+        M.solids.push({ pts: rect(u0, 0, u0 + side, d), z0: 0, z1: 35 }); M.plan.push({ pts: rect(u0, 0, u0 + side, d) });
+        for (let k = 0; k < 7; k++) { const za = 35 + ((H - 35) * k) / 7, zb = 35 + ((H - 35) * (k + 1)) / 7, vc = vup((za + zb) / 2); M.solids.push({ pts: rect(u0 + 8, vc - 17, u0 + side - 8, vc + 17), z0: za, z1: zb }); }
+      }
+      M.decks = [];
+      T.forEach((z, k) => {
+        const L = k === 0 ? 600 : 400, vc = vup(z), v1 = Math.min(d, vc + 20), v0 = Math.max(0, vc - L);
+        M.solids.push({ pts: rect(side, vc - 15, w - side, vc + 15), z0: z - 30, z1: z - 2 });
+        for (const f of [0.2, 0.8]) { const uc = w * f; M.solids.push({ pts: rect(uc - 14, v0, uc + 14, vc), z0: z - 26, z1: z }); M.plan.push({ pts: rect(uc - 14, v0, uc + 14, vc), dash: k > 0 }); }
+        M.plan.push({ pts: [[side, vc], [w - side, vc]], open: true, dash: k > 0 }, { pts: [[side, v0], [w - side, v0]], open: true, dash: true });
+        M.decks.push({ pts: rect(side, v0, w - side, v1), z, name: 'étage ' + (k + 1), arm: L });
+      });
+    },
+    // bureau Idåsen : plateau 160 × 80 (ép. 2,5), deux colonnes télescopiques sur pieds en T, poutre entre les colonnes
+    idasen: (w, d, M, it, sh) => {
+      const top = PL.deskTop(sh) * 10, t = 25, ui = Math.min(120, w * 0.075); M.h = top;
+      M.solids.push({ pts: rect(0, 0, w, d), z0: top - t, z1: top });
+      for (const uc of [ui, w - ui]) {
+        M.solids.push({ pts: rect(uc - 32, 40, uc + 32, d - 40), z0: 0, z1: 32 }, { pts: rect(uc - 40, d / 2 - 50, uc + 40, d / 2 + 50), z0: 32, z1: top - t - 45 }, { pts: rect(uc - 28, 70, uc + 28, d - 70), z0: top - t - 45, z1: top - t });
+        M.plan.push({ pts: rect(uc - 32, 40, uc + 32, d - 40), dash: true });
+      }
+      M.solids.push({ pts: rect(ui, d / 2 - 35, w - ui, d / 2 + 35), z0: top - t - 95, z1: top - t - 45 });
+      M.decks = [{ pts: rect(0, 0, w, d), z: top, name: 'plateau' }];
+    },
+    // canapé convertible Lindåkra : 206 × 87, assise 43, accoudoir arrondi (7 cm) à gauche, pouf-méridienne à droite sans accoudoir,
+    // dossier 67 sur toute la longueur, deux coussins de dossier (87) au-dessus de l'assise, couchage 200 × 80
+    lindakra: (w, d, M) => {
+      const arm = Math.min(70, w * 0.04), back = 70, seat = 430, top = 670, cush = 870, pu = arm + Math.round(((w - arm) * 1350) / 1990), R = arm; M.h = cush;
+      const corner = ell(R, R, R, R, 10, Math.PI, Math.PI * 1.5).slice(1, -1); M.outline = [[0, d], [0, R]].concat(corner, [[R, 0], [w, 0], [w, d]]);
+      const armP = [[0, d], [0, R]].concat(corner, [[R, 0], [arm, 0], [arm, d]]); M.solids.push({ pts: armP, z0: 40, z1: top });
+      M.solids.push({ pts: rect(arm, d - back, w, d), z0: 40, z1: top }, { pts: rect(arm, 0, pu - 4, d - back), z0: 40, z1: seat }, { pts: rect(pu + 4, 0, w, d - back), z0: 40, z1: seat });
+      const mid = (arm + pu) / 2; for (const [a, b] of [[arm + 6, mid - 4], [mid + 4, pu - 6]]) { M.solids.push({ pts: rect(a, d - back - 170, b, d - back), z0: seat, z1: cush }); M.plan.push({ pts: rect(a, d - back - 170, b, d - back) }); }
+      M.plan.push({ pts: [[arm, 0], [arm, d - back]], open: true }, { pts: [[arm, d - back], [w, d - back]], open: true }, { pts: [[pu, 0], [pu, d - back]], open: true, dash: true });
     },
     // cuisine : meubles bas (socle en retrait de 5 cm), colonnes, haut, hotte, plan, plaque, évier
     kbas: (w, d, M, it) => {
@@ -2302,6 +2399,60 @@ details[open] summary::after{content:"–"}
     for (let i = 1; i < 52; i++) { const u = u0 + i * ww; M.lines.push([[u, v0, z + 21], [u, v1, z + 21]]); if (names[i % 7] === 'C') M.plan.push({ pts: [[u, v0], [u, v1]], open: true }); }
     for (let i = 0; i < 51; i++) if ('ACDFG'.includes(names[i % 7])) { const c = u0 + (i + 1) * ww; M.solids.push({ pts: rect(c - 6.5, v1 - 95, c + 6.5, v1), z0: z + 20, z1: z + 32 }); }
   }
+  // clavier : n touches blanches entre u0 et u1, noires en relief (départ sur do ou sur fa)
+  function keys(M, u0, u1, v0, v1, z, n, start) {
+    M.solids.push({ pts: rect(u0, v0, u1, v1), z0: z, z1: z + 14 }); M.plan.push({ pts: rect(u0, v0, u1, v1) });
+    const kw = (u1 - u0) / n, pat = start === 'F' ? [1, 1, 1, 0, 1, 1, 0] : [1, 1, 0, 1, 1, 1, 0];
+    for (let i = 1; i < n; i++) { const u = u0 + i * kw; M.lines.push([[u, v0, z + 15], [u, v1, z + 15]]); M.plan.push({ pts: [[u, v0], [u, v1]], open: true }); }
+    for (let i = 0; i < n - 1; i++) if (pat[i % 7]) { const c = u0 + (i + 1) * kw; M.solids.push({ pts: rect(c - kw * 0.3, v0 + (v1 - v0) * 0.4, c + kw * 0.3, v1), z0: z + 14, z1: z + 24 }); }
+  }
+  // machine : boîtier aux cotes du fabricant, commandes simplifiées (boutons, écran, pads, clavier, enceintes…)
+  function gear(w, d, M, g) {
+    if (g.spk) return speaker(w, d, M, g.spk);
+    if (g.laptop) { const t = g.laptop; M.h = t + g.screen; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: t }, { pts: rect(0, d - 10, w, d), z0: t, z1: t + g.screen }); const kb = rect(w * 0.1, d * 0.42, w * 0.9, d * 0.9), tp = rect(w * 0.32, d * 0.06, w * 0.68, d * 0.36); M.plan.push({ pts: kb }, { pts: tp }, { pts: [[0, d - 10], [w, d - 10]], open: true }); M.lines.push(...ring3(kb, t + 1), ...ring3(tp, t + 1)); return; }
+    if (g.cyl) { M.outline = ell(w / 2, d / 2, w / 2, d / 2, 28); M.solids.push({ pts: M.outline, z0: 0, z1: g.cyl, round: true }); const top = ell(w / 2, d / 2, w * 0.36, d * 0.36, 20); M.plan.push({ pts: top }); M.lines.push(...ring3(top, g.cyl + 1)); M.h = g.cyl; return; }
+    if (g.theremin) { // coffret 45 × 16 × 8,5 cm, antenne de volume en boucle à gauche, antenne de hauteur verticale à droite
+      const cw = Math.min(w, 450), H = 85, u0 = w - cw; M.h = H + 450; M.solids.push({ pts: rect(u0, 0, w, d), z0: 0, z1: H }, { pts: ell(w - 45, d / 2, 6, 6, 8), z0: H, z1: H + 450, round: true });
+      const loop = [[u0, d * 0.32], [70, d * 0.32]].concat(ell(70, d / 2, 70, d * 0.18, 9, -Math.PI / 2, -Math.PI * 1.5)).concat([[70, d * 0.68], [u0, d * 0.68]]);
+      for (let k = 0; k < loop.length - 1; k++) M.lines.push([[loop[k][0], loop[k][1], H * 0.55], [loop[k + 1][0], loop[k + 1][1], H * 0.55]]);
+      M.outline = rect(0, 0, w, d); M.fill = true; M.plan.push({ pts: loop, open: true }, { pts: [[u0, 0], [u0, d]], open: true }, { pts: ell(w - 45, d / 2, 10, 10, 10) }); return;
+    }
+    const H = g.h, kh = g.kh != null ? g.kh : 14; let zone = [0, 0, w, d], zAt = () => H;
+    if (g.case7u) { // coffret eurorack 7U : deux rangées 3U et une rangée 1U, modules en tranches
+      M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H }); M.h = H + 25;
+      const rows = [[0.04, 0.45], [0.47, 0.88], [0.9, 0.98]];
+      for (const [a, b] of rows) { const q = rect(w * 0.03, d * a, w * 0.97, d * b); M.plan.push({ pts: q }); M.lines.push(...ring3(q, H + 1)); let u = w * 0.03; let k = 0; while (u < w * 0.95) { u += w * (0.035 + ((k * 37) % 5) * 0.012); k++; if (u < w * 0.96) { M.lines.push([[u, d * a, H + 1], [u, d * b, H + 1]]); if (b - a > 0.2) for (let j = 0; j < 3; j++) { const cv = d * (a + (b - a) * (j + 0.5) / 3), cu = u - w * 0.015; M.solids.push({ pts: ell(cu, cv, 6, 6, 6), z0: H, z1: H + 18, round: true }); } } } }
+      return;
+    }
+    if (g.keys) {
+      const kd = d * g.keys.d, hf = Math.min(H, g.keys.h);
+      M.solids.push({ pts: rect(0, 0, w, kd), z0: 0, z1: hf - 14 }, { pts: rect(0, kd, w, d), z0: 0, z1: H }); M.plan.push({ pts: [[0, kd], [w, kd]], open: true });
+      const ku0 = w * g.keys.l, ku1 = w - Math.max(12, w * 0.02); keys(M, ku0, ku1, Math.min(10, kd * 0.08), kd - Math.min(8, kd * 0.06), hf - 14, g.keys.n, g.keys.start);
+      if (g.keys.l > 0.06) for (const f of [0.33, 0.67]) { const cu = ku0 * f, q = rect(cu - 9, kd * 0.2, cu + 9, kd * 0.85); M.solids.push({ pts: q, z0: hf - 14, z1: hf + 6 }); M.plan.push({ pts: q }); }
+      zone = [0, kd, w, d];
+    } else if (g.step) {
+      const vs = d * g.step[0], hf = g.step[1]; M.solids.push({ pts: rect(0, 0, w, vs), z0: 0, z1: hf }, { pts: rect(0, vs, w, d), z0: 0, z1: H }); M.plan.push({ pts: [[0, vs], [w, vs]], open: true }); zAt = (v) => (v < vs ? hf : H);
+    } else M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H });
+    if (g.rack) for (const u of [8, w - 8]) M.lines.push([[u, -1, 6], [u, -1, H - 6]]);
+    const [zu0, zv0, zu1, zv1] = zone, ZW = zu1 - zu0, ZD = zv1 - zv0;
+    const Z = (a, b, c, e) => [zu0 + ZW * a, zv0 + ZD * c, zu0 + ZW * b, zv0 + ZD * e];
+    if (g.scr) { const [a, b, c, e] = Z(...g.scr); const q = rect(a, b, c, e); M.plan.push({ pts: q }); M.lines.push(...ring3(q, zAt((b + e) / 2) + 1)); }
+    if (g.pads) { const [cols, rows, ...f] = g.pads; const [a, b, c, e] = Z(...f), cw = (c - a) / cols, ch = (e - b) / rows; for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const q = rect(a + i * cw + cw * 0.12, b + j * ch + ch * 0.12, a + (i + 1) * cw - cw * 0.12, b + (j + 1) * ch - ch * 0.12); const z = zAt(b + (j + 0.5) * ch); M.solids.push({ pts: q, z0: z, z1: z + 4 }); if (cols * rows <= 64) M.plan.push({ pts: q }); } }
+    if (g.plates) { const [n, a, b, c, e] = g.plates; const u0 = zu0 + ZW * a, u1 = zu0 + ZW * b, v0 = zv0 + ZD * c, v1 = zv0 + ZD * e; const pw = (u1 - u0) / n; for (let i = 0; i < n; i++) { const q = rect(u0 + i * pw + pw * 0.15, v0, u0 + (i + 1) * pw - pw * 0.15, v1); M.solids.push({ pts: q, z0: H, z1: H + 3 }); M.plan.push({ pts: q }); } }
+    const dots = (spec, r, hk) => { const [cols, rows, ...f] = spec; const [a, b, c, e] = Z(...f); for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const cu = cols > 1 ? a + ((c - a) * i) / (cols - 1) : (a + c) / 2, cv = rows > 1 ? b + ((e - b) * j) / (rows - 1) : (b + e) / 2, z = zAt(cv); const q = ell(cu, cv, r, r, 8); M.solids.push({ pts: q, z0: z, z1: z + hk, round: true }); if (cols * rows <= 40) M.plan.push({ pts: q }); } };
+    if (g.k) { const [cols, rows, a, b, c, e] = g.k; const cell = Math.min((ZW * (b - a)) / Math.max(1, cols), (ZD * (e - c)) / Math.max(1, rows)); dots(g.k, g.kr || Math.max(4, Math.min(13, cell * 0.28)), Math.max(kh, 3)); }
+    if (g.jacks) dots(g.jacks, 3, 3);
+    if (g.sw) for (let i = 0; i < g.sw; i++) { const cu = (w * (i + 0.5)) / g.sw, cv = Math.min(d * 0.2, 30); const q = ell(cu, cv, 9, 9, 8); M.solids.push({ pts: q, z0: zAt(cv), z1: zAt(cv) + 14, round: true }); M.plan.push({ pts: q }); }
+    if (g.reel) { const q = ell(w / 2, d * 0.4, w * 0.32, w * 0.32, 18); M.solids.push({ pts: q, z0: H, z1: H + 2, round: true }); M.plan.push({ pts: q }); }
+    M.h = H + (g.k ? kh : 0);
+  }
+  // enceinte : caisson, haut-parleurs dessinés en façade ([u, z, rayon] en fractions de largeur / hauteur)
+  function speaker(w, d, M, sp) {
+    const H = sp.h; M.h = H + (sp.handle ? 18 : 0); M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H });
+    for (const [fu, fz, fr] of sp.drv) { const r = w * fr, c = ell(w * fu, H * fz, r, r, 22); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); const c2 = ell(w * fu, H * fz, r * 0.45, r * 0.45, 14); c2.forEach((p, k) => { const q = c2[(k + 1) % c2.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); }
+    if (sp.handle) M.solids.push({ pts: rect(w * 0.15, d * 0.3, w * 0.85, d * 0.7), z0: H, z1: H + 18 });
+    M.plan.push({ pts: [[0, Math.min(14, d * 0.2)], [w, Math.min(14, d * 0.2)]], open: true });
+  }
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
   function vanity(w, d, M, centers, vessel) {
     const z0 = 220, zc = 800, zt = vessel ? 820 : 860; M.h = zt;
@@ -2324,10 +2475,13 @@ details[open] summary::after{content:"–"}
     if (back) M.solids.push({ pts: rect(T, d - 6, w - T, d), z0: 0, z1: H });
     if (!posts) M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
   }
-  PL.furnModel = (id, w, d) => {
+  PL.furnModel = (id, w, d, sh) => {
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0 }; MODELS[it.m](w, d, M, it); return M;
+    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
   };
+  /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
+  PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
+  PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
      back : côté du dos (S = mur 3, W = mur 4, N = côté bar de la presqu'île). Points : mur, distance à l'angle, hauteur (cm), symbole, note. */
@@ -2393,7 +2547,7 @@ details[open] summary::after{content:"–"}
   /* ---------- recalcul + rendu ---------- */
   let saveT = null;
   App.changed = (noSave) => {
-    S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded;
+    S.p.updatedAt = Date.now(); if (S.p.seeded) delete S.p.seeded; if (App.stack) App.stack.sync();
     S.calc = {};
     if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);
@@ -2722,7 +2876,7 @@ details[open] summary::after{content:"–"}
 
   /* ---------- dessin principal ---------- */
   function draw() {
-    if (!ctx || !S.p) return; readColors();
+    if (!ctx || !S.p) return; readColors(); if (App.stack) App.stack.sync();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
     App.labelRects = [];
@@ -2749,7 +2903,7 @@ details[open] summary::after{content:"–"}
     if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
-    if (S.layers.mobilier || S.mode === 'mobilier') for (const s of shapes) if (s.kind === 'meuble') drawFurniture(s, showCal && S.mode !== 'mobilier');
+    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
     // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
     for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes
@@ -3143,11 +3297,12 @@ details[open] summary::after{content:"–"}
     else path(s.pts);
     if (faint) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke(); ctx.restore(); return; }
     // meuble modélisé (vasques, WC, étagères…) : contour et détails du symbole
-    const md = !s.round && s.pts.length === 4 && PL.furnModel ? (() => { const P = s.pts, U = G.norm(G.sub(P[1], P[0])), V = G.norm(G.sub(P[3], P[0])), w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); const M = PL.furnModel(s.lib, w, d); return M && { M, at: ([u, v]) => G.add(G.add(P[0], G.mul(U, u)), G.mul(V, v)) }; })() : null;
+    const md = !s.round && s.pts.length === 4 && PL.furnModel ? (() => { const P = s.pts, U = G.norm(G.sub(P[1], P[0])), V = G.norm(G.sub(P[3], P[0])), w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); const M = PL.furnModel(s.lib, w, d, s); return M && { M, at: ([u, v]) => G.add(G.add(P[0], G.mul(U, u)), G.mul(V, v)) }; })() : null;
     if (md && md.M.outline) { ctx.beginPath(); path(md.M.outline.map(md.at)); }
     if (md && md.M.dash) ctx.setLineDash([6, 4]);
     if (!md || md.M.fill) { ctx.fillStyle = C.paper; ctx.globalAlpha = md && md.M.dash ? 0.55 : 0.92; ctx.fill(); ctx.globalAlpha = 1; }
-    ctx.strokeStyle = md && !md.M.fill ? C.ink2 : C.ink; ctx.lineWidth = md && !md.M.fill ? 1 : 1.2; ctx.stroke(); ctx.setLineDash([]);
+    const FIT = App.stack && s.on ? App.stack.fit(s) : null, BAD = FIT && (FIT.over || FIT.tall);
+    ctx.strokeStyle = BAD ? C.red : md && !md.M.fill ? C.ink2 : C.ink; ctx.lineWidth = BAD ? 2 : md && !md.M.fill ? 1 : 1.2; ctx.stroke(); ctx.setLineDash([]);
     if (md && S.view.z > 0.025) { ctx.lineWidth = 0.8; for (const q of md.M.plan) { const W = q.pts.map(md.at).map(App.w2s); ctx.beginPath(); W.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); if (!q.open) ctx.closePath(); if (q.dash) ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]); } }
     // détail : oreillers pour les lits, dossier et accoudoirs pour les canapés
     const sp = App.sofaParts && App.sofaParts(s);
@@ -3157,7 +3312,7 @@ details[open] summary::after{content:"–"}
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();
     }
     ctx.restore();
-    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); text(lbl, c.x, c.y, 500, 10, C.ink2); } }
+    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
   }
 
   function drawOpenings(rooms, selOp) {
@@ -3208,6 +3363,11 @@ details[open] summary::after{content:"–"}
           for (const f of fr) segLine(G.add(p0, G.mul(out, T * f)), G.add(p1, G.mul(out, T * f)));
           if (t === 'baie') { ctx.lineWidth = isSel ? 2.6 : 2; segLine(G.add(p0, G.mul(out, T * 0.38)), G.add(G.lerp(p0, p1, 0.55), G.mul(out, T * 0.38))); segLine(G.add(G.lerp(p0, p1, 0.45), G.mul(out, T * 0.62)), G.add(p1, G.mul(out, T * 0.62))); }
         }
+      }
+      if (t === 'sautdeloup') { // puits de lumière dehors, devant la fenêtre
+        const dw = o.well || 500, a0 = G.add(G.add(p0, G.mul(out, T)), G.mul(d, -100)), a1 = G.add(G.add(p1, G.mul(out, T)), G.mul(d, 100));
+        ctx.save(); ctx.setLineDash([5, 3]); ctx.lineWidth = isSel ? 1.4 : 1; ctx.strokeStyle = col; ctx.beginPath(); [a0, G.add(a0, G.mul(out, dw)), G.add(a1, G.mul(out, dw)), a1].map(App.w2s).forEach((q, k) => (k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke(); ctx.restore();
+        if (z > 0.04) { const c = App.w2s(G.add(G.lerp(a0, a1, 0.5), G.mul(out, dw / 2))); text('saut de loup', c.x, c.y, 400, 9, C.ink2); }
       }
       if (isSel && o.oid === selOp.o.oid) {
         const s0 = App.w2s(p0), s1 = App.w2s(p1);
@@ -3454,7 +3614,7 @@ details[open] summary::after{content:"–"}
     const elecOn = S.layers.elec || S.mode === 'elec';
     if (S.mode === 'elec') for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     const shapes = App.shapesOn(fid);
-    if (S.mode === 'mobilier') for (const s of shapes.filter((x) => x.kind === 'meuble').reverse()) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id };
+    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
     const ho2 = ho || hitOpening(sp, w); if (ho2) return ho2;
     if (elecOn) for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     for (const m of App.measuresOn(fid)) { const a = App.w2s(m.a), b = App.w2s(m.b); if (G.distPointSeg(sp, a, b) < 10) { if (S.sel && S.sel.id === m.id) { if (G.dist(a, sp) < 14) return { t: 'mend', id: m.id, e: 'a' }; if (G.dist(b, sp) < 14) return { t: 'mend', id: m.id, e: 'b' }; } return { t: 'measure', id: m.id }; } }
@@ -3592,7 +3752,10 @@ details[open] summary::after{content:"–"}
       App.render(); return;
     }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
+      let put = null; const ms = a.kind === 'move' && a.moved && App.stack && App.byId(a.h.id); if (ms && App.stack.canPut(ms)) put = App.stack.place(ms);
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
+      if (put && put.deck) { const F = App.stack.fit(ms); App.toast(`Posée sur ${(put.support.name || 'le support').replace(/ \(.*\)$/, '')}, ${put.deck.name} (${(Math.round(put.deck.z) / 10).toLocaleString('fr-FR')} cm)${F && (F.over || F.tall) ? ' — attention : ' + [F.over ? 'dépasse du plateau' : '', F.tall ? 'trop haute sous l\'étage du dessus' : ''].filter(Boolean).join(', ') : ''}`); App.ui.refresh(); }
+      else if (put && put.floor) { App.toast('Posée au sol'); App.ui.refresh(); }
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }
       App.render(); return;
     }
@@ -3884,7 +4047,7 @@ details[open] summary::after{content:"–"}
     const r = best.r, n = r.pts.length, i = best.i, C = r.pts[i], Pp = r.pts[(i - 1 + n) % n], Pn = r.pts[(i + 1) % n];
     if (G.cross(G.sub(C, Pp), G.sub(Pn, C)) <= 0) { App.toast('Cet angle est rentrant : touchez un coin intérieur de la pièce'); return; }
     const walls = [{ k: (i - 1 + n) % n, e: G.norm(G.sub(Pp, C)), L: G.dist(Pp, C) }, { k: i, e: G.norm(G.sub(Pn, C)), L: G.dist(Pn, C) }];
-    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre'].includes(o.type));
+    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre', 'sautdeloup'].includes(o.type));
     let wi = win(walls[0].k) && !win(walls[1].k) ? 0 : win(walls[1].k) && !win(walls[0].k) ? 1 : walls[0].L >= walls[1].L ? 0 : 1;
     const old = App.shapesOn().filter((x) => x.grp === 'cuisine').length;
     const res = await ui.dialog('Poser la cuisine', `<p>Cuisine en U du plan Darty dans l'angle ${String.fromCharCode(65 + i)} de ${esc(r.name || 'la pièce')} : évier et lave-vaisselle sous la fenêtre, colonnes, plaque et hotte sur l'autre mur, presqu'île à 2,21 m du mur des colonnes.</p>
@@ -3915,7 +4078,7 @@ details[open] summary::after{content:"–"}
     const kind = it.kind || 'meuble';
     const s = App.makeShape(kind, pts, Object.assign({ name: it.name, lib: it.id, round: !!it.round, noParquet: !!it.noParquet }, it.h ? { h: it.h } : {}));
     if (kind !== 'meuble') s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true })));
-    App.mutate((P) => P.shapes.push(s)); S.sel = { id: s.id };
+    App.mutate((P) => { P.shapes.push(s); if (App.stack && App.stack.canPut(s)) App.stack.place(s); }); S.sel = { id: s.id };
     if (kind === 'meuble' && S.mode !== 'mobilier' && !S.layers.mobilier) S.layers.mobilier = true;
     ui.onSelect(); App.toast(kind === 'meuble' ? 'Glissez le meuble : il se colle aux murs et se centre' : 'Glissez l\'objet pour le placer');
   };
@@ -4154,7 +4317,7 @@ details[open] summary::after{content:"–"}
       h += `<h3>Type de zone</h3><div class="seg"><button data-a="zmode" data-v="rampant" aria-pressed="${!s.drop}">Sous toiture (rampant)</button><button data-a="zmode" data-v="fp" aria-pressed="${!!s.drop}">Faux plafond</button></div>`;
       if (s.drop) h += `<h3>Faux plafond</h3><div class="field"><label>Épaisseur sous le plafond</label><div class="unit"><input data-c="drop" inputmode="decimal" value="${s.drop}"><span>cm</span></div></div><div class="chips sm">${[10, 15, 20, 30, 40].map((v) => `<button data-a="dropq" data-v="${v}" aria-pressed="${s.drop === v}">${v}</button>`).join('')}</div><p>Hauteur sous le faux plafond : <b>${fmt(Hc - s.drop, 0)} cm</b> (plafond ${room ? 'de ' + esc(room.name || 'la pièce') : 'de l\'étage'} à ${fmt(Hc, 0)} cm).${Hc - s.drop < 180 ? ' Sous 180 cm, la surface n\'est pas comptée comme habitable.' : ''} La visite 3D l'abaisse, coffrage compris.</p>`; }
     if (s.kind === 'plafond' && !s.drop) h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
-    if (s.kind === 'meuble') h += furnitureDims(s);
+    if (s.kind === 'meuble') h += furnitureDims(s) + (App.stack ? App.stack.inspHTML(s) : '');
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
       h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div>${(() => { const U = cur && cur.shape === 'U' && App.stairs.well(s); return U ? `<div class="field"><label>Jour (vide entre les volées)</label><div class="unit"><input data-xc="stjour" inputmode="decimal" value="${fmt(U.jour / 10)}"><span>cm</span></div></div><div class="field"><label>Longueur du mur central</label><div class="unit"><input data-xc="stwall" inputmode="decimal" value="${fmt(U.wall / 10)}"><span>cm</span></div></div>` : ''; })()}<p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. Les points rouges pleins règlent le mur central (jour et longueur). « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
     if (s.kind === 'poteau') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur</label><div class="unit"><input data-c="sh" inputmode="decimal" placeholder="jusqu'au plafond" value="${s.h || ''}"><span>cm</span></div></div><div class="chips sm">${[90, 100, 110, 120].map((v) => `<button data-a="shq" data-v="${v}" aria-pressed="${s.h === v}">${v}</button>`).join('')}<button data-a="shq" data-v="0" aria-pressed="${!s.h}">Plafond</button></div><p class="hint2">Une hauteur fait un muret ou une cloison basse (le parquet passe autour, la visite 3D l'élève à cette hauteur).</p>`;
@@ -4372,6 +4535,11 @@ details[open] summary::after{content:"–"}
       case 'addLib': ui.placeLib(PL.lib.structure.find((x) => x.id === v)); break;
       case 'zmode': App.mutate(() => { if (v === 'fp') { s.drop = s.drop || 20; if (/^Zone de plafond bas/.test(s.name || '')) s.name = 'Faux plafond'; } else { delete s.drop; } }); break;
       case 'dropq': App.mutate(() => { s.drop = +v; }); break;
+      case 'stdeck': { const p = App.stack.support(s); if (!p) break; App.mutate(() => App.stack.setDeck(s, p, +v)); ui.refresh(); break; }
+      case 'ston': { const p = App.byId(v); if (!p) break; App.mutate(() => { const D = App.stack.decks(p); let k0 = 0; for (const q of D) { App.stack.setDeck(s, p, q.k); const F = App.stack.fit(s); if (F && !F.over && !F.tall) { k0 = q.k; break; } } App.stack.setDeck(s, p, k0); }); const q = App.stack.deck(s); App.toast(`Posée sur ${(p.name || 'le support').replace(/ \(.*\)$/, '')}${q ? ', ' + q.name : ''}`); ui.refresh(); break; }
+      case 'stfloor': App.mutate(() => { App.stack.toFloor(s); s.floorLock = true; }); ui.refresh(); break;
+      case 'stsel': S.sel = { id: v }; ui.onSelect(); App.render(); break;
+      case 'desktopq': App.mutate(() => { s.top = +v; }); break;
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
@@ -4432,6 +4600,8 @@ details[open] summary::after{content:"–"}
     if (c === 'ceil') { App.mutate(() => { s.ceiling = num(val) || null; }); return; }
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
+    if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
+    if (c === 'desktop') { const v = num(val); if (!(v >= 63 && v <= 127)) { App.toast('Le plateau Idåsen va de 63 à 127 cm'); ui.refresh(true); return; } App.mutate(() => { s.top = v; }); return; }
     if (c === 'drop') { const v = num(val); if (!(v > 0)) { App.toast('Épaisseur en cm, supérieure à 0'); ui.refresh(true); return; } App.mutate(() => { s.drop = v; }); return; }
     if (c === 'noParquet') { App.mutate(() => { s.noParquet = val; }); return; }
     if (c === 'guardH' || c === 'guardT') { const v = num(val); if (v > 0) App.mutate(() => { s.stair = Object.assign({}, s.stair, { [c]: v }); }); return; }
@@ -5465,7 +5635,7 @@ details[open] summary::after{content:"–"}
   /* ---------- menu porte / fenêtre ---------- */
   X.inspOpening = () => {
     const f = App.ops.selected(); if (!f) return '';
-    const { room, o } = f; const tw = App.ops.twin(room, o); const g = App.ops.geo(room, o); const isDoor = App.ops.DOORS.includes(o.type); const isWin = ['fenetre', 'porte-fenetre', 'baie', 'fixe', 'velux'].includes(o.type);
+    const { room, o } = f; const tw = App.ops.twin(room, o); const g = App.ops.geo(room, o); const isDoor = App.ops.DOORS.includes(o.type); const isWin = ['fenetre', 'porte-fenetre', 'baie', 'fixe', 'velux', 'sautdeloup'].includes(o.type);
     const where = tw ? `Entre ${esc(room.name || 'pièce')} et ${esc(tw.room.name || 'pièce')}` : `${esc(room.name || 'Pièce')} · mur ${App.walls.name(room, o.wall)}`;
     let h = `<button class="link" data-x="back">← ${esc(room.name || 'Pièce')}</button>
       <div class="ctxhead"><h2>${esc(App.ops.name(o.type))}</h2><span class="big2">${App.fmtCm(o.width, 0)}<small>cm</small></span></div><p class="lead">${where}${o.type === 'porte' ? ' · poussant ' + App.ops.handing(room, o) : ''}</p>`;
@@ -5481,6 +5651,7 @@ details[open] summary::after{content:"–"}
       <div class="field"><label>Hauteur</label><div class="unit"><input data-xc="h" inputmode="decimal" value="${o.h ? fmt(o.h / 10) : ''}"><span>cm</span></div></div>
       ${isDoor ? `<div class="chips sm">${[204, 215, 224].map((v) => `<button data-x="hh" data-v="${v}" aria-pressed="${o.h && Math.abs(o.h / 10 - v) < 0.5}">${v}</button>`).join('')}</div>` : ''}
       ${(() => { const L = PL.lib.openings.find((x) => x.id === o.type) || {}; if (L.widths) return `<div class="chips sm">${L.widths.map((v) => `<button data-x="w" data-v="${v}" aria-pressed="${Math.abs(o.width / 10 - v) < 0.5}">${v}</button>`).join('')}<span class="chipnote">largeurs courantes</span></div>`; if (L.sizes) return `<div class="chips sm">${L.sizes.map((q) => `<button data-x="vx" data-v="${q.code}" aria-pressed="${Math.abs(o.width - q.w) < 5 && Math.abs((o.h || L.h) - q.h) < 5}">${q.code} · ${q.w / 10} × ${q.h / 10}</button>`).join('')}</div><p class="hint2">Tailles Velux courantes (largeur × hauteur en cm). Sur le plan, le pointillé montre son emprise dans le rampant.</p>`; return ''; })()}
+      ${o.type === 'sautdeloup' ? `<div class="field"><label>Profondeur du puits (dehors)</label><div class="unit"><input data-xc="well" inputmode="decimal" value="${fmt((o.well || 500) / 10)}"><span>cm</span></div></div><p class="hint2">Fenêtre haute de sous-sol : l'allège se mesure depuis le sol de la pièce. Le puits de lumière (saut de loup) est dessiné dehors, devant la fenêtre, 10 cm plus large de chaque côté.</p>` : ''}
       ${isWin ? `<div class="field"><label>Allège</label><div class="unit"><input data-xc="sill" inputmode="decimal" value="${o.sill != null ? fmt(o.sill / 10) : ''}"><span>cm</span></div></div>` : ''}
       <div class="field"><label>Distance à l'angle ${L(o.wall)}</label><div class="unit"><input data-xc="pos" inputmode="decimal" value="${fmt(g.pos / 10)}"><span>cm</span></div></div>
       <p class="hint2">Sur le plan : glissez l'ouverture le long du mur, tirez ses extrémités pour l'élargir.</p>
@@ -5528,7 +5699,7 @@ details[open] summary::after{content:"–"}
       <h3>Ouvertures sur ce mur</h3>`;
     const ops = (room.openings || []).filter((o) => o.wall === i);
     h += ops.length ? `<div class="list">${ops.map((o) => { const pr = App.ops.primary(room, o); return `<button class="item" data-x="opsel" data-v="${pr.o.oid}"><span class="nm">${esc(App.ops.name(o.type))}</span><span class="meta">${esc(App.ops.describe(room, o))}</span><span class="v">${App.fmtCm(o.width, 0)}<small style="font-size:12px"> cm</small></span></button>`; }).join('')}</div>` : '<p>Aucune.</p>';
-    h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-x="wadd" data-v="porte">+ Porte</button><button class="btn sm" data-x="wadd" data-v="fenetre">+ Fenêtre</button><button class="btn sm" data-x="wadd" data-v="passage">+ Passage</button></div>`;
+    h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-x="wadd" data-v="porte">+ Porte</button><button class="btn sm" data-x="wadd" data-v="fenetre">+ Fenêtre</button><button class="btn sm" data-x="wadd" data-v="passage">+ Passage</button>${(App.floor().level || 0) < 0 ? '<button class="btn sm" data-x="wadd" data-v="sautdeloup">+ Saut de loup</button>' : ''}</div>`;
     return h;
   };
 
@@ -5607,7 +5778,7 @@ details[open] summary::after{content:"–"}
         break;
       case 'more': App.ui.sheet(innerWidth < 900 ? 'half' : App.ui.sheetState()); App.ui.refresh(); break;
       case 'back': S.sel = S.sel ? { id: S.sel.id } : null; App.ui.refresh(); App.render(); break;
-      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
+      case 'type': if (!f) return; App.mutate(() => { const def = PL.lib.openings.find((x) => x.id === v) || {}; const was = f.o.type; f.o.type = v; if (def.h && (!f.o.h || App.ops.DOORS.includes(v) !== App.ops.DOORS.includes(was) || v === 'velux' || was === 'velux' || v === 'sautdeloup' || was === 'sautdeloup')) f.o.h = def.h; f.o.sill = def.sill != null ? def.sill : 0; App.ops.syncTwin(f.room, f.o); }); break;
       case 'leaves': if (!f) return; App.mutate(() => { f.o.leaves = +v; App.ops.syncTwin(f.room, f.o); }); break;
       case 'vx': { if (!f) return; const q = ((PL.lib.openings.find((x) => x.id === 'velux') || {}).sizes || []).find((x) => x.code === v); if (!q) return; let cl = false; App.mutate(() => { const g = App.ops.geo(f.room, f.o); cl = App.ops.setSpan(f.room, f.o, g.pos + (g.w - q.w) / 2, q.w); f.o.h = q.h; f.o.ref = q.code; }); if (cl) App.toast('Ajusté : une ouverture voisine ou l\'angle du mur limite la largeur'); break; }
       case 'cfg': if (!f) return; X.setConfig(f.room, f.o, +el.dataset.into, +el.dataset.h); describeToast(); break;
@@ -5674,6 +5845,7 @@ details[open] summary::after{content:"–"}
   X.change = (c, val) => {
     const f = App.ops.selected(); const v = num(val);
     if (c === 'stjour' || c === 'stwall') { const st = App.selected(); if (st && st.kind === 'escalier' && v != null) App.stairs.setWell(st, c === 'stjour' ? 'jour' : 'wall', v * 10); return; }
+    if (f && c === 'well') { if (v > 0) App.mutate(() => { f.o.well = v * 10; App.ops.syncTwin(f.room, f.o); }); return; }
     if (f && ['width', 'h', 'sill', 'pos'].includes(c)) {
       if (v == null && c !== 'sill' && c !== 'h') return;
       let cl = false;
@@ -5727,6 +5899,7 @@ details[open] summary::after{content:"–"}
     for (const r of home ? [home] : rooms) for (const e of sides(r.pts, false)) T.push(Object.assign(e, { kind: 'mur', room: r }));
     for (const o of App.shapesOn(fid)) {
       if (o === s || o.kind === 'piece' || !o.pts || SOFT.includes(o.kind)) continue;
+      if (App.stack && (o.on === s.id || (o.on && o.on !== s.on) || (App.stack.canPut(s) && App.stack.isSupport(o)))) continue;
       if (home && !G.pointInPoly(G.centroid(o.pts), home.pts)) continue;
       for (const e of sides(o.pts, true)) T.push(Object.assign(e, { kind: 'meuble', shape: o }));
     }
@@ -5823,6 +5996,116 @@ details[open] summary::after{content:"–"}
     const sp2 = supp(P, best.e); let slide = 0; if (sp2.t0 < 0) slide = -sp2.t0; else if (sp2.t1 > best.e.el) slide = best.e.el - sp2.t1;
     if (sp2.t1 - sp2.t0 <= best.e.el) P = P.map((p) => G.add(p, G.mul(best.e.d, slide)));
     s.pts = P; return true;
+  };
+})();
+
+/* Calepin — poser une machine sur un support (stand Jaspers, bureau, table) : étage, hauteur, dépassement et hauteur libre.
+   La machine garde on (id du support), deck (n° d'étage) et onAt (repère du support au moment de la pose) : quand le support
+   bouge, pivote ou change de taille, ses machines suivent ; la hauteur se lit toujours sur le support. */
+(function () {
+  const PL = globalThis.PL, G = PL.geom, App = globalThis.App, S = App.state;
+  const K = (App.stack = {});
+  const lib = (s) => s && s.lib && PL.lib.furniture.find((x) => x.id === s.lib);
+  const GENERIC = [[/^(table|bureau)/, 750], [/^basse$/, 400]];
+
+  K.canPut = (s) => !!(s && s.kind === 'meuble' && (lib(s) || {}).put);
+  const frame = (s) => {
+    if (!s || !s.pts || s.pts.length !== 4) return null;
+    const P = s.pts, w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); if (w < 1 || d < 1) return null;
+    return { o: P[0], U: G.mul(G.sub(P[1], P[0]), 1 / w), V: G.mul(G.sub(P[3], P[0]), 1 / d), w, d };
+  };
+  K.frame = frame;
+  const at = (f, u, v) => G.add(G.add(f.o, G.mul(f.U, u)), G.mul(f.V, v));
+  const loc = (f, p) => { const q = G.sub(p, f.o); return [G.dot(q, f.U), G.dot(q, f.V)]; };
+
+  /* étages d'un support, en coordonnées du plan */
+  K.decks = (s) => {
+    if (!s || s.kind !== 'meuble' || K.canPut(s)) return [];
+    const f = frame(s); if (!f) return [];
+    const M = PL.furnModel && PL.furnModel(s.lib, f.w, f.d, s);
+    if (M && M.decks) return M.decks.map((q, k) => ({ k, z: q.z, name: q.name, arm: q.arm, poly: q.pts.map(([u, v]) => at(f, u, v)) }));
+    const g = GENERIC.find(([re]) => re.test(s.lib || '')); if (!g) return [];
+    return [{ k: 0, z: g[1], name: 'plateau', poly: s.pts.slice() }];
+  };
+  K.isSupport = (s) => K.decks(s).length > 0;
+  K.support = (s) => { if (!s || !s.on) return null; const p = App.byId(s.on); return p && p.kind === 'meuble' && p.floor === s.floor ? p : null; };
+  K.deck = (s) => { const p = K.support(s); if (!p) return null; const D = K.decks(p); return D[Math.min(D.length - 1, Math.max(0, s.deck || 0))] || null; };
+  K.zOf = (s) => { const q = K.deck(s); return q ? q.z : 0; };
+  K.children = (p) => (p ? App.shapesOn(p.floor).filter((x) => x.on === p.id) : []);
+  K.height = (s) => { const f = frame(s); const M = f && PL.furnModel && PL.furnModel(s.lib, f.w, f.d, s); return M ? M.h : 100; };
+
+  /* la machine tient-elle sur son étage ? dépassement hors du plateau, hauteur libre sous l'étage du dessus */
+  K.fit = (s) => {
+    const p = K.support(s), q = p && K.deck(s); if (!q) return null;
+    let over = 0; for (const c of s.pts) if (!G.pointInPoly(c, q.poly)) over = Math.max(over, G.distPointPoly(c, q.poly));
+    const h = K.height(s); let limit = Infinity;
+    const ovl = (A, B) => A.some((c) => G.pointInPoly(c, B)) || B.some((c) => G.pointInPoly(c, A)) || G.pointInPoly(G.centroid(A), B);
+    for (const o of K.decks(p)) if (o.z > q.z + 1 && ovl(s.pts, o.poly)) limit = Math.min(limit, o.z - 30 - q.z);
+    return { support: p, deck: q, over: over > 10 ? over : 0, h, limit, tall: Number.isFinite(limit) && h > limit + 2 ? h - limit : 0 };
+  };
+
+  /* après un déplacement : posée sur l'étage qui la reçoit, ou au sol */
+  K.place = (s, opts = {}) => {
+    if (!K.canPut(s)) return null;
+    if (!s.on && (s.floorLock || (lib(s) || {}).low)) return null; // caisson de basse, ou machine posée au sol exprès : reste au sol
+    const c = G.centroid(s.pts); const cands = [];
+    for (const p of App.shapesOn(s.floor)) { if (p === s || p.kind !== 'meuble' || K.canPut(p)) continue; for (const q of K.decks(p)) if (G.pointInPoly(c, q.poly)) cands.push({ p, q }); }
+    if (!cands.length) { const was = !!s.on; delete s.on; delete s.deck; delete s.onAt; return was ? { floor: true } : null; }
+    let pick = cands.find((x) => x.p.id === s.on && x.q.k === (s.deck || 0));
+    if (!pick || opts.fresh) { const cv = (x) => { const f = frame(x.p), qc = G.centroid(x.q.poly); return Math.abs(G.dot(G.sub(c, qc), f ? f.V : { x: 0, y: 1 })); }; pick = cands.slice().sort((a, b) => cv(a) - cv(b) || a.q.z - b.q.z)[0]; }
+    s.on = pick.p.id; s.deck = pick.q.k; K.pin(s);
+    return { support: pick.p, deck: pick.q };
+  };
+  K.pin = (s) => { const f = frame(K.support(s)); if (f) s.onAt = [f.o.x, f.o.y, f.U.x, f.U.y, f.V.x, f.V.y, f.w, f.d]; };
+
+  /* mettre la machine sur un étage précis (inspecteur) : glissée sur cet étage si elle n'y est pas */
+  K.setDeck = (s, p, k) => {
+    const q = K.decks(p)[k]; if (!q) return;
+    const c = G.centroid(s.pts), qc = G.centroid(q.poly); let d = { x: 0, y: 0 };
+    if (!G.pointInPoly(c, q.poly)) { const f = frame(p); const off = G.sub(qc, c); d = f && p.id === s.on ? G.mul(f.V, G.dot(off, f.V)) : off; }
+    s.pts = s.pts.map((pt) => G.add(pt, d));
+    s.on = p.id; s.deck = k; delete s.floorLock; K.pin(s);
+  };
+  K.toFloor = (s) => { delete s.on; delete s.deck; delete s.onAt; };
+
+  /* le support a bougé (glissé, pivoté, miroir, redimensionné) : ses machines suivent */
+  K.sync = () => {
+    if (!S.p || !S.p.shapes) return;
+    for (const s of S.p.shapes) {
+      if (!s.on) continue; const p = App.byId(s.on);
+      if (!p || p.kind !== 'meuble' || p.floor !== s.floor) { K.toFloor(s); continue; }
+      const f = frame(p); if (!f) continue; const a = s.onAt;
+      if (!a) { K.pin(s); continue; }
+      const f0 = { o: { x: a[0], y: a[1] }, U: { x: a[2], y: a[3] }, V: { x: a[4], y: a[5] }, w: a[6], d: a[7] };
+      if (G.dist(f0.o, f.o) < 0.01 && G.dist(f0.U, f.U) < 1e-6 && G.dist(f0.V, f.V) < 1e-6 && Math.abs(f0.w - f.w) < 0.01 && Math.abs(f0.d - f.d) < 0.01) continue;
+      const c = G.centroid(s.pts), [cu, cv] = loc(f0, c);
+      const nc = at(f, (cu / f0.w) * f.w, (cv / f0.d) * f.d);
+      s.pts = s.pts.map((pt) => { const [ou, ov] = loc(f0, pt); return G.add(nc, G.add(G.mul(f.U, ou - cu), G.mul(f.V, ov - cv))); });
+      K.pin(s);
+    }
+  };
+
+  /* panneau de l'inspecteur */
+  const fmt = (v) => (Math.round(v) / 10).toLocaleString('fr-FR');
+  const esc = (t) => String(t).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+  K.fitText = (s) => {
+    const F = K.fit(s); if (!F) return '';
+    const bad = []; if (F.over) bad.push(`dépasse de ${fmt(F.over)} cm du plateau`); if (F.tall) bad.push(`trop haute de ${fmt(F.tall)} cm sous l'étage du dessus`);
+    return bad.length ? `<b style="color:var(--red)">Attention : ${bad.join(', ')}.</b>` : `Tient sur l'étage${Number.isFinite(F.limit) ? ` (${fmt(F.limit - F.h)} cm libres au-dessus)` : ''}.`;
+  };
+  K.inspHTML = (s) => {
+    let h = '';
+    if (K.canPut(s)) {
+      const p = K.support(s), q = p && K.deck(s); const sups = App.shapesOn(s.floor).filter((x) => x !== s && K.isSupport(x));
+      h += `<h3>Posée</h3><p>${q ? `Sur <b>${esc((p.name || 'support').replace(/ \(.*\)$/, ''))}</b>, ${esc(q.name)} à <b>${fmt(q.z)} cm</b> du sol · machine haute de ${fmt(K.height(s))} cm. ${K.fitText(s)}` : `Au sol (haute de ${fmt(K.height(s))} cm).`}</p>`;
+      if (p) { const D = K.decks(p); if (D.length > 1) h += `<div class="chips">${D.map((o) => `<button data-a="stdeck" data-v="${o.k}" aria-pressed="${o.k === q.k}">${esc(o.name)} · ${fmt(o.z)}</button>`).join('')}</div>`; }
+      h += `<div class="row" style="flex-wrap:wrap">${sups.filter((x) => !p || x.id !== p.id).map((x) => `<button class="btn sm" data-a="ston" data-v="${x.id}">Poser sur ${esc((x.name || 'support').replace(/ \(.*\)$/, ''))}</button>`).join('')}${p ? '<button class="btn sm ghost" data-a="stfloor">Poser au sol</button>' : ''}</div><p class="hint2">Glissez la machine sur le stand ou le bureau : elle se pose sur l'étage le plus proche et suit le support quand il bouge.</p>`;
+      return h;
+    }
+    if (s.lib === 'jaspers') { const T = PL.jaspersTiers(s); h += `<h3>Étages (hauteur du plateau)</h3>${T.map((v, i) => `<div class="field"><label>Étage ${i + 1}${i === 0 ? ' (bras 60 cm)' : ' (bras 40 cm)'}</label><div class="unit"><input data-c="tier" data-i="${i}" inputmode="decimal" value="${v}"><span>cm</span></div></div>`).join('')}<p class="hint2">Réglables et inclinables sur le vrai stand ; 22 cm entre deux étages laissent environ 19 cm libres sous les bras du dessus.</p>`; }
+    if (s.lib === 'idasen') { const t = PL.deskTop(s); h += `<h3>Hauteur du plateau</h3><div class="field"><label>Plateau à</label><div class="unit"><input data-c="desktop" inputmode="decimal" value="${t}"><span>cm</span></div></div><div class="chips sm">${[63, 72, 75, 105, 110, 127].map((v) => `<button data-a="desktopq" data-v="${v}" aria-pressed="${t === v}">${v}</button>`).join('')}</div><p class="hint2">De 63 à 127 cm : assis vers 72 cm, debout vers 105 – 110 cm. Les machines posées montent avec le plateau dans la visite 3D.</p>`; }
+    const kids = K.children(s); if (kids.length) h += `<h3>Machines posées</h3><div class="list">${kids.map((x) => { const q = K.deck(x); const F = K.fit(x); const bad = F && (F.over || F.tall); return `<button class="item" data-a="stsel" data-v="${x.id}"><span class="nm">${esc((x.name || '').replace(/ \(.*\)$/, ''))}</span><span class="meta">${q ? esc(q.name) : ''}${bad ? ' · <b style="color:var(--red)">à revoir</b>' : ''}</span></button>`; }).join('')}</div>`;
+    return h;
   };
 })();
 
@@ -6555,7 +6838,8 @@ details[open] summary::after{content:"–"}
 
   /* ---------- petite fabrique de géométrie (mm du plan → m, y vers le haut) ---------- */
   /* le plan a son axe y vers le haut de l'écran : dans la scène (y en haut, z vers soi), z = −y */
-  const P3 = (p, h) => [p.x / 1000, h / 1000, -p.y / 1000];
+  let ZO = 0; // machine posée sur un support : tout son modèle est remonté de la hauteur de l'étage
+  const P3 = (p, h) => [p.x / 1000, (h + ZO) / 1000, -p.y / 1000];
   const H3 = (v, k = 1) => [k * v.x, 0, -k * v.y];
   const mk = () => ({ p: [], n: [], c: [], uv: [] });
   const tri = (B, a, b, c, hint, col, uv) => {
@@ -6652,7 +6936,7 @@ details[open] summary::after{content:"–"}
     if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
-    const M = PL.furnModel && PL.furnModel(id, w, d); // meubles modélisés (bibliothèque)
+    const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
     if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
@@ -6767,7 +7051,7 @@ details[open] summary::after{content:"–"}
   const opInfo = (r, o, Hc, nin) => {
     if (o.type === 'velux') return null; // dans le rampant, pas dans le mur
     const g = App.ops.geo(r, o); if (!g) return null; const lib = PL.lib.openings.find((x) => x.id === o.type) || {};
-    const win = ['fenetre', 'fixe', 'velux'].includes(o.type);
+    const win = ['fenetre', 'fixe', 'velux', 'sautdeloup'].includes(o.type);
     const floorLevel = App.ops.DOORS.includes(o.type) || ['passage', 'porte-fenetre', 'baie'].includes(o.type); // une porte part du sol, même si elle était une fenêtre avant
     const sill = floorLevel ? 0 : Math.max(0, Math.min(Hc - 100, o.sill ?? lib.sill ?? 0)), top = Math.max(sill + 100, Math.min(Hc, sill + (o.h || lib.h || 2040)));
     const tw = App.ops.twin(r, o), tg = tw && App.ops.geo(tw.room, tw.o);
@@ -6795,6 +7079,16 @@ details[open] summary::after{content:"–"}
         rect(g0, g1, sill + e, top - e);
         const leaves = o.type === 'fixe' ? 1 : App.ops.leaves(o); for (let j = 1; j < leaves; j++) { const q = G.lerp(g0, g1, j / leaves); ln(P3(q, sill + e), P3(q, top - e)); }
       }
+    }
+    // saut de loup : puits de lumière en béton devant la fenêtre, dehors (fond en caillebotis, 3 parois)
+    if (o.type === 'sautdeloup' && !tw) {
+      const e = depth > 5 ? depth : 0, dw = o.well || lib.well || 500, sx = 100, zb = Math.max(0, sill - 160), zt = top + 320;
+      const a0 = G.add(G.add(p0, G.mul(out, e)), G.mul(W.d, -sx)), a1 = G.add(G.add(p1, G.mul(out, e)), G.mul(W.d, sx)), b0 = G.add(a0, G.mul(out, dw)), b1 = G.add(a1, G.mul(out, dw));
+      quad(B, P3(a0, zb), P3(a1, zb), P3(b1, zb), P3(b0, zb), [0, 1, 0], st.col.sill);
+      const CW = st.col.well || WALL; quad(B, P3(a0, zb), P3(b0, zb), P3(b0, zt), P3(a0, zt), H3(W.d), CW); quad(B, P3(a1, zb), P3(b1, zb), P3(b1, zt), P3(a1, zt), H3(W.d, -1), CW); quad(B, P3(b0, zb), P3(b1, zb), P3(b1, zt), P3(b0, zt), H3(nin), CW);
+      for (let z = zb + 250; z < zt; z += 250) { ln(P3(G.add(b0, G.mul(nin, 2)), z), P3(G.add(b1, G.mul(nin, 2)), z)); ln(P3(a0, z), P3(b0, z)); ln(P3(a1, z), P3(b1, z)); } // joints de coffrage
+      for (const [p, q] of [[a0, b0], [a1, b1], [b0, b1]]) { ln(P3(p, zb), P3(q, zb)); ln(P3(p, zt), P3(q, zt)); } ln(P3(b0, zb), P3(b0, zt)); ln(P3(b1, zb), P3(b1, zt));
+      for (let k = 1; k < 8; k++) { const t = k / 8; ln(P3(G.lerp(a0, a1, t), zb + 2), P3(G.lerp(b0, b1, t), zb + 2)); }
     }
     // vantaux (accent) : battants ouverts, coulissants tirés
     if (o.sw !== 0 && ['porte', 'porte2', 'porte-fenetre'].includes(o.type)) {
@@ -6890,7 +7184,7 @@ details[open] summary::after{content:"–"}
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
-      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); furniture(B, s, home ? App.feat.ceiling(home) * 10 : Hc0, st.col.furn);
+      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(B, s, home ? App.feat.ceiling(home) * 10 : Hc0, st.col.furn); ZO = 0;
       if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '')) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
@@ -6970,7 +7264,7 @@ details[open] summary::after{content:"–"}
     catch (e) { host.remove(); App.toast && App.toast('La 3D n\'est pas disponible sur cet appareil.'); return; }
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
-    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
+    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], well: [0.8, 0.8, 0.8], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
     st.scene = new T.Scene(); st.cam = new T.PerspectiveCamera(70, 1, 0.05, 300); st.cam.rotation.order = 'YXZ';
     st.scene.add(new T.AmbientLight(0xffffff, 0.62)); st.scene.add(new T.HemisphereLight(0xffffff, 0xbbbbbb, 0.22));
     const sun = new T.DirectionalLight(0xffffff, 1.0); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; st.scene.add(sun, sun.target); st.sun = sun;

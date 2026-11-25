@@ -14,6 +14,7 @@
     F('bureau140', 'Bureau', 'Bureau 140 × 65', 140, 65), F('bureau160', 'Bureau', 'Bureau 160 × 80', 160, 80), F('caisson', 'Bureau', 'Caisson', 36, 58), F('fauteuilbur', 'Bureau', 'Fauteuil de bureau', 65, 65, { round: true }),
     F('canape2', 'Salon', 'Canapé 2 places', 180, 90), F('canape3', 'Salon', 'Canapé 3 places', 228, 95), F('angle', 'Salon', 'Canapé d\'angle', 250, 160, { shape: 'L', t: 95 }), F('fauteuil', 'Salon', 'Fauteuil', 68, 82),
     F('piano', 'Salon', 'Piano droit (piano d\'étude)', 150, 60, { short: 'Piano droit', m: 'pianodroit' }), F('pianon', 'Salon', 'Piano numérique', 140, 40, { m: 'pianonum' }), F('banquette', 'Salon', 'Banquette de piano', 57, 33, { m: 'banquette' }),
+    F('lindakra', 'Salon', 'Canapé convertible Lindåkra, méridienne à droite', 206, 87, { short: 'Lindåkra', m: 'lindakra', ref: 'couchage 200 × 80 · assise 43' }),
     F('meublebas', 'Cuisine', 'Meuble bas 60', 60, 60), F('colonne', 'Cuisine', 'Colonne 60', 60, 60), F('frigo', 'Cuisine', 'Réfrigérateur', 60, 65), F('lv', 'Cuisine', 'Lave-vaisselle', 60, 60),
     F('ilot', 'Cuisine', 'Îlot 180 × 90', 180, 90, { noParquet: true }),
     // meubles vasque suspendus (cotes type Godmorgon : caisson 47 cm de profondeur, plan vasque 49 cm, dessus à 86 cm)
@@ -56,6 +57,61 @@
     F('kjoue82', 'Cuisine commandée', 'Joue 82 × 88', 1.6, 82, { short: '', m: 'kpanneau', z: [0, 880], ref: 'panneau 1,6' }),
     F('khab135', 'Cuisine commandée', 'Habillage arrière 135 × 78', 135, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
     F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
+    // ---- studio : supports (cotes fabricant) ----
+    F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
+    F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
+    // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
+    ...[
+      ['terra', 'synthés', 'Soma Terra', 40.5, 36.5, { h: 57, k: [6, 2, 0.1, 0.9, 0.62, 0.9], plates: [12, 0.08, 0.92, 0.12, 0.5] }],
+      ['grandmother', 'synthés', 'Moog Grandmother', 58, 36.2, { h: 139, keys: { n: 19, d: 0.44, h: 70, l: 0.13, start: 'F' }, k: [9, 3, 0.03, 0.97, 0.12, 0.88] }],
+      ['minifreak', 'synthés', 'Arturia MiniFreak', 57.8, 23.1, { h: 55, keys: { n: 22, d: 0.52, h: 40, l: 0.11 }, k: [12, 2, 0.04, 0.96, 0.15, 0.85], scr: [0.45, 0.55, 0.3, 0.75] }],
+      ['echon6', 'synthés', 'Morphor Echon 6', 45, 18.5, { h: 53, k: [12, 3, 0.04, 0.96, 0.12, 0.88] }],
+      ['perfourmer', 'synthés', 'Vermona PERfourMER MKII', 43.5, 31.5, { h: 105, step: [0.35, 45], k: [8, 4, 0.05, 0.95, 0.42, 0.95] }],
+      ['malevolent', 'synthés', 'PWM Malevolent', 49, 25, { h: 80, keys: { n: 19, d: 0.45, h: 45, l: 0.12, start: 'F' }, k: [8, 3, 0.04, 0.96, 0.15, 0.85] }],
+      ['medusa', 'synthés', 'Polyend / Dreadbox Medusa', 49, 21.3, { h: 54, k: [6, 4, 0.03, 0.42, 0.1, 0.9], pads: [8, 8, 0.48, 0.97, 0.08, 0.92] }],
+      ['monomachine', 'synthés', 'Elektron Monomachine MKII', 34, 17.6, { h: 63, k: [8, 1, 0.3, 0.97, 0.72, 0.92], scr: [0.04, 0.26, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['sidstation', 'synthés', 'Elektron SidStation', 24, 20, { h: 70, k: [4, 1, 0.1, 0.9, 0.2, 0.4], scr: [0.25, 0.75, 0.6, 0.85] }],
+      ['strega', 'synthés', 'Make Noise Strega', 23, 14, { h: 19, kh: 20, k: [5, 3, 0.08, 0.92, 0.12, 0.88] }],
+      ['spectravox', 'synthés', 'Moog Spectravox', 32.6, 14.3, { h: 107, step: [0.3, 60], k: [7, 3, 0.04, 0.72, 0.35, 0.95], jacks: [4, 8, 0.76, 0.97, 0.35, 0.95] }],
+      ['volcamod', 'synthés', 'Korg Volca Modular', 19.3, 11.5, { h: 39, k: [6, 2, 0.05, 0.95, 0.5, 0.92], pads: [16, 1, 0.05, 0.95, 0.06, 0.22] }],
+      ['op1field', 'synthés', 'Teenage Engineering OP-1 Field', 28.8, 10.2, { h: 15, kh: 10, keys: { n: 14, d: 0.5, h: 15, l: 0.02 }, k: [4, 1, 0.45, 0.95, 0.55, 0.9], scr: [0.05, 0.35, 0.55, 0.92] }],
+      ['opxy', 'synthés', 'Teenage Engineering OP-XY', 28.8, 10.2, { h: 18, kh: 11, keys: { n: 14, d: 0.42, h: 18, l: 0.02 }, k: [8, 1, 0.3, 0.97, 0.55, 0.9], scr: [0.03, 0.27, 0.5, 0.92] }],
+      ['pom400', 'synthés', 'Teenage Engineering POM-400', 45, 25, { h: 80, k: [8, 3, 0.05, 0.95, 0.15, 0.85], est: true }],
+      ['pom170', 'synthés', 'Teenage Engineering POM-170', 30, 20, { h: 70, k: [5, 3, 0.05, 0.95, 0.15, 0.85], est: true }],
+      ['kastle2', 'synthés', 'Bastl Kastle 2', 9.5, 7, { h: 45, k: [3, 2, 0.12, 0.88, 0.2, 0.8] }],
+      ['roat', 'synthés', 'Soma Rumble of Ancient Times', 15, 10, { h: 35, k: [4, 1, 0.1, 0.9, 0.6, 0.85], pads: [4, 1, 0.1, 0.9, 0.12, 0.4], est: true }],
+      ['theremin', 'synthés', 'Moog Etherwave (thérémine)', 63, 16, { theremin: true }],
+      ['machinedrum', 'rythmiques', 'Elektron Machinedrum SPS-1 UW+', 34, 17.6, { h: 63, k: [8, 1, 0.3, 0.97, 0.72, 0.92], scr: [0.04, 0.26, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['tonverk', 'rythmiques', 'Elektron Tonverk', 28.6, 17.6, { h: 63, k: [8, 1, 0.32, 0.97, 0.72, 0.92], scr: [0.04, 0.28, 0.55, 0.9], pads: [16, 1, 0.05, 0.95, 0.08, 0.22] }],
+      ['pulsar23', 'rythmiques', 'Soma Pulsar-23', 38, 28, { h: 80, k: [8, 5, 0.04, 0.96, 0.1, 0.92] }],
+      ['dfam', 'rythmiques', 'Moog DFAM', 31.9, 13.3, { h: 107, step: [0.3, 60], k: [8, 3, 0.04, 0.75, 0.35, 0.95], jacks: [3, 8, 0.78, 0.97, 0.35, 0.95] }],
+      ['metalfet', 'rythmiques', 'Body Synths Metal Fetishist', 19, 12.4, { h: 55, k: [4, 3, 0.08, 0.92, 0.3, 0.92], sw: 1 }],
+      ['sds3', 'rythmiques', 'Behringer SDS-3', 37.4, 13.6, { h: 93, step: [0.3, 55], k: [10, 4, 0.04, 0.96, 0.33, 0.95] }],
+      ['monotribe', 'rythmiques', 'Korg Monotribe', 20.7, 14.5, { h: 70, step: [0.4, 40], k: [6, 2, 0.06, 0.94, 0.5, 0.92], pads: [8, 1, 0.08, 0.92, 0.08, 0.3] }],
+      ['ep133', 'rythmiques', 'Teenage Engineering EP-133 K.O. II', 24, 17.6, { h: 16, kh: 10, pads: [4, 3, 0.5, 0.95, 0.08, 0.7], k: [2, 1, 0.08, 0.4, 0.75, 0.92], scr: [0.08, 0.42, 0.35, 0.65] }],
+      ['po', 'rythmiques', 'Teenage Engineering Pocket Operator', 15, 7.5, { h: 6, kh: 6, k: [2, 1, 0.55, 0.95, 0.7, 0.92], pads: [4, 4, 0.06, 0.5, 0.06, 0.94], scr: [0.55, 0.95, 0.15, 0.6], est: true }],
+      ['oxione', 'séquenceurs', 'OXI One MKII', 37.5, 13, { h: 19, kh: 11, pads: [16, 8, 0.2, 0.97, 0.06, 0.94], k: [4, 1, 0.03, 0.17, 0.65, 0.9], scr: [0.03, 0.17, 0.2, 0.55] }],
+      ['zeroctrl', 'séquenceurs', 'Make Noise 0-Ctrl', 23, 14, { h: 19, kh: 20, k: [8, 3, 0.06, 0.94, 0.3, 0.92], pads: [8, 1, 0.06, 0.94, 0.06, 0.24] }],
+      ['cosmos', 'effets', 'Soma Cosmos', 34.2, 15.3, { h: 68, k: [8, 2, 0.05, 0.95, 0.2, 0.8] }],
+      ['twopole', 'effets', 'Waldorf 2-Pole', 18.5, 18.5, { h: 65, k: [3, 3, 0.15, 0.85, 0.25, 0.9] }],
+      ['lossy', 'effets', 'Chase Bliss Lossy', 6.8, 12.4, { h: 60, kh: 0, k: [3, 2, 0.15, 0.85, 0.55, 0.9], sw: 2 }],
+      ['lostfound', 'effets', 'Chase Bliss Lost + Found', 12, 12.4, { h: 60, kh: 0, k: [3, 2, 0.12, 0.88, 0.55, 0.9], sw: 2, est: true }],
+      ['ether', 'effets', 'Soma Ether V2', 5.8, 10.3, { h: 17, kh: 0, k: [1, 2, 0.4, 0.6, 0.3, 0.7] }],
+      ['ij7u', 'eurorack', 'Intellijel Performance Case 7U 104HP', 54.6, 31.2, { case7u: true, h: 83 }],
+      ['af16rig', 'audio', 'Arturia AudioFuse 16Rig', 44, 26, { h: 45, k: [3, 1, 0.6, 0.95, 0.08, 0.2], scr: [0.35, 0.55, 0.05, 0.22] }],
+      ['apollotwin', 'audio', 'Universal Audio Apollo Twin Duo', 16, 14.9, { h: 66, k: [1, 1, 0.3, 0.7, 0.3, 0.7], kr: 30 }],
+      ['mioxl', 'audio', 'iConnectivity mioXL (19" 1U)', 48.3, 11, { h: 44, rack: 1, scr: [0.42, 0.58, 0.03, 0.2], est: true }],
+      ['ada8200', 'audio', 'Behringer ADA8200 (19" 1U)', 48.3, 21.7, { h: 44, rack: 1, k: [8, 1, 0.12, 0.88, 0.04, 0.14] }],
+      ['tx6', 'audio', 'Teenage Engineering TX-6', 6.2, 9, { h: 23, kh: 8, k: [6, 3, 0.1, 0.9, 0.35, 0.95], scr: [0.25, 0.75, 0.06, 0.25] }],
+      ['tp7', 'audio', 'Teenage Engineering TP-7', 6.8, 9.6, { h: 16, kh: 2, reel: true, scr: [0.2, 0.8, 0.75, 0.92] }],
+      ['kh120', 'enceintes', 'Neumann KH 120 (enceinte)', 18.2, 22, { spk: { h: 277, drv: [[0.5, 0.36, 0.33], [0.5, 0.78, 0.16]] } }],
+      ['kh750', 'enceintes', 'Neumann KH 750 DSP (caisson)', 33, 38.3, { low: true, spk: { h: 383, drv: [[0.5, 0.48, 0.38]] } }],
+      ['ob4', 'enceintes', 'Teenage Engineering OB-4', 23.3, 5.8, { spk: { h: 284, drv: [[0.5, 0.3, 0.3], [0.5, 0.66, 0.3]], handle: true } }],
+      ['mbp16', 'ordinateurs', 'MacBook Pro 16" M2 Max', 35.6, 24.8, { laptop: 17, screen: 235 }],
+      ['mbp15', 'ordinateurs', 'MacBook Pro 15" 2017', 34.9, 24.1, { laptop: 16, screen: 225 }],
+      ['macpro13', 'ordinateurs', 'Mac Pro 2013 (cylindre)', 16.7, 16.7, { cyl: 251 }],
+      ['boitier', 'synthés', 'Boîtier sur mesure (cotes à saisir)', 30, 20, { h: 60, est: true }],
+    ].map(([id, cat, name, w, d, g]) => F(id, 'Studio · ' + cat, name, w, d, { m: 'gear', g, put: true, low: !!g.low, short: name.replace(/^(Soma|Moog|Arturia|Morphor|Vermona|PWM|Polyend \/ Dreadbox|Elektron|Make Noise|Korg|Teenage Engineering|Bastl|Body Synths|Behringer|OXI|Chase Bliss|Waldorf|Intellijel|Universal Audio|iConnectivity|Neumann) /, '').replace(/ \(.*\)$/, ''), ref: g.est ? 'cotes estimées, à vérifier' : '' })),
   ];
   const structure = [
     F('poteau20', 'Structure', 'Poteau 20 × 20', 20, 20, { kind: 'poteau' }), F('poteau30', 'Structure', 'Poteau 30 × 30', 30, 30, { kind: 'poteau' }),
@@ -74,7 +130,7 @@
   const openings = [
     { id: 'porte', name: 'Porte', w: 830, h: 2040 }, { id: 'porte2', name: 'Porte double', w: 1400, h: 2040 }, { id: 'coulissante', name: 'Porte coulissante', w: 830, h: 2040 },
     { id: 'galandage', name: 'Porte à galandage', w: 830, h: 2040 }, { id: 'passage', name: 'Passage libre', w: 900, h: 2100 },
-    { id: 'fenetre', name: 'Fenêtre', w: 1200, h: 1250, sill: 950, widths: [60, 80, 100, 120, 140] }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, widths: [80, 90, 120, 140] },
+    { id: 'fenetre', name: 'Fenêtre', w: 1200, h: 1250, sill: 950, widths: [60, 80, 100, 120, 140] }, { id: 'sautdeloup', name: 'Fenêtre saut de loup', w: 1000, h: 600, sill: 1650, well: 500, widths: [60, 80, 100, 120] }, { id: 'porte-fenetre', name: 'Porte-fenêtre', w: 1200, h: 2150, sill: 0, widths: [80, 90, 120, 140] },
     { id: 'baie', name: 'Baie vitrée coulissante', w: 2400, h: 2150, sill: 0, leaves: 2 }, { id: 'fixe', name: 'Châssis fixe', w: 800, h: 1200, sill: 900 },
     { id: 'velux', name: 'Velux (fenêtre de toit)', w: 780, h: 980, sill: 0, sizes: [{ code: 'CK02', w: 550, h: 780 }, { code: 'CK04', w: 550, h: 980 }, { code: 'MK04', w: 780, h: 980 }, { code: 'MK06', w: 780, h: 1180 }, { code: 'MK08', w: 780, h: 1400 }, { code: 'SK06', w: 1140, h: 1180 }, { code: 'UK04', w: 1340, h: 980 }] },
   ];
@@ -145,6 +201,47 @@
       M.lines.push(...rf);
       M.plan.push({ pts: rect(fr, fr, w - fr, d - fr) }); for (const [a, b] of rf) M.plan.push({ pts: [[a[0], a[1]], [b[0], b[1]]], open: true });
       M.plan.push({ pts: rect(lg, lg, w - lg, d - lg), dash: true }); // tablette sous le verre
+      M.decks = [{ pts: rect(lg, lg, w - lg, d - lg), z: zs1, name: 'tablette basse' }, { pts: rect(0, 0, w, d), z: H, name: 'plateau' }];
+    },
+    gear: (w, d, M, it) => gear(w, d, M, it.g),
+    // stand Jaspers 4D-120B : deux flancs inclinés (montant + pied), 4 étages réglables (barre transversale + 2 bras),
+    // bras de 60 cm en bas, 40 cm au-dessus ; entre montants 120 cm, h 140, profondeur max 70
+    jaspers: (w, d, M, it, sh) => {
+      const side = Math.max(20, (w - 1200) / 2), H = 1400, T = PL.jaspersTiers(sh).map((v) => v * 10); M.h = H; M.fill = false;
+      const vup = (z) => d - 140 + (120 * z) / H;
+      for (const u0 of [0, w - side]) {
+        M.solids.push({ pts: rect(u0, 0, u0 + side, d), z0: 0, z1: 35 }); M.plan.push({ pts: rect(u0, 0, u0 + side, d) });
+        for (let k = 0; k < 7; k++) { const za = 35 + ((H - 35) * k) / 7, zb = 35 + ((H - 35) * (k + 1)) / 7, vc = vup((za + zb) / 2); M.solids.push({ pts: rect(u0 + 8, vc - 17, u0 + side - 8, vc + 17), z0: za, z1: zb }); }
+      }
+      M.decks = [];
+      T.forEach((z, k) => {
+        const L = k === 0 ? 600 : 400, vc = vup(z), v1 = Math.min(d, vc + 20), v0 = Math.max(0, vc - L);
+        M.solids.push({ pts: rect(side, vc - 15, w - side, vc + 15), z0: z - 30, z1: z - 2 });
+        for (const f of [0.2, 0.8]) { const uc = w * f; M.solids.push({ pts: rect(uc - 14, v0, uc + 14, vc), z0: z - 26, z1: z }); M.plan.push({ pts: rect(uc - 14, v0, uc + 14, vc), dash: k > 0 }); }
+        M.plan.push({ pts: [[side, vc], [w - side, vc]], open: true, dash: k > 0 }, { pts: [[side, v0], [w - side, v0]], open: true, dash: true });
+        M.decks.push({ pts: rect(side, v0, w - side, v1), z, name: 'étage ' + (k + 1), arm: L });
+      });
+    },
+    // bureau Idåsen : plateau 160 × 80 (ép. 2,5), deux colonnes télescopiques sur pieds en T, poutre entre les colonnes
+    idasen: (w, d, M, it, sh) => {
+      const top = PL.deskTop(sh) * 10, t = 25, ui = Math.min(120, w * 0.075); M.h = top;
+      M.solids.push({ pts: rect(0, 0, w, d), z0: top - t, z1: top });
+      for (const uc of [ui, w - ui]) {
+        M.solids.push({ pts: rect(uc - 32, 40, uc + 32, d - 40), z0: 0, z1: 32 }, { pts: rect(uc - 40, d / 2 - 50, uc + 40, d / 2 + 50), z0: 32, z1: top - t - 45 }, { pts: rect(uc - 28, 70, uc + 28, d - 70), z0: top - t - 45, z1: top - t });
+        M.plan.push({ pts: rect(uc - 32, 40, uc + 32, d - 40), dash: true });
+      }
+      M.solids.push({ pts: rect(ui, d / 2 - 35, w - ui, d / 2 + 35), z0: top - t - 95, z1: top - t - 45 });
+      M.decks = [{ pts: rect(0, 0, w, d), z: top, name: 'plateau' }];
+    },
+    // canapé convertible Lindåkra : 206 × 87, assise 43, accoudoir arrondi (7 cm) à gauche, pouf-méridienne à droite sans accoudoir,
+    // dossier 67 sur toute la longueur, deux coussins de dossier (87) au-dessus de l'assise, couchage 200 × 80
+    lindakra: (w, d, M) => {
+      const arm = Math.min(70, w * 0.04), back = 70, seat = 430, top = 670, cush = 870, pu = arm + Math.round(((w - arm) * 1350) / 1990), R = arm; M.h = cush;
+      const corner = ell(R, R, R, R, 10, Math.PI, Math.PI * 1.5).slice(1, -1); M.outline = [[0, d], [0, R]].concat(corner, [[R, 0], [w, 0], [w, d]]);
+      const armP = [[0, d], [0, R]].concat(corner, [[R, 0], [arm, 0], [arm, d]]); M.solids.push({ pts: armP, z0: 40, z1: top });
+      M.solids.push({ pts: rect(arm, d - back, w, d), z0: 40, z1: top }, { pts: rect(arm, 0, pu - 4, d - back), z0: 40, z1: seat }, { pts: rect(pu + 4, 0, w, d - back), z0: 40, z1: seat });
+      const mid = (arm + pu) / 2; for (const [a, b] of [[arm + 6, mid - 4], [mid + 4, pu - 6]]) { M.solids.push({ pts: rect(a, d - back - 170, b, d - back), z0: seat, z1: cush }); M.plan.push({ pts: rect(a, d - back - 170, b, d - back) }); }
+      M.plan.push({ pts: [[arm, 0], [arm, d - back]], open: true }, { pts: [[arm, d - back], [w, d - back]], open: true }, { pts: [[pu, 0], [pu, d - back]], open: true, dash: true });
     },
     // cuisine : meubles bas (socle en retrait de 5 cm), colonnes, haut, hotte, plan, plaque, évier
     kbas: (w, d, M, it) => {
@@ -176,6 +273,60 @@
     for (let i = 1; i < 52; i++) { const u = u0 + i * ww; M.lines.push([[u, v0, z + 21], [u, v1, z + 21]]); if (names[i % 7] === 'C') M.plan.push({ pts: [[u, v0], [u, v1]], open: true }); }
     for (let i = 0; i < 51; i++) if ('ACDFG'.includes(names[i % 7])) { const c = u0 + (i + 1) * ww; M.solids.push({ pts: rect(c - 6.5, v1 - 95, c + 6.5, v1), z0: z + 20, z1: z + 32 }); }
   }
+  // clavier : n touches blanches entre u0 et u1, noires en relief (départ sur do ou sur fa)
+  function keys(M, u0, u1, v0, v1, z, n, start) {
+    M.solids.push({ pts: rect(u0, v0, u1, v1), z0: z, z1: z + 14 }); M.plan.push({ pts: rect(u0, v0, u1, v1) });
+    const kw = (u1 - u0) / n, pat = start === 'F' ? [1, 1, 1, 0, 1, 1, 0] : [1, 1, 0, 1, 1, 1, 0];
+    for (let i = 1; i < n; i++) { const u = u0 + i * kw; M.lines.push([[u, v0, z + 15], [u, v1, z + 15]]); M.plan.push({ pts: [[u, v0], [u, v1]], open: true }); }
+    for (let i = 0; i < n - 1; i++) if (pat[i % 7]) { const c = u0 + (i + 1) * kw; M.solids.push({ pts: rect(c - kw * 0.3, v0 + (v1 - v0) * 0.4, c + kw * 0.3, v1), z0: z + 14, z1: z + 24 }); }
+  }
+  // machine : boîtier aux cotes du fabricant, commandes simplifiées (boutons, écran, pads, clavier, enceintes…)
+  function gear(w, d, M, g) {
+    if (g.spk) return speaker(w, d, M, g.spk);
+    if (g.laptop) { const t = g.laptop; M.h = t + g.screen; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: t }, { pts: rect(0, d - 10, w, d), z0: t, z1: t + g.screen }); const kb = rect(w * 0.1, d * 0.42, w * 0.9, d * 0.9), tp = rect(w * 0.32, d * 0.06, w * 0.68, d * 0.36); M.plan.push({ pts: kb }, { pts: tp }, { pts: [[0, d - 10], [w, d - 10]], open: true }); M.lines.push(...ring3(kb, t + 1), ...ring3(tp, t + 1)); return; }
+    if (g.cyl) { M.outline = ell(w / 2, d / 2, w / 2, d / 2, 28); M.solids.push({ pts: M.outline, z0: 0, z1: g.cyl, round: true }); const top = ell(w / 2, d / 2, w * 0.36, d * 0.36, 20); M.plan.push({ pts: top }); M.lines.push(...ring3(top, g.cyl + 1)); M.h = g.cyl; return; }
+    if (g.theremin) { // coffret 45 × 16 × 8,5 cm, antenne de volume en boucle à gauche, antenne de hauteur verticale à droite
+      const cw = Math.min(w, 450), H = 85, u0 = w - cw; M.h = H + 450; M.solids.push({ pts: rect(u0, 0, w, d), z0: 0, z1: H }, { pts: ell(w - 45, d / 2, 6, 6, 8), z0: H, z1: H + 450, round: true });
+      const loop = [[u0, d * 0.32], [70, d * 0.32]].concat(ell(70, d / 2, 70, d * 0.18, 9, -Math.PI / 2, -Math.PI * 1.5)).concat([[70, d * 0.68], [u0, d * 0.68]]);
+      for (let k = 0; k < loop.length - 1; k++) M.lines.push([[loop[k][0], loop[k][1], H * 0.55], [loop[k + 1][0], loop[k + 1][1], H * 0.55]]);
+      M.outline = rect(0, 0, w, d); M.fill = true; M.plan.push({ pts: loop, open: true }, { pts: [[u0, 0], [u0, d]], open: true }, { pts: ell(w - 45, d / 2, 10, 10, 10) }); return;
+    }
+    const H = g.h, kh = g.kh != null ? g.kh : 14; let zone = [0, 0, w, d], zAt = () => H;
+    if (g.case7u) { // coffret eurorack 7U : deux rangées 3U et une rangée 1U, modules en tranches
+      M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H }); M.h = H + 25;
+      const rows = [[0.04, 0.45], [0.47, 0.88], [0.9, 0.98]];
+      for (const [a, b] of rows) { const q = rect(w * 0.03, d * a, w * 0.97, d * b); M.plan.push({ pts: q }); M.lines.push(...ring3(q, H + 1)); let u = w * 0.03; let k = 0; while (u < w * 0.95) { u += w * (0.035 + ((k * 37) % 5) * 0.012); k++; if (u < w * 0.96) { M.lines.push([[u, d * a, H + 1], [u, d * b, H + 1]]); if (b - a > 0.2) for (let j = 0; j < 3; j++) { const cv = d * (a + (b - a) * (j + 0.5) / 3), cu = u - w * 0.015; M.solids.push({ pts: ell(cu, cv, 6, 6, 6), z0: H, z1: H + 18, round: true }); } } } }
+      return;
+    }
+    if (g.keys) {
+      const kd = d * g.keys.d, hf = Math.min(H, g.keys.h);
+      M.solids.push({ pts: rect(0, 0, w, kd), z0: 0, z1: hf - 14 }, { pts: rect(0, kd, w, d), z0: 0, z1: H }); M.plan.push({ pts: [[0, kd], [w, kd]], open: true });
+      const ku0 = w * g.keys.l, ku1 = w - Math.max(12, w * 0.02); keys(M, ku0, ku1, Math.min(10, kd * 0.08), kd - Math.min(8, kd * 0.06), hf - 14, g.keys.n, g.keys.start);
+      if (g.keys.l > 0.06) for (const f of [0.33, 0.67]) { const cu = ku0 * f, q = rect(cu - 9, kd * 0.2, cu + 9, kd * 0.85); M.solids.push({ pts: q, z0: hf - 14, z1: hf + 6 }); M.plan.push({ pts: q }); }
+      zone = [0, kd, w, d];
+    } else if (g.step) {
+      const vs = d * g.step[0], hf = g.step[1]; M.solids.push({ pts: rect(0, 0, w, vs), z0: 0, z1: hf }, { pts: rect(0, vs, w, d), z0: 0, z1: H }); M.plan.push({ pts: [[0, vs], [w, vs]], open: true }); zAt = (v) => (v < vs ? hf : H);
+    } else M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H });
+    if (g.rack) for (const u of [8, w - 8]) M.lines.push([[u, -1, 6], [u, -1, H - 6]]);
+    const [zu0, zv0, zu1, zv1] = zone, ZW = zu1 - zu0, ZD = zv1 - zv0;
+    const Z = (a, b, c, e) => [zu0 + ZW * a, zv0 + ZD * c, zu0 + ZW * b, zv0 + ZD * e];
+    if (g.scr) { const [a, b, c, e] = Z(...g.scr); const q = rect(a, b, c, e); M.plan.push({ pts: q }); M.lines.push(...ring3(q, zAt((b + e) / 2) + 1)); }
+    if (g.pads) { const [cols, rows, ...f] = g.pads; const [a, b, c, e] = Z(...f), cw = (c - a) / cols, ch = (e - b) / rows; for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const q = rect(a + i * cw + cw * 0.12, b + j * ch + ch * 0.12, a + (i + 1) * cw - cw * 0.12, b + (j + 1) * ch - ch * 0.12); const z = zAt(b + (j + 0.5) * ch); M.solids.push({ pts: q, z0: z, z1: z + 4 }); if (cols * rows <= 64) M.plan.push({ pts: q }); } }
+    if (g.plates) { const [n, a, b, c, e] = g.plates; const u0 = zu0 + ZW * a, u1 = zu0 + ZW * b, v0 = zv0 + ZD * c, v1 = zv0 + ZD * e; const pw = (u1 - u0) / n; for (let i = 0; i < n; i++) { const q = rect(u0 + i * pw + pw * 0.15, v0, u0 + (i + 1) * pw - pw * 0.15, v1); M.solids.push({ pts: q, z0: H, z1: H + 3 }); M.plan.push({ pts: q }); } }
+    const dots = (spec, r, hk) => { const [cols, rows, ...f] = spec; const [a, b, c, e] = Z(...f); for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const cu = cols > 1 ? a + ((c - a) * i) / (cols - 1) : (a + c) / 2, cv = rows > 1 ? b + ((e - b) * j) / (rows - 1) : (b + e) / 2, z = zAt(cv); const q = ell(cu, cv, r, r, 8); M.solids.push({ pts: q, z0: z, z1: z + hk, round: true }); if (cols * rows <= 40) M.plan.push({ pts: q }); } };
+    if (g.k) { const [cols, rows, a, b, c, e] = g.k; const cell = Math.min((ZW * (b - a)) / Math.max(1, cols), (ZD * (e - c)) / Math.max(1, rows)); dots(g.k, g.kr || Math.max(4, Math.min(13, cell * 0.28)), Math.max(kh, 3)); }
+    if (g.jacks) dots(g.jacks, 3, 3);
+    if (g.sw) for (let i = 0; i < g.sw; i++) { const cu = (w * (i + 0.5)) / g.sw, cv = Math.min(d * 0.2, 30); const q = ell(cu, cv, 9, 9, 8); M.solids.push({ pts: q, z0: zAt(cv), z1: zAt(cv) + 14, round: true }); M.plan.push({ pts: q }); }
+    if (g.reel) { const q = ell(w / 2, d * 0.4, w * 0.32, w * 0.32, 18); M.solids.push({ pts: q, z0: H, z1: H + 2, round: true }); M.plan.push({ pts: q }); }
+    M.h = H + (g.k ? kh : 0);
+  }
+  // enceinte : caisson, haut-parleurs dessinés en façade ([u, z, rayon] en fractions de largeur / hauteur)
+  function speaker(w, d, M, sp) {
+    const H = sp.h; M.h = H + (sp.handle ? 18 : 0); M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: H });
+    for (const [fu, fz, fr] of sp.drv) { const r = w * fr, c = ell(w * fu, H * fz, r, r, 22); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); const c2 = ell(w * fu, H * fz, r * 0.45, r * 0.45, 14); c2.forEach((p, k) => { const q = c2[(k + 1) % c2.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); }
+    if (sp.handle) M.solids.push({ pts: rect(w * 0.15, d * 0.3, w * 0.85, d * 0.7), z0: H, z1: H + 18 });
+    M.plan.push({ pts: [[0, Math.min(14, d * 0.2)], [w, Math.min(14, d * 0.2)]], open: true });
+  }
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
   function vanity(w, d, M, centers, vessel) {
     const z0 = 220, zc = 800, zt = vessel ? 820 : 860; M.h = zt;
@@ -198,10 +349,13 @@
     if (back) M.solids.push({ pts: rect(T, d - 6, w - T, d), z0: 0, z1: H });
     if (!posts) M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
   }
-  PL.furnModel = (id, w, d) => {
+  PL.furnModel = (id, w, d, sh) => {
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0 }; MODELS[it.m](w, d, M, it); return M;
+    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
   };
+  /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
+  PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
+  PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
      back : côté du dos (S = mur 3, W = mur 4, N = côté bar de la presqu'île). Points : mur, distance à l'angle, hauteur (cm), symbole, note. */
