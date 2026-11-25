@@ -2158,8 +2158,8 @@ details[open] summary::after{content:"–"}
     F('wc', 'WC', 'WC suspendu (cuvette 36 × 54)', 36, 54, { m: 'wcsusp' }), F('wccoffre', 'WC', 'WC suspendu + coffrage du bâti', 60, 74, { m: 'wccoffre' }),
     F('wcposer', 'WC', 'WC à poser (pack avec réservoir)', 37, 66, { m: 'wcposer' }), F('lavemains', 'WC', 'Lave-mains 40', 40, 25, { m: 'lavemains' }),
     // étagères (cotes IKEA)
-    F('kallax14', 'Étagères', 'Étagère 1 × 4 (type Kallax)', 42, 39, { m: 'kallax', H: 147, grid: [1, 4] }), F('kallax2', 'Étagères', 'Étagère 2 × 2 (type Kallax)', 77, 39, { m: 'kallax', H: 77, grid: [2, 2] }),
-    F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 77, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 147, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
+    F('kallax14', 'Étagères', 'Étagère 1 × 4 (type Kallax)', 41.5, 39, { m: 'kallax', H: 147, grid: [1, 4] }), F('kallax2', 'Étagères', 'Étagère 2 × 2 (type Kallax)', 76.5, 39, { m: 'kallax', H: 77, grid: [2, 2] }),
+    F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 76.5, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 146.5, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
     F('billy40', 'Étagères', 'Bibliothèque 40 (type Billy)', 40, 28, { m: 'billy', H: 202 }), F('billy', 'Étagères', 'Bibliothèque 80 (type Billy)', 80, 28, { m: 'billy', H: 202 }),
     F('ivar', 'Étagères', 'Étagère 89 × 30 (type Ivar)', 89, 30, { m: 'ivar', H: 179 }), F('ivar50', 'Étagères', 'Étagère 89 × 50 (type Ivar)', 89, 50, { m: 'ivar', H: 179 }),
     F('lack110', 'Étagères', 'Étagère murale 110 (type Lack)', 110, 26, { m: 'murale' }), F('lack30', 'Étagères', 'Étagère murale 30 (type Lack)', 30, 26, { m: 'murale' }),
@@ -2185,6 +2185,7 @@ details[open] summary::after{content:"–"}
     F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
     // ---- studio : supports (cotes fabricant) ----
     F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
+    F('kallax24h', 'Studio · mobilier', 'Kallax 2 × 4 (couché ou debout)', 146.5, 39, { short: 'Kallax 2 × 4', m: 'kallax', grid: [2, 4], orient: 'h', ref: '147 × 77 × 39 · cases 33,5 × 33,5' }),
     F('pied', 'Studio · mobilier', 'Pied d\'enceinte (tweeter à hauteur d\'oreille)', 30, 30, { short: 'Pied', m: 'pied', ref: 'plateau 20 × 23 · réglé sur l\'oreille assis' }),
     F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
     // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
@@ -2290,7 +2291,19 @@ details[open] summary::after{content:"–"}
     wcsusp: (w, d, M) => { M.outline = bowl(0, w, 0, d, 200); const ins = bowl(60, w - 60, 70, d - 40, 160); M.plan.push({ pts: ins }); M.solids.push({ pts: M.outline, z0: 180, z1: 400 }, { pts: M.outline, z0: 400, z1: 420 }); M.lines.push(...ring3(ins, 421)); M.solids.push({ pts: rect(w / 2 - 120, d - 10, w / 2 + 120, d), z0: 1000, z1: 1150 }); M.h = 420; },
     wcposer: (w, d, M) => { const tk = 180; const B = bowl(0, w, 0, d - tk, 150); M.outline = B.slice(0, B.length - 2).concat([[w, d - tk], [w - 10, d - tk], [w - 10, d], [10, d], [10, d - tk], [0, d - tk]]); const ins = bowl(60, w - 60, 70, d - tk - 30, 120); M.plan.push({ pts: rect(10, d - tk, w - 10, d) }, { pts: ins }); M.solids.push({ pts: bowl(w * 0.22, w * 0.78, 90, d - tk - 20, 100), z0: 0, z1: 300 }, { pts: B, z0: 300, z1: 400 }, { pts: B, z0: 400, z1: 420 }, { pts: rect(10, d - tk, w - 10, d), z0: 380, z1: 800 }); M.lines.push(...ring3(ins, 421)); M.h = 800; },
     wccoffre: (w, d, M) => { const cf = 200, bw = 360, u0 = (w - bw) / 2; M.outline = [[0, d - cf], [u0, d - cf]].concat(bowl(u0, u0 + bw, 0, d - cf, 200).slice(2, -2), [[u0 + bw, d - cf], [w, d - cf], [w, d], [0, d]]); const ins = bowl(u0 + 60, u0 + bw - 60, 70, d - cf - 40, 160); M.plan.push({ pts: [[0, d - cf], [w, d - cf]], open: true }, { pts: ins }); M.solids.push({ pts: rect(0, d - cf, w, d), z0: 0, z1: 1120 }, { pts: bowl(u0, u0 + bw, 0, d - cf, 200), z0: 180, z1: 420 }, { pts: rect(w / 2 - 120, d - cf - 10, w / 2 + 120, d - cf), z0: 860, z1: 1010 }); M.lines.push(...ring3(ins, 421)); M.h = 1120; },
-    kallax: (w, d, M, it) => shelf(w, d, M, (it.H || 147) * 10, it.grid || [2, 2], 38, 16, false),
+    // Kallax : flancs, dessus et dessous de 4 cm, cloisons et tablettes de 1,5 cm, cases égales (33,5 cm) ; dos ouvert.
+    // Debout ou couché (orient) ; le dessus et chaque case sont des étages où poser une machine
+    kallax: (w, d, M, it, sh) => {
+      const [nc, nr] = PL.kallaxGrid(it, sh), T = 40, t = 15, H = PL.kallaxSize(nr), cw = (w - 2 * T - (nc - 1) * t) / nc, ch = (H - 2 * T - (nr - 1) * t) / nr; M.h = H;
+      const U = (c) => T + c * (cw + t), Z = (r) => T + r * (ch + t);
+      M.solids.push({ pts: rect(0, 0, T, d), z0: 0, z1: H }, { pts: rect(w - T, 0, w, d), z0: 0, z1: H }, { pts: rect(T, 0, w - T, d), z0: 0, z1: T }, { pts: rect(T, 0, w - T, d), z0: H - T, z1: H });
+      for (let r = 1; r < nr; r++) M.solids.push({ pts: rect(T, 0, w - T, d), z0: Z(r) - t, z1: Z(r) });
+      for (let r = 0; r < nr; r++) for (let c = 1; c < nc; c++) M.solids.push({ pts: rect(U(c) - t, 0, U(c), d), z0: Z(r), z1: Z(r) + ch });
+      for (let c = 1; c < nc; c++) M.plan.push({ pts: [[U(c) - t / 2, 0], [U(c) - t / 2, d]], open: true, dash: true });
+      M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
+      M.decks = [{ pts: rect(0, 0, w, d), z: H, name: 'dessus', top: true, th: T }];
+      for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) M.decks.push({ pts: rect(U(c), 0, U(c) + cw, d), z: Z(r), name: `case ${r + 1}·${c + 1}`, r, th: r ? t : T });
+    },
     billy: (w, d, M, it) => shelf(w, d, M, (it.H || 202) * 10, [1, 6], 18, 18, true),
     ivar: (w, d, M, it) => shelf(w, d, M, (it.H || 179) * 10, [1, 5], 0, 20, false, true),
     murale: (w, d, M) => { M.dash = true; M.h = 1450; M.solids.push({ pts: rect(0, 0, w, d), z0: 1400, z1: 1450 }); },
@@ -2492,6 +2505,9 @@ details[open] summary::after{content:"–"}
   // pied d'enceinte : hauteur d'oreille de l'auditeur (cm) et hauteur du tweeter de l'enceinte posée (mm, KH 120 par défaut)
   PL.earHeight = (sh) => Math.max(80, Math.min(180, (sh && +sh.ear) || 120));
   PL.standTop = (sh) => Math.max(300, Math.min(1600, PL.earHeight(sh) * 10 - ((sh && +sh.tw) || 216)));
+  // Kallax : grille [colonnes, rangées] debout (it.grid), échangée quand il est couché ; 41,5 cm pour une case, + 35 cm par case
+  PL.kallaxGrid = (it, sh) => { const g = (it && it.grid) || [2, 2]; return ((sh && sh.orient) || (it && it.orient) || 'v') === 'h' ? [g[1], g[0]] : [g[0], g[1]]; };
+  PL.kallaxSize = (n) => 415 + (n - 1) * 350;
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
@@ -4552,6 +4568,7 @@ details[open] summary::after{content:"–"}
       case 'stsel': S.sel = { id: v }; ui.onSelect(); App.render(); break;
       case 'desktopq': App.mutate(() => { s.top = +v; }); break;
       case 'earq': App.mutate(() => { s.ear = +v; }); break;
+      case 'kxo': App.mutate(() => App.stack.orient(s, v)); break;
       case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
@@ -6037,7 +6054,7 @@ details[open] summary::after{content:"–"}
     if (!s || s.kind !== 'meuble' || K.canPut(s)) return [];
     const f = frame(s); if (!f) return [];
     const M = PL.furnModel && PL.furnModel(s.lib, f.w, f.d, s);
-    if (M && M.decks) return M.decks.map((q, k) => ({ k, z: q.z, name: q.name, arm: q.arm, poly: q.pts.map(([u, v]) => at(f, u, v)) }));
+    if (M && M.decks) return M.decks.map((q, k) => ({ k, z: q.z, name: q.name, arm: q.arm, top: !!q.top, th: q.th, r: q.r, poly: q.pts.map(([u, v]) => at(f, u, v)) }));
     const g = GENERIC.find(([re]) => re.test(s.lib || '')); if (!g) return [];
     return [{ k: 0, z: g[1], name: 'plateau', poly: s.pts.slice() }];
   };
@@ -6056,7 +6073,7 @@ details[open] summary::after{content:"–"}
     let over = 0; for (const c of s.pts) if (!G.pointInPoly(c, q.poly)) over = Math.max(over, G.distPointPoly(c, q.poly));
     const h = K.height(s); let limit = Infinity;
     const ovl = (A, B) => A.some((c) => G.pointInPoly(c, B)) || B.some((c) => G.pointInPoly(c, A)) || G.pointInPoly(G.centroid(A), B);
-    for (const o of K.decks(p)) if (o.z > q.z + 1 && ovl(s.pts, o.poly)) limit = Math.min(limit, o.z - 30 - q.z);
+    for (const o of K.decks(p)) if (o.z > q.z + 1 && ovl(s.pts, o.poly)) limit = Math.min(limit, o.z - (o.th != null ? o.th : 30) - q.z);
     return { support: p, deck: q, over: over > 10 ? over : 0, h, limit, tall: Number.isFinite(limit) && h > limit + 2 ? h - limit : 0 };
   };
 
@@ -6068,7 +6085,7 @@ details[open] summary::after{content:"–"}
     for (const p of App.shapesOn(s.floor)) { if (p === s || p.kind !== 'meuble' || K.canPut(p)) continue; for (const q of K.decks(p)) if (G.pointInPoly(c, q.poly)) cands.push({ p, q }); }
     if (!cands.length) { const was = !!s.on; delete s.on; delete s.deck; delete s.onAt; return was ? { floor: true } : null; }
     let pick = cands.find((x) => x.p.id === s.on && x.q.k === (s.deck || 0));
-    if (!pick || opts.fresh) { const cv = (x) => { const f = frame(x.p), qc = G.centroid(x.q.poly); return Math.abs(G.dot(G.sub(c, qc), f ? f.V : { x: 0, y: 1 })); }; pick = cands.slice().sort((a, b) => cv(a) - cv(b) || a.q.z - b.q.z)[0]; }
+    if (!pick || opts.fresh) { const cv = (x) => { const f = frame(x.p), qc = G.centroid(x.q.poly); return Math.round(Math.abs(G.dot(G.sub(c, qc), f ? f.V : { x: 0, y: 1 }))); }; pick = cands.slice().sort((a, b) => cv(a) - cv(b) || b.q.top - a.q.top || a.q.z - b.q.z)[0]; }
     s.on = pick.p.id; s.deck = pick.q.k; tune(pick.p, s); K.pin(s);
     return { support: pick.p, deck: pick.q };
   };
@@ -6078,7 +6095,7 @@ details[open] summary::after{content:"–"}
   K.setDeck = (s, p, k) => {
     const q = K.decks(p)[k]; if (!q) return;
     const c = G.centroid(s.pts), qc = G.centroid(q.poly); let d = { x: 0, y: 0 };
-    if (!G.pointInPoly(c, q.poly)) { const f = frame(p); const off = G.sub(qc, c); d = f && p.id === s.on ? G.mul(f.V, G.dot(off, f.V)) : off; }
+    if (!G.pointInPoly(c, q.poly)) { const f = frame(p); const off = G.sub(qc, c); d = f && p.id === s.on && q.r == null ? G.mul(f.V, G.dot(off, f.V)) : off; }
     s.pts = s.pts.map((pt) => G.add(pt, d));
     s.on = p.id; s.deck = k; delete s.floorLock; tune(p, s); K.pin(s);
   };
@@ -6099,6 +6116,21 @@ details[open] summary::after{content:"–"}
     const it = PL.lib.furniture.find((x) => x.id === 'pied'); const p = App.makeShape('meuble', pts, { name: it.name, lib: 'pied', floor: s.floor });
     const prev = K.support(s); if (prev && prev.lib === 'pied' && prev.ear) p.ear = prev.ear;
     S.p.shapes.push(p); K.setDeck(s, p, 0); return p;
+  };
+  /* Kallax couché ou debout : la largeur change autour du centre, le dos reste en place ; les machines gardent le dessus ou leur rangée */
+  K.orient = (s, o) => {
+    const it = lib(s), f = frame(s); if (!it || it.m !== 'kallax' || !f) return;
+    const kids = K.children(s).map((x) => [x, K.deck(x)]);
+    s.orient = o; const dw = (PL.kallaxSize(PL.kallaxGrid(it, s)[0]) - f.w) / 2, P = s.pts;
+    s.pts = [G.add(P[0], G.mul(f.U, -dw)), G.add(P[1], G.mul(f.U, dw)), G.add(P[2], G.mul(f.U, dw)), G.add(P[3], G.mul(f.U, -dw))];
+    K.sync();
+    const D = K.decks(s);
+    for (const [x, q0] of kids) {
+      const c = G.centroid(x.pts), hit = D.filter((q) => !q.top && G.pointInPoly(c, q.poly));
+      const q = !q0 || q0.top ? D[0] : hit.find((q) => q.r === q0.r) || hit.sort((a, b) => a.z - b.z)[0] || D[0];
+      if (!q.top) { const f2 = frame(s), du = G.dot(G.sub(G.centroid(q.poly), c), f2.U); x.pts = x.pts.map((p) => G.add(p, G.mul(f2.U, du))); } // recentrée dans sa case
+      x.deck = q.k; K.pin(x);
+    }
   };
   K.toFloor = (s) => { delete s.on; delete s.deck; delete s.onAt; };
 
@@ -6139,6 +6171,8 @@ details[open] summary::after{content:"–"}
       return h;
     }
     if (s.lib === 'jaspers') { const T = PL.jaspersTiers(s); h += `<h3>Étages (hauteur du plateau)</h3>${T.map((v, i) => `<div class="field"><label>Étage ${i + 1}${i === 0 ? ' (bras 60 cm)' : ' (bras 40 cm)'}</label><div class="unit"><input data-c="tier" data-i="${i}" inputmode="decimal" value="${v}"><span>cm</span></div></div>`).join('')}<p class="hint2">Réglables et inclinables sur le vrai stand ; 22 cm entre deux étages laissent environ 19 cm libres sous les bras du dessus.</p>`; }
+    { const it = lib(s); if (it && it.m === 'kallax') { const g = PL.kallaxGrid(it, s), o = (s.orient || it.orient || 'v'), sq = it.grid[0] === it.grid[1], W = PL.kallaxSize(g[0]), H = PL.kallaxSize(g[1]);
+      h += `<h3>Kallax ${g[0]} × ${g[1]}</h3>${sq ? '' : `<div class="chips">${[['h', 'Couché', PL.kallaxSize(Math.max(...it.grid)), PL.kallaxSize(Math.min(...it.grid))], ['v', 'Debout', PL.kallaxSize(Math.min(...it.grid)), PL.kallaxSize(Math.max(...it.grid))]].map(([v, l, a, b]) => `<button data-a="kxo" data-v="${v}" aria-pressed="${o === v}">${l} · ${fmt(a)} × ${fmt(b)}</button>`).join('')}</div>`}<p>${fmt(W)} cm de large × ${fmt(H)} cm de haut · dessus à <b>${fmt(H)} cm</b> · ${g[0] * g[1]} cases de 33,5 × 33,5 cm.</p><p class="hint2">Glissez une machine sur le Kallax : elle se pose sur le dessus. Pour la ranger dans une case, choisissez la case dans la fiche de la machine.</p>`; } }
     if (s.lib === 'pied') { const e = PL.earHeight(s), kid = K.children(s)[0]; h += `<h3>Hauteur d'oreille</h3><div class="field"><label>Oreille de l'auditeur à</label><div class="unit"><input data-c="ear" inputmode="decimal" value="${e}"><span>cm</span></div></div><div class="chips sm">${[[110, 'assis 110'], [115, '115'], [120, 'assis 120'], [125, '125'], [160, 'debout 160']].map(([v, l]) => `<button data-a="earq" data-v="${v}" aria-pressed="${e === v}">${l}</button>`).join('')}</div><p>Plateau du pied à <b>${fmt(PL.standTop(s))} cm</b>${kid ? ` : tweeter de ${esc((kid.name || '').replace(/ \(.*\)$/, ''))} à ${fmt(PL.standTop(s) + K.tweeter(kid))} cm` : ''}.</p><p class="hint2">Le plateau se règle pour mettre le tweeter de l'enceinte posée dessus à hauteur d'oreille. Pivotez le pied (avec l'enceinte) pour l'orienter vers la place d'écoute.</p>`; }
     if (s.lib === 'idasen') { const t = PL.deskTop(s); h += `<h3>Hauteur du plateau</h3><div class="field"><label>Plateau à</label><div class="unit"><input data-c="desktop" inputmode="decimal" value="${t}"><span>cm</span></div></div><div class="chips sm">${[63, 72, 75, 105, 110, 127].map((v) => `<button data-a="desktopq" data-v="${v}" aria-pressed="${t === v}">${v}</button>`).join('')}</div><p class="hint2">De 63 à 127 cm : assis vers 72 cm, debout vers 105 – 110 cm. Les machines posées montent avec le plateau dans la visite 3D.</p>`; }
     const kids = K.children(s); if (kids.length) h += `<h3>Machines posées</h3><div class="list">${kids.map((x) => { const q = K.deck(x); const F = K.fit(x); const bad = F && (F.over || F.tall); return `<button class="item" data-a="stsel" data-v="${x.id}"><span class="nm">${esc((x.name || '').replace(/ \(.*\)$/, ''))}</span><span class="meta">${q ? esc(q.name) : ''}${bad ? ' · <b style="color:var(--red)">à revoir</b>' : ''}</span></button>`; }).join('')}</div>`;

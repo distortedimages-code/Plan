@@ -22,7 +22,7 @@
     if (!s || s.kind !== 'meuble' || K.canPut(s)) return [];
     const f = frame(s); if (!f) return [];
     const M = PL.furnModel && PL.furnModel(s.lib, f.w, f.d, s);
-    if (M && M.decks) return M.decks.map((q, k) => ({ k, z: q.z, name: q.name, arm: q.arm, poly: q.pts.map(([u, v]) => at(f, u, v)) }));
+    if (M && M.decks) return M.decks.map((q, k) => ({ k, z: q.z, name: q.name, arm: q.arm, top: !!q.top, th: q.th, r: q.r, poly: q.pts.map(([u, v]) => at(f, u, v)) }));
     const g = GENERIC.find(([re]) => re.test(s.lib || '')); if (!g) return [];
     return [{ k: 0, z: g[1], name: 'plateau', poly: s.pts.slice() }];
   };
@@ -41,7 +41,7 @@
     let over = 0; for (const c of s.pts) if (!G.pointInPoly(c, q.poly)) over = Math.max(over, G.distPointPoly(c, q.poly));
     const h = K.height(s); let limit = Infinity;
     const ovl = (A, B) => A.some((c) => G.pointInPoly(c, B)) || B.some((c) => G.pointInPoly(c, A)) || G.pointInPoly(G.centroid(A), B);
-    for (const o of K.decks(p)) if (o.z > q.z + 1 && ovl(s.pts, o.poly)) limit = Math.min(limit, o.z - 30 - q.z);
+    for (const o of K.decks(p)) if (o.z > q.z + 1 && ovl(s.pts, o.poly)) limit = Math.min(limit, o.z - (o.th != null ? o.th : 30) - q.z);
     return { support: p, deck: q, over: over > 10 ? over : 0, h, limit, tall: Number.isFinite(limit) && h > limit + 2 ? h - limit : 0 };
   };
 
@@ -53,7 +53,7 @@
     for (const p of App.shapesOn(s.floor)) { if (p === s || p.kind !== 'meuble' || K.canPut(p)) continue; for (const q of K.decks(p)) if (G.pointInPoly(c, q.poly)) cands.push({ p, q }); }
     if (!cands.length) { const was = !!s.on; delete s.on; delete s.deck; delete s.onAt; return was ? { floor: true } : null; }
     let pick = cands.find((x) => x.p.id === s.on && x.q.k === (s.deck || 0));
-    if (!pick || opts.fresh) { const cv = (x) => { const f = frame(x.p), qc = G.centroid(x.q.poly); return Math.abs(G.dot(G.sub(c, qc), f ? f.V : { x: 0, y: 1 })); }; pick = cands.slice().sort((a, b) => cv(a) - cv(b) || a.q.z - b.q.z)[0]; }
+    if (!pick || opts.fresh) { const cv = (x) => { const f = frame(x.p), qc = G.centroid(x.q.poly); return Math.round(Math.abs(G.dot(G.sub(c, qc), f ? f.V : { x: 0, y: 1 }))); }; pick = cands.slice().sort((a, b) => cv(a) - cv(b) || b.q.top - a.q.top || a.q.z - b.q.z)[0]; }
     s.on = pick.p.id; s.deck = pick.q.k; tune(pick.p, s); K.pin(s);
     return { support: pick.p, deck: pick.q };
   };
@@ -63,7 +63,7 @@
   K.setDeck = (s, p, k) => {
     const q = K.decks(p)[k]; if (!q) return;
     const c = G.centroid(s.pts), qc = G.centroid(q.poly); let d = { x: 0, y: 0 };
-    if (!G.pointInPoly(c, q.poly)) { const f = frame(p); const off = G.sub(qc, c); d = f && p.id === s.on ? G.mul(f.V, G.dot(off, f.V)) : off; }
+    if (!G.pointInPoly(c, q.poly)) { const f = frame(p); const off = G.sub(qc, c); d = f && p.id === s.on && q.r == null ? G.mul(f.V, G.dot(off, f.V)) : off; }
     s.pts = s.pts.map((pt) => G.add(pt, d));
     s.on = p.id; s.deck = k; delete s.floorLock; tune(p, s); K.pin(s);
   };
@@ -84,6 +84,21 @@
     const it = PL.lib.furniture.find((x) => x.id === 'pied'); const p = App.makeShape('meuble', pts, { name: it.name, lib: 'pied', floor: s.floor });
     const prev = K.support(s); if (prev && prev.lib === 'pied' && prev.ear) p.ear = prev.ear;
     S.p.shapes.push(p); K.setDeck(s, p, 0); return p;
+  };
+  /* Kallax couché ou debout : la largeur change autour du centre, le dos reste en place ; les machines gardent le dessus ou leur rangée */
+  K.orient = (s, o) => {
+    const it = lib(s), f = frame(s); if (!it || it.m !== 'kallax' || !f) return;
+    const kids = K.children(s).map((x) => [x, K.deck(x)]);
+    s.orient = o; const dw = (PL.kallaxSize(PL.kallaxGrid(it, s)[0]) - f.w) / 2, P = s.pts;
+    s.pts = [G.add(P[0], G.mul(f.U, -dw)), G.add(P[1], G.mul(f.U, dw)), G.add(P[2], G.mul(f.U, dw)), G.add(P[3], G.mul(f.U, -dw))];
+    K.sync();
+    const D = K.decks(s);
+    for (const [x, q0] of kids) {
+      const c = G.centroid(x.pts), hit = D.filter((q) => !q.top && G.pointInPoly(c, q.poly));
+      const q = !q0 || q0.top ? D[0] : hit.find((q) => q.r === q0.r) || hit.sort((a, b) => a.z - b.z)[0] || D[0];
+      if (!q.top) { const f2 = frame(s), du = G.dot(G.sub(G.centroid(q.poly), c), f2.U); x.pts = x.pts.map((p) => G.add(p, G.mul(f2.U, du))); } // recentrée dans sa case
+      x.deck = q.k; K.pin(x);
+    }
   };
   K.toFloor = (s) => { delete s.on; delete s.deck; delete s.onAt; };
 
@@ -124,6 +139,8 @@
       return h;
     }
     if (s.lib === 'jaspers') { const T = PL.jaspersTiers(s); h += `<h3>Étages (hauteur du plateau)</h3>${T.map((v, i) => `<div class="field"><label>Étage ${i + 1}${i === 0 ? ' (bras 60 cm)' : ' (bras 40 cm)'}</label><div class="unit"><input data-c="tier" data-i="${i}" inputmode="decimal" value="${v}"><span>cm</span></div></div>`).join('')}<p class="hint2">Réglables et inclinables sur le vrai stand ; 22 cm entre deux étages laissent environ 19 cm libres sous les bras du dessus.</p>`; }
+    { const it = lib(s); if (it && it.m === 'kallax') { const g = PL.kallaxGrid(it, s), o = (s.orient || it.orient || 'v'), sq = it.grid[0] === it.grid[1], W = PL.kallaxSize(g[0]), H = PL.kallaxSize(g[1]);
+      h += `<h3>Kallax ${g[0]} × ${g[1]}</h3>${sq ? '' : `<div class="chips">${[['h', 'Couché', PL.kallaxSize(Math.max(...it.grid)), PL.kallaxSize(Math.min(...it.grid))], ['v', 'Debout', PL.kallaxSize(Math.min(...it.grid)), PL.kallaxSize(Math.max(...it.grid))]].map(([v, l, a, b]) => `<button data-a="kxo" data-v="${v}" aria-pressed="${o === v}">${l} · ${fmt(a)} × ${fmt(b)}</button>`).join('')}</div>`}<p>${fmt(W)} cm de large × ${fmt(H)} cm de haut · dessus à <b>${fmt(H)} cm</b> · ${g[0] * g[1]} cases de 33,5 × 33,5 cm.</p><p class="hint2">Glissez une machine sur le Kallax : elle se pose sur le dessus. Pour la ranger dans une case, choisissez la case dans la fiche de la machine.</p>`; } }
     if (s.lib === 'pied') { const e = PL.earHeight(s), kid = K.children(s)[0]; h += `<h3>Hauteur d'oreille</h3><div class="field"><label>Oreille de l'auditeur à</label><div class="unit"><input data-c="ear" inputmode="decimal" value="${e}"><span>cm</span></div></div><div class="chips sm">${[[110, 'assis 110'], [115, '115'], [120, 'assis 120'], [125, '125'], [160, 'debout 160']].map(([v, l]) => `<button data-a="earq" data-v="${v}" aria-pressed="${e === v}">${l}</button>`).join('')}</div><p>Plateau du pied à <b>${fmt(PL.standTop(s))} cm</b>${kid ? ` : tweeter de ${esc((kid.name || '').replace(/ \(.*\)$/, ''))} à ${fmt(PL.standTop(s) + K.tweeter(kid))} cm` : ''}.</p><p class="hint2">Le plateau se règle pour mettre le tweeter de l'enceinte posée dessus à hauteur d'oreille. Pivotez le pied (avec l'enceinte) pour l'orienter vers la place d'écoute.</p>`; }
     if (s.lib === 'idasen') { const t = PL.deskTop(s); h += `<h3>Hauteur du plateau</h3><div class="field"><label>Plateau à</label><div class="unit"><input data-c="desktop" inputmode="decimal" value="${t}"><span>cm</span></div></div><div class="chips sm">${[63, 72, 75, 105, 110, 127].map((v) => `<button data-a="desktopq" data-v="${v}" aria-pressed="${t === v}">${v}</button>`).join('')}</div><p class="hint2">De 63 à 127 cm : assis vers 72 cm, debout vers 105 – 110 cm. Les machines posées montent avec le plateau dans la visite 3D.</p>`; }
     const kids = K.children(s); if (kids.length) h += `<h3>Machines posées</h3><div class="list">${kids.map((x) => { const q = K.deck(x); const F = K.fit(x); const bad = F && (F.over || F.tall); return `<button class="item" data-a="stsel" data-v="${x.id}"><span class="nm">${esc((x.name || '').replace(/ \(.*\)$/, ''))}</span><span class="meta">${q ? esc(q.name) : ''}${bad ? ' · <b style="color:var(--red)">à revoir</b>' : ''}</span></button>`; }).join('')}</div>`;

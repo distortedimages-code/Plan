@@ -32,8 +32,8 @@
     F('wc', 'WC', 'WC suspendu (cuvette 36 × 54)', 36, 54, { m: 'wcsusp' }), F('wccoffre', 'WC', 'WC suspendu + coffrage du bâti', 60, 74, { m: 'wccoffre' }),
     F('wcposer', 'WC', 'WC à poser (pack avec réservoir)', 37, 66, { m: 'wcposer' }), F('lavemains', 'WC', 'Lave-mains 40', 40, 25, { m: 'lavemains' }),
     // étagères (cotes IKEA)
-    F('kallax14', 'Étagères', 'Étagère 1 × 4 (type Kallax)', 42, 39, { m: 'kallax', H: 147, grid: [1, 4] }), F('kallax2', 'Étagères', 'Étagère 2 × 2 (type Kallax)', 77, 39, { m: 'kallax', H: 77, grid: [2, 2] }),
-    F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 77, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 147, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
+    F('kallax14', 'Étagères', 'Étagère 1 × 4 (type Kallax)', 41.5, 39, { m: 'kallax', H: 147, grid: [1, 4] }), F('kallax2', 'Étagères', 'Étagère 2 × 2 (type Kallax)', 76.5, 39, { m: 'kallax', H: 77, grid: [2, 2] }),
+    F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 76.5, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 146.5, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
     F('billy40', 'Étagères', 'Bibliothèque 40 (type Billy)', 40, 28, { m: 'billy', H: 202 }), F('billy', 'Étagères', 'Bibliothèque 80 (type Billy)', 80, 28, { m: 'billy', H: 202 }),
     F('ivar', 'Étagères', 'Étagère 89 × 30 (type Ivar)', 89, 30, { m: 'ivar', H: 179 }), F('ivar50', 'Étagères', 'Étagère 89 × 50 (type Ivar)', 89, 50, { m: 'ivar', H: 179 }),
     F('lack110', 'Étagères', 'Étagère murale 110 (type Lack)', 110, 26, { m: 'murale' }), F('lack30', 'Étagères', 'Étagère murale 30 (type Lack)', 30, 26, { m: 'murale' }),
@@ -59,6 +59,7 @@
     F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
     // ---- studio : supports (cotes fabricant) ----
     F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
+    F('kallax24h', 'Studio · mobilier', 'Kallax 2 × 4 (couché ou debout)', 146.5, 39, { short: 'Kallax 2 × 4', m: 'kallax', grid: [2, 4], orient: 'h', ref: '147 × 77 × 39 · cases 33,5 × 33,5' }),
     F('pied', 'Studio · mobilier', 'Pied d\'enceinte (tweeter à hauteur d\'oreille)', 30, 30, { short: 'Pied', m: 'pied', ref: 'plateau 20 × 23 · réglé sur l\'oreille assis' }),
     F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
     // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
@@ -164,7 +165,19 @@
     wcsusp: (w, d, M) => { M.outline = bowl(0, w, 0, d, 200); const ins = bowl(60, w - 60, 70, d - 40, 160); M.plan.push({ pts: ins }); M.solids.push({ pts: M.outline, z0: 180, z1: 400 }, { pts: M.outline, z0: 400, z1: 420 }); M.lines.push(...ring3(ins, 421)); M.solids.push({ pts: rect(w / 2 - 120, d - 10, w / 2 + 120, d), z0: 1000, z1: 1150 }); M.h = 420; },
     wcposer: (w, d, M) => { const tk = 180; const B = bowl(0, w, 0, d - tk, 150); M.outline = B.slice(0, B.length - 2).concat([[w, d - tk], [w - 10, d - tk], [w - 10, d], [10, d], [10, d - tk], [0, d - tk]]); const ins = bowl(60, w - 60, 70, d - tk - 30, 120); M.plan.push({ pts: rect(10, d - tk, w - 10, d) }, { pts: ins }); M.solids.push({ pts: bowl(w * 0.22, w * 0.78, 90, d - tk - 20, 100), z0: 0, z1: 300 }, { pts: B, z0: 300, z1: 400 }, { pts: B, z0: 400, z1: 420 }, { pts: rect(10, d - tk, w - 10, d), z0: 380, z1: 800 }); M.lines.push(...ring3(ins, 421)); M.h = 800; },
     wccoffre: (w, d, M) => { const cf = 200, bw = 360, u0 = (w - bw) / 2; M.outline = [[0, d - cf], [u0, d - cf]].concat(bowl(u0, u0 + bw, 0, d - cf, 200).slice(2, -2), [[u0 + bw, d - cf], [w, d - cf], [w, d], [0, d]]); const ins = bowl(u0 + 60, u0 + bw - 60, 70, d - cf - 40, 160); M.plan.push({ pts: [[0, d - cf], [w, d - cf]], open: true }, { pts: ins }); M.solids.push({ pts: rect(0, d - cf, w, d), z0: 0, z1: 1120 }, { pts: bowl(u0, u0 + bw, 0, d - cf, 200), z0: 180, z1: 420 }, { pts: rect(w / 2 - 120, d - cf - 10, w / 2 + 120, d - cf), z0: 860, z1: 1010 }); M.lines.push(...ring3(ins, 421)); M.h = 1120; },
-    kallax: (w, d, M, it) => shelf(w, d, M, (it.H || 147) * 10, it.grid || [2, 2], 38, 16, false),
+    // Kallax : flancs, dessus et dessous de 4 cm, cloisons et tablettes de 1,5 cm, cases égales (33,5 cm) ; dos ouvert.
+    // Debout ou couché (orient) ; le dessus et chaque case sont des étages où poser une machine
+    kallax: (w, d, M, it, sh) => {
+      const [nc, nr] = PL.kallaxGrid(it, sh), T = 40, t = 15, H = PL.kallaxSize(nr), cw = (w - 2 * T - (nc - 1) * t) / nc, ch = (H - 2 * T - (nr - 1) * t) / nr; M.h = H;
+      const U = (c) => T + c * (cw + t), Z = (r) => T + r * (ch + t);
+      M.solids.push({ pts: rect(0, 0, T, d), z0: 0, z1: H }, { pts: rect(w - T, 0, w, d), z0: 0, z1: H }, { pts: rect(T, 0, w - T, d), z0: 0, z1: T }, { pts: rect(T, 0, w - T, d), z0: H - T, z1: H });
+      for (let r = 1; r < nr; r++) M.solids.push({ pts: rect(T, 0, w - T, d), z0: Z(r) - t, z1: Z(r) });
+      for (let r = 0; r < nr; r++) for (let c = 1; c < nc; c++) M.solids.push({ pts: rect(U(c) - t, 0, U(c), d), z0: Z(r), z1: Z(r) + ch });
+      for (let c = 1; c < nc; c++) M.plan.push({ pts: [[U(c) - t / 2, 0], [U(c) - t / 2, d]], open: true, dash: true });
+      M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
+      M.decks = [{ pts: rect(0, 0, w, d), z: H, name: 'dessus', top: true, th: T }];
+      for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) M.decks.push({ pts: rect(U(c), 0, U(c) + cw, d), z: Z(r), name: `case ${r + 1}·${c + 1}`, r, th: r ? t : T });
+    },
     billy: (w, d, M, it) => shelf(w, d, M, (it.H || 202) * 10, [1, 6], 18, 18, true),
     ivar: (w, d, M, it) => shelf(w, d, M, (it.H || 179) * 10, [1, 5], 0, 20, false, true),
     murale: (w, d, M) => { M.dash = true; M.h = 1450; M.solids.push({ pts: rect(0, 0, w, d), z0: 1400, z1: 1450 }); },
@@ -366,6 +379,9 @@
   // pied d'enceinte : hauteur d'oreille de l'auditeur (cm) et hauteur du tweeter de l'enceinte posée (mm, KH 120 par défaut)
   PL.earHeight = (sh) => Math.max(80, Math.min(180, (sh && +sh.ear) || 120));
   PL.standTop = (sh) => Math.max(300, Math.min(1600, PL.earHeight(sh) * 10 - ((sh && +sh.tw) || 216)));
+  // Kallax : grille [colonnes, rangées] debout (it.grid), échangée quand il est couché ; 41,5 cm pour une case, + 35 cm par case
+  PL.kallaxGrid = (it, sh) => { const g = (it && it.grid) || [2, 2]; return ((sh && sh.orient) || (it && it.orient) || 'v') === 'h' ? [g[1], g[0]] : [g[0], g[1]]; };
+  PL.kallaxSize = (n) => 415 + (n - 1) * 350;
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
