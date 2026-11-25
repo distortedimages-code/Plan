@@ -565,13 +565,15 @@
     const w = it.w, d = it.d, sc = Math.min(120 / Math.max(w, 1), 38 / Math.max(d, 1)); const W = w * sc, D = d * sc, x = (130 - W) / 2, y = (42 - D) / 2;
     if (it.round) return `<svg viewBox="0 0 130 42"><ellipse cx="65" cy="21" rx="${W / 2}" ry="${D / 2}"/></svg>`;
     if (it.shape === 'L') { const t = (it.t || 60) * sc; return `<svg viewBox="0 0 130 42"><path d="M${x} ${y}h${W}v${t}h${-(W - t)}v${D - t}h${-t}z"/></svg>`; }
+    const M = PL.furnModel && PL.furnModel(it.id, w * 10, d * 10);
+    if (M) { const P = (pts, open) => 'M' + pts.map(([u, v]) => `${(x + (u / 10) * sc).toFixed(1)} ${(y + ((d * 10 - v) / 10) * sc).toFixed(1)}`).join('L') + (open ? '' : 'z'); return `<svg viewBox="0 0 130 42"><path d="${P(M.outline || [[0, 0], [w * 10, 0], [w * 10, d * 10], [0, d * 10]])}"${M.dash ? ' stroke-dasharray="3 2"' : ''}/>${M.plan.map((q) => `<path d="${P(q.pts, q.open)}" stroke-width="0.7"/>`).join('')}</svg>`; }
     return `<svg viewBox="0 0 130 42"><rect x="${x}" y="${y}" width="${W}" height="${D}"/>${/^lit/.test(it.id) ? `<path d="M${x} ${y + D * 0.12}h${W}"/>` : ''}</svg>`;
   }
   function panelMob() {
     const cats = {}; PL.lib.furniture.concat(PL.lib.structure).forEach((it) => { (cats[it.cat] = cats[it.cat] || []).push(it); });
     const placed = App.shapesOn().filter((s) => s.kind === 'meuble');
-    return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Dimensions indicatives, toutes modifiables.</p>
-      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3><div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d} cm</small></button>`).join('')}</div>`).join('')}
+    return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Dimensions indicatives, toutes modifiables : cotes des modèles IKEA courants (Godmorgon, Kallax, Billy, Ivar…) et du commerce pour les WC. « Dos au mur » le plaque contre le mur le plus proche ; « h » : hauteur du dessus.</p>
+      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3><div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + Math.round(M.h / 10) : ''; })()} cm</small></button>`).join('')}</div>`).join('')}
       ${placed.length ? `<h3>Posés sur cet étage</h3><div class="list">${placed.map((s) => `<button class="item" data-a="sel" data-v="${s.id}"><span class="nm">${esc(s.name)}</span>${s.locked ? '<span class="tag">verrouillé</span>' : ''}<span class="meta">${App.fmtCm(G.dist(s.pts[0], s.pts[1]), 0)} × ${App.fmtCm(G.dist(s.pts[1], s.pts[2]), 0)}</span></button>`).join('')}</div>` : ''}`;
   }
 

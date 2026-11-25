@@ -80,7 +80,10 @@
     const U = G.norm(G.sub(A, O)), Vv = G.norm(G.sub(C, O)), w1 = G.dist(A, O), w2 = G.dist(C, O), t1 = G.dist(Bp, A), t2 = G.dist(D, C);
     const at = (u, v) => G.add(G.add(O, G.mul(U, u)), G.mul(Vv, v)), R = (u0, u1, v0, v1) => [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
     const bk = Math.min(220, Math.min(t1, t2) * 0.25), ar = Math.min(170, Math.min(w1, w2) * 0.12);
-    return { seat: [at(bk, bk), at(w1 - ar, bk), at(w1 - ar, t1), at(t2, t1), at(t2, w2 - ar), at(bk, w2 - ar)], back: [R(0, w1, 0, bk), R(0, bk, bk, w2)], arms: [R(w1 - ar, w1, bk, t1), R(bk, t2, w2 - ar, w2)] };
+    // méridienne : la branche la plus courte se termine sans accoudoir (les deux en ont un si les branches sont égales)
+    const eq = Math.abs(w1 - w2) < 0.05 * Math.max(w1, w2), a1 = eq || w1 > w2 ? ar : 0, a2 = eq || w2 > w1 ? ar : 0;
+    const arms = []; if (a1) arms.push(R(w1 - a1, w1, bk, t1)); if (a2) arms.push(R(bk, t2, w2 - a2, w2));
+    return { seat: [at(bk, bk), at(w1 - a1, bk), at(w1 - a1, t1), at(t2, t1), at(t2, w2 - a2), at(bk, w2 - a2)], back: [R(0, w1, 0, bk), R(0, bk, bk, w2)], arms };
   };
   const legs = (B, f, y, s, ins, col) => { for (const [u, v] of [[ins, ins], [f.w - ins - s, ins], [f.w - ins - s, f.d - ins - s], [ins, f.d - ins - s]]) prism(B, sub(f, u, u + s, v, v + s), 0, y, col); };
   const furniture = (B, s, Hc, col) => {
@@ -92,6 +95,8 @@
     if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
+    const M = PL.furnModel && PL.furnModel(id, w, d); // meubles modélisés (bibliothèque)
+    if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
     if (id === 'tableronde') { prism(B, ellipse(f), 720, 750, col, true); prism(B, sub(f, w / 2 - 45, w / 2 + 45, d / 2 - 45, d / 2 + 45), 0, 720, col); return; }

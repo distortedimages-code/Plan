@@ -8,7 +8,6 @@
     F('pax50', 'Rangement', 'Armoire 50 (type Pax)', 50, 58), F('pax100', 'Rangement', 'Armoire 100 (type Pax)', 100, 58), F('pax150', 'Rangement', 'Armoire 150 (type Pax)', 150, 58),
     F('pax200', 'Rangement', 'Dressing 200 (type Pax)', 200, 58), F('dressingL', 'Rangement', 'Dressing d\'angle', 150, 150, { shape: 'L', t: 58 }),
     F('commode3', 'Rangement', 'Commode 3 tiroirs (type Malm)', 80, 48), F('commode6', 'Rangement', 'Commode 6 tiroirs (type Malm)', 160, 48), F('hemnes8', 'Rangement', 'Commode 8 tiroirs (type Hemnes)', 160, 50),
-    F('kallax2', 'Rangement', 'Étagère 2 × 2 (type Kallax)', 77, 39), F('kallax4', 'Rangement', 'Étagère 4 × 4 (type Kallax)', 147, 39), F('billy', 'Rangement', 'Bibliothèque (type Billy)', 80, 28),
     F('besta', 'Rangement', 'Meuble TV (type Bestå)', 180, 42),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('chaise', 'Tables', 'Chaise', 45, 52),
@@ -17,8 +16,26 @@
     F('piano', 'Salon', 'Piano droit', 150, 60), F('pianon', 'Salon', 'Piano numérique', 140, 40),
     F('meublebas', 'Cuisine', 'Meuble bas 60', 60, 60), F('colonne', 'Cuisine', 'Colonne 60', 60, 60), F('frigo', 'Cuisine', 'Réfrigérateur', 60, 65), F('lv', 'Cuisine', 'Lave-vaisselle', 60, 60),
     F('ilot', 'Cuisine', 'Îlot 180 × 90', 180, 90, { noParquet: true }),
+    // meubles vasque suspendus (cotes type Godmorgon : caisson 47 cm de profondeur, plan vasque 49 cm, dessus à 86 cm)
+    F('vasque60', 'Meubles vasque', 'Meuble vasque 60 (type Godmorgon)', 63, 49, { m: 'vasque' }), F('vasque', 'Meubles vasque', 'Meuble vasque 80 (type Godmorgon)', 83, 49, { m: 'vasque' }),
+    F('vasque100', 'Meubles vasque', 'Meuble vasque 100 (type Godmorgon)', 103, 49, { m: 'vasque' }), F('vasque120', 'Meubles vasque', 'Meuble vasque 120 (type Godmorgon)', 123, 49, { m: 'vasque' }),
+    F('vasque120d', 'Meubles vasque', 'Meuble double vasque 120 (type Godmorgon)', 123, 49, { m: 'vasque2' }), F('vasque140d', 'Meubles vasque', 'Meuble double vasque 140 (type Godmorgon)', 143, 49, { m: 'vasque2' }),
+    F('vasqueG100', 'Meubles vasque', 'Vasque à gauche 100 (type Tolken)', 102, 49, { m: 'vasqueG' }), F('vasqueD100', 'Meubles vasque', 'Vasque à droite 100 (type Tolken)', 102, 49, { m: 'vasqueD' }),
+    F('vasqueG120', 'Meubles vasque', 'Vasque à gauche 120', 122, 49, { m: 'vasqueG' }), F('vasqueD120', 'Meubles vasque', 'Vasque à droite 120', 122, 49, { m: 'vasqueD' }),
+    F('miroir60', 'Meubles vasque', 'Armoire de toilette 60 (type Godmorgon)', 60, 14, { m: 'miroir' }), F('miroir80', 'Meubles vasque', 'Armoire de toilette 80 (type Godmorgon)', 80, 14, { m: 'miroir' }),
+    F('colonnesdb', 'Meubles vasque', 'Colonne 40 (type Godmorgon)', 40, 32, { m: 'colonnesdb' }),
     F('baignoire', 'Salle de bain', 'Baignoire 170 × 70', 170, 70, { noParquet: true }), F('douche90', 'Salle de bain', 'Douche 90 × 90', 90, 90, { noParquet: true }), F('douche120', 'Salle de bain', 'Douche 120 × 90', 120, 90, { noParquet: true }),
-    F('vasque', 'Salle de bain', 'Meuble vasque 80', 80, 46), F('wc', 'Salle de bain', 'WC suspendu', 37, 55), F('lavelinge', 'Salle de bain', 'Lave-linge', 60, 60),
+    F('lavelinge', 'Salle de bain', 'Lave-linge', 60, 60), F('sechelinge', 'Salle de bain', 'Sèche-linge', 60, 60), F('colonnelavage', 'Salle de bain', 'Lave-linge + sèche-linge superposés', 60, 60, { m: 'colonnelavage' }),
+    F('secheserv', 'Salle de bain', 'Sèche-serviettes 50', 50, 10, { m: 'secheserv' }),
+    // WC (cotes courantes du commerce)
+    F('wc', 'WC', 'WC suspendu (cuvette 36 × 54)', 36, 54, { m: 'wcsusp' }), F('wccoffre', 'WC', 'WC suspendu + coffrage du bâti', 60, 74, { m: 'wccoffre' }),
+    F('wcposer', 'WC', 'WC à poser (pack avec réservoir)', 37, 66, { m: 'wcposer' }), F('lavemains', 'WC', 'Lave-mains 40', 40, 25, { m: 'lavemains' }),
+    // étagères (cotes IKEA)
+    F('kallax14', 'Étagères', 'Étagère 1 × 4 (type Kallax)', 42, 39, { m: 'kallax', H: 147, grid: [1, 4] }), F('kallax2', 'Étagères', 'Étagère 2 × 2 (type Kallax)', 77, 39, { m: 'kallax', H: 77, grid: [2, 2] }),
+    F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 77, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 147, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
+    F('billy40', 'Étagères', 'Bibliothèque 40 (type Billy)', 40, 28, { m: 'billy', H: 202 }), F('billy', 'Étagères', 'Bibliothèque 80 (type Billy)', 80, 28, { m: 'billy', H: 202 }),
+    F('ivar', 'Étagères', 'Étagère 89 × 30 (type Ivar)', 89, 30, { m: 'ivar', H: 179 }), F('ivar50', 'Étagères', 'Étagère 89 × 50 (type Ivar)', 89, 50, { m: 'ivar', H: 179 }),
+    F('lack110', 'Étagères', 'Étagère murale 110 (type Lack)', 110, 26, { m: 'murale' }), F('lack30', 'Étagères', 'Étagère murale 30 (type Lack)', 30, 26, { m: 'murale' }),
   ];
   const structure = [
     F('poteau20', 'Structure', 'Poteau 20 × 20', 20, 20, { kind: 'poteau' }), F('poteau30', 'Structure', 'Poteau 30 × 30', 30, 30, { kind: 'poteau' }),
@@ -47,5 +64,59 @@
     { id: 'alsa-allurechic-909', brand: 'Alsafloor', name: 'Alsafloor Allure Chic · Chêne Tanger 909', short: 'Chêne Tanger · Allure Chic 172 mm', L: 1286, W: 172, T: 10, perBox: 7, m2Box: 1.548, lay: 'flottante', note: 'Stratifié 10 mm, lame étroite, AC6, 4 chanfreins, clic 5G', url: TANGER },
     { id: 'alsa-solidplus-909', brand: 'Alsafloor', name: 'Alsafloor Solid Plus · Chêne Tanger 909', short: 'Chêne Tanger · Solid Plus 12 mm', L: 1286, W: 214, T: 12, perBox: 6, m2Box: 1.65, lay: 'flottante', note: 'Stratifié 12 mm, AC6, 4 chanfreins, clic 5G', url: TANGER },
   ];
+  /* ---------- meubles modélisés : symbole en plan et volumes 3D, dans le repère du meuble ----------
+     mm ; u le long de la façade (0 → w), v de l'avant (0) vers le mur (d) ; z depuis le sol.
+     Renvoie { outline (contour en plan si ce n'est pas le rectangle), plan: [{ pts, dash }], solids: [{ pts, z0, z1, round }], lines: [[[u,v,z],[u,v,z]]], dash (meuble en hauteur : contour en tirets), h } */
+  const ell = (cu, cv, ru, rv, n = 28, a0 = 0, a1 = Math.PI * 2) => { const o = []; for (let k = 0; k < n; k++) { const a = a0 + ((a1 - a0) * k) / (a1 === Math.PI * 2 ? n : n - 1); o.push([cu + Math.cos(a) * ru, cv + Math.sin(a) * rv]); } return o; };
+  const rect = (u0, v0, u1, v1) => [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+  const ring3 = (pts, z) => pts.map((p, k) => [[p[0], p[1], z], [pts[(k + 1) % pts.length][0], pts[(k + 1) % pts.length][1], z]]);
+  // cuvette : arrière droit, avant arrondi (forme en D)
+  const bowl = (u0, u1, v0, v1, back) => { const ru = (u1 - u0) / 2, cu = (u0 + u1) / 2, vb = v1 - back; return [[u0, v1], [u0, vb]].concat(ell(cu, vb, ru, vb - v0, 18, Math.PI, Math.PI * 2).slice(1, -1)).concat([[u1, vb], [u1, v1]]); };
+  const tap = (cu, v, zt, M) => { M.solids.push({ pts: rect(cu - 15, v - 15, cu + 15, v + 15), z0: zt, z1: zt + 160 }, { pts: rect(cu - 12, v - 130, cu + 12, v), z0: zt + 130, z1: zt + 160 }); M.plan.push({ pts: ell(cu, v, 22, 22, 12) }); };
+  const MODELS = {
+    vasque: (w, d, M) => vanity(w, d, M, [w / 2], false),
+    vasque2: (w, d, M) => vanity(w, d, M, [w / 4, (3 * w) / 4], false),
+    vasqueG: (w, d, M) => vanity(w, d, M, [Math.min(w / 2, 280)], true),
+    vasqueD: (w, d, M) => vanity(w, d, M, [Math.max(w / 2, w - 280)], true),
+    miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
+    colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
+    colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
+    secheserv: (w, d, M) => { M.h = 1400; M.dash = false; for (const u of [0, w - 30]) M.solids.push({ pts: rect(u, 0, u + 30, d), z0: 200, z1: 1400 }); for (let z = 260; z < 1400; z += 120) M.solids.push({ pts: rect(30, d * 0.3, w - 30, d * 0.7), z0: z, z1: z + 22 }); },
+    lavemains: (w, d, M) => { M.h = 900; M.solids.push({ pts: rect(0, 0, w, d), z0: 760, z1: 860 }); const b = ell(w / 2, d * 0.42, w * 0.34, d * 0.3); M.plan.push({ pts: b }); M.lines.push(...ring3(b, 862)); tap(w / 2, d - 40, 860, M); },
+    wcsusp: (w, d, M) => { M.outline = bowl(0, w, 0, d, 200); const ins = bowl(60, w - 60, 70, d - 40, 160); M.plan.push({ pts: ins }); M.solids.push({ pts: M.outline, z0: 180, z1: 400 }, { pts: M.outline, z0: 400, z1: 420 }); M.lines.push(...ring3(ins, 421)); M.solids.push({ pts: rect(w / 2 - 120, d - 10, w / 2 + 120, d), z0: 1000, z1: 1150 }); M.h = 420; },
+    wcposer: (w, d, M) => { const tk = 180; const B = bowl(0, w, 0, d - tk, 150); M.outline = B.slice(0, B.length - 2).concat([[w, d - tk], [w - 10, d - tk], [w - 10, d], [10, d], [10, d - tk], [0, d - tk]]); const ins = bowl(60, w - 60, 70, d - tk - 30, 120); M.plan.push({ pts: rect(10, d - tk, w - 10, d) }, { pts: ins }); M.solids.push({ pts: bowl(w * 0.22, w * 0.78, 90, d - tk - 20, 100), z0: 0, z1: 300 }, { pts: B, z0: 300, z1: 400 }, { pts: B, z0: 400, z1: 420 }, { pts: rect(10, d - tk, w - 10, d), z0: 380, z1: 800 }); M.lines.push(...ring3(ins, 421)); M.h = 800; },
+    wccoffre: (w, d, M) => { const cf = 200, bw = 360, u0 = (w - bw) / 2; M.outline = [[0, d - cf], [u0, d - cf]].concat(bowl(u0, u0 + bw, 0, d - cf, 200).slice(2, -2), [[u0 + bw, d - cf], [w, d - cf], [w, d], [0, d]]); const ins = bowl(u0 + 60, u0 + bw - 60, 70, d - cf - 40, 160); M.plan.push({ pts: [[0, d - cf], [w, d - cf]], open: true }, { pts: ins }); M.solids.push({ pts: rect(0, d - cf, w, d), z0: 0, z1: 1120 }, { pts: bowl(u0, u0 + bw, 0, d - cf, 200), z0: 180, z1: 420 }, { pts: rect(w / 2 - 120, d - cf - 10, w / 2 + 120, d - cf), z0: 860, z1: 1010 }); M.lines.push(...ring3(ins, 421)); M.h = 1120; },
+    kallax: (w, d, M, it) => shelf(w, d, M, (it.H || 147) * 10, it.grid || [2, 2], 38, 16, false),
+    billy: (w, d, M, it) => shelf(w, d, M, (it.H || 202) * 10, [1, 6], 18, 18, true),
+    ivar: (w, d, M, it) => shelf(w, d, M, (it.H || 179) * 10, [1, 5], 0, 20, false, true),
+    murale: (w, d, M) => { M.dash = true; M.h = 1450; M.solids.push({ pts: rect(0, 0, w, d), z0: 1400, z1: 1450 }); },
+  };
+  // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
+  function vanity(w, d, M, centers, vessel) {
+    const z0 = 220, zc = 800, zt = vessel ? 820 : 860; M.h = zt;
+    M.solids.push({ pts: rect(15, d - 470, w - 15, d), z0, z1: zc }, { pts: rect(0, 0, w, d), z0: zc, z1: zt });
+    M.lines.push([[15, d - 470, (z0 + zc) / 2], [w - 15, d - 470, (z0 + zc) / 2]]);
+    const n = centers.length;
+    for (const cu of centers) {
+      if (vessel) { const r = Math.min(220, d * 0.44); const b = ell(cu, d * 0.48, r, r, 24); M.plan.push({ pts: b }, { pts: ell(cu, d * 0.48, r - 30, r - 30, 24) }); M.solids.push({ pts: b, z0: zt, z1: zt + 140, round: true }); tap(cu, d - 30, zt, M); continue; }
+      const ru = Math.min(n > 1 ? w * 0.17 : w * 0.32, 230), rv = Math.min(d * 0.3, 160); const b = ell(cu, d * 0.44, ru, rv); M.plan.push({ pts: b }); M.lines.push(...ring3(b, zt + 1)); tap(cu, d - 45, zt, M);
+    }
+  }
+  // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
+  function shelf(w, d, M, H, grid, t, tin, back, posts) {
+    const [cols, rows] = grid; M.h = H; const T = t || tin;
+    if (posts) for (const [u, v] of [[0, 0], [w - 34, 0], [0, d - 34], [w - 34, d - 34]]) { M.solids.push({ pts: rect(u, v, u + 34, v + 34), z0: 0, z1: H }); M.plan.push({ pts: rect(u, v, u + 34, v + 34) }); }
+    else for (const u of [0, w - T]) M.solids.push({ pts: rect(u, 0, u + T, d), z0: 0, z1: H });
+    for (let k = 1; k < cols; k++) { const u = T + ((w - 2 * T) * k) / cols - tin / 2; M.solids.push({ pts: rect(u, 0, u + tin, d), z0: T, z1: H - T }); M.plan.push({ pts: [[u + tin / 2, 0], [u + tin / 2, d]], open: true }); }
+    const z0 = posts ? 120 : 0;
+    for (let k = 0; k <= rows; k++) { const top = k === rows, bot = k === 0; const th = top || bot ? T : tin; const z = z0 + ((H - z0 - th) * k) / rows; M.solids.push({ pts: rect(posts ? 0 : T, 0, posts ? w : w - T, d), z0: z, z1: z + th }); }
+    if (back) M.solids.push({ pts: rect(T, d - 6, w - T, d), z0: 0, z1: H });
+    if (!posts) M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
+  }
+  PL.furnModel = (id, w, d) => {
+    const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
+    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, h: 0 }; MODELS[it.m](w, d, M, it); return M;
+  };
+
   PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets };
 })();
