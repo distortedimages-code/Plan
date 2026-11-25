@@ -100,6 +100,7 @@
       <div class="field"><label>Longueur ${App.walls.name(room, i)}</label><div class="unit"><input data-xc="wlen" inputmode="decimal" value="${fmt(W.el / 10)}" ${locked ? '' : ''}><span>cm</span></div></div>
       <div class="seg"><button data-x="wend" data-v="A" aria-pressed="${end === 'A'}">Allonger côté ${L(i)}</button><button data-x="wend" data-v="B" aria-pressed="${end === 'B'}">Allonger côté ${L((i + 1) % n)}</button></div>
       <p class="hint2">Le mur voisin de ce côté se déplace parallèlement ; les autres ne bougent pas.</p>
+      ${parts.length && th != null ? `<h3>Épaisseur</h3><div class="field"><label>Épaisseur de la cloison</label><div class="unit"><input data-xc="wthick" inputmode="decimal" value="${fmt(th / 10)}"><span>cm</span></div></div><p class="hint2">Seul le côté ${esc(room.name || 'de cette pièce')} bouge ; ${esc(others[0] ? others[0].name || 'la pièce voisine' : 'la pièce voisine')} ne change pas. Sur le plan : bouton « Épaisseur », puis glissez la poignée ↔.</p>` : ''}
       <h3>Déplacer la cloison</h3>
       <div class="field"><label>Décaler de</label><div class="unit"><input data-xc="wmove" inputmode="decimal" placeholder="0"><span>cm</span></div></div>
       <div class="seg"><button data-x="wdir" data-v="out" aria-pressed="${S.wallDir !== 'in'}">Agrandir ${esc(room.name || 'la pièce')}</button><button data-x="wdir" data-v="in" aria-pressed="${S.wallDir === 'in'}">${others.length ? 'Agrandir ' + esc(others[0].name || 'la voisine') : 'Réduire la pièce'}</button></div>
@@ -119,6 +120,7 @@
     else if (S.skPlan && S.skPlan.kind === 'step') { const p = S.skPlan; h = `<span class="ob-v">${p.mode === 'cloison' ? 'Cloison décalée' : 'Décrochement'}</span><label class="ob-len">prof.<input data-obx="skdepth" type="number" inputmode="decimal" step="0.5" min="1" value="${+(p.depth / 10).toFixed(1)}">cm</label><label class="ob-len">long.<input data-obx="skslen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
     else if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
     else if (S.simpFocus && App.walls.spots().some((x) => x.key === S.simpFocus)) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); h = `<span class="ob-v">Décrochement</span><span class="ob-n">${App.esc(x.name)} · ${App.fmtCm(x.depth, 0)} cm${x.width > 1 ? ' × ' + App.fmtCm(x.width, 0) + ' cm' : ''}</span><button data-ob="simpx">Fermer</button><button data-ob="simpign" data-v="${App.esc(x.key)}">Ignorer</button><button data-ob="simpok" data-v="${App.esc(x.key)}" class="ok">Simplifier</button>`; }
+    else if (P && P.solo && P.t0 != null) h = `<span class="ob-v">ép. ${App.fmtCm(P.t0, 0)} → ${App.fmtCm(P.t0 + P.delta, 0)} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
@@ -137,9 +139,12 @@
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
+    } else if (S.sel && S.sel.wall != null && App.selected() && S.wallSolo && !P) {
+      const r = App.selected(), th = App.walls.thickness(r, S.sel.wall);
+      h = `<span class="ob-v">Épaisseur</span><label class="ob-len">ép.<input data-obx="wthick" type="number" inputmode="decimal" step="0.5" min="1" value="${th != null ? +(th / 10).toFixed(1) : ''}">cm</label><span class="ob-n">ou glissez ↔ : ce côté seul</span><button data-ob="wsolo" class="ok">Terminé</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
-      const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
-      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
+      const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall); const hasT = !lk && App.walls.thickness(r, S.sel.wall) != null;
+      h = `${hasT ? '<button data-ob="wsolo">Épaisseur</button>' : ''}<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
     }
     bar.innerHTML = h; bar.hidden = !h; X.placeOpbar();
   };
@@ -230,6 +235,7 @@
       case 'tour': { const r = App.selected(); if (r && App.fps) App.fps.open({ floor: r.floor, room: r.id }); break; }
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
+      case 'wsolo': { S.wallSolo = !S.wallSolo; App.toast(S.wallSolo ? 'Épaisseur : la poignée ↔ ne déplace plus que ce côté de la cloison' : 'Poignée ↔ : toute la cloison se déplace'); App.ui.refresh(); break; }
       case 'vdel': { const r = App.selected(); if (r && S.sel.vtx != null && App.ui.deletePoint(r, S.sel.vtxs || [S.sel.vtx])) { S.sel = { id: r.id }; App.ui.onSelect(true); } break; }
       case 'vx': { if (S.sel) S.sel = { id: S.sel.id }; App.ui.onSelect(true); break; }
       case 'skok': App.sketch.validate(); break;
@@ -262,6 +268,7 @@
       const b = App.walls.begin(r, plan.j, `longueur ${App.walls.name(r, i)} → ${fmt(v)} cm`); if (b.err) { App.toast(b.err + (end === 'B' ? ' — essayez l\'autre côté' : '')); App.ui.refresh(true); return; }
       App.walls.apply(plan.delta); App.ui.refresh(true); App.render(); return;
     }
+    if (c === 'wthick') { if (!v) return; const q = App.walls.setThickness(r, i, v * 10); if (q.err) App.toast(q.err); App.ui.refresh(true); App.render(); return; }
     if (c === 'wmove') {
       if (!v) return; const b = App.walls.begin(r, i); if (b.err) { App.toast(b.err); App.ui.refresh(true); return; }
       App.walls.apply((S.wallDir === 'in' ? 1 : -1) * v * 10); App.ui.refresh(true); App.render();
@@ -272,7 +279,7 @@
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
     $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
-    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } if (t.dataset.obx === 'skdepth' || t.dataset.obx === 'skslen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) t.dataset.obx === 'skdepth' ? App.sketch.setStep(v, null) : App.sketch.setStep(null, v); } });
+    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } if (t.dataset.obx === 'wthick') { const v = parseFloat(String(t.value).replace(',', '.')); const r = App.selected(); if (v > 0 && r && S.sel && S.sel.wall != null) { const q = App.walls.setThickness(r, S.sel.wall, v * 10); if (q.err) App.toast(q.err); App.ui.refresh(); App.render(); } } if (t.dataset.obx === 'skdepth' || t.dataset.obx === 'skslen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) t.dataset.obx === 'skdepth' ? App.sketch.setStep(v, null) : App.sketch.setStep(null, v); } });
     $('opbar').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.obx) e.target.blur(); });
   };
 })();

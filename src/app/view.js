@@ -182,9 +182,10 @@
   function drawWallSel(r, i) {
     if (i >= r.pts.length) return; const W = App.ops.wall(r, i); const parts = App.walls.partners(r, i); const locked = App.walls.isLocked(r, i);
     ctx.lineCap = 'round';
-    for (const p of parts) { const V = App.ops.wall(p.room, p.j); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; segLine(V.a, V.b); }
+    const solo = !!S.wallSolo || !!(S.pending && S.pending.solo); // épaisseur : seule cette face bouge, l'autre reste en gris
+    for (const p of parts) { const V = App.ops.wall(p.room, p.j); ctx.strokeStyle = solo ? C.ink3 : C.red; ctx.lineWidth = 2.5; if (solo) ctx.setLineDash([4, 4]); segLine(V.a, V.b); ctx.setLineDash([]); }
     // bande de la cloison
-    if (parts.length) { const th = Math.min(...parts.map((p) => p.off)); const q = [W.a, W.b, G.add(W.b, G.mul(W.nin, -th)), G.add(W.a, G.mul(W.nin, -th))]; path(q); ctx.fillStyle = C.red; ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1; }
+    if (parts.length) { const th = Math.min(...parts.map((p) => p.off)); const q = [W.a, W.b, G.add(W.b, G.mul(W.nin, -th)), G.add(W.a, G.mul(W.nin, -th))]; path(q); ctx.fillStyle = C.red; ctx.globalAlpha = solo ? 0.28 : 0.16; ctx.fill(); ctx.globalAlpha = 1; if (solo) { const c = App.w2s(G.add(G.lerp(W.a, W.b, 0.62), G.mul(W.nin, -th / 2))); pill('ép. ' + App.fmtCm(th, 0) + ' cm', c.x, c.y, true); } }
     ctx.strokeStyle = C.red; ctx.lineWidth = 4.5; segLine(W.a, W.b); ctx.lineCap = 'butt';
     const s0 = App.w2s(W.a), s1 = App.w2s(W.b), m = G.lerp(s0, s1, 0.5); const ns = G.norm({ x: W.nin.x, y: -W.nin.y });
     // cote du mur

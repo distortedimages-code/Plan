@@ -155,16 +155,18 @@
     }
   };
 
-  Wm.begin = (room, i, info) => {
+  /* solo : seule cette face bouge (la cloison s'épaissit ou s'amincit), la pièce d'en face ne change pas */
+  Wm.begin = (room, i, info, solo) => {
     Wm.cancel(true);
     if (room.locked) return { err: `${room.name || 'La pièce'} est verrouillée` };
     if (Wm.isLocked(room, i)) return { err: 'Cloison verrouillée : déverrouillez-la pour la déplacer' };
-    const parts = Wm.partners(room, i);
+    const t0 = Wm.thickness(room, i);
+    const parts = solo ? [] : Wm.partners(room, i);
     const bad = parts.find((p) => p.room.locked || Wm.isLocked(p.room, p.j));
     if (bad) return { err: `Cloison verrouillée côté ${bad.room.name || 'voisin'}` };
     const snap = App.snapshot(); App.begin();
     const orig = {}; App.shapesOn(room.floor).filter((r) => r.kind === 'piece').forEach((r) => { orig[r.id] = { pts: G.clone(r.pts), openings: JSON.parse(JSON.stringify(r.openings || [])) }; });
-    S.pending = { id: room.id, i, moving: [{ id: room.id, i, sg: 1 }].concat(parts.map((p) => ({ id: p.room.id, i: p.j, sg: -1 }))), orig, snap, delta: 0, affected: [], valid: true, info: info || null };
+    S.pending = { id: room.id, i, moving: [{ id: room.id, i, sg: 1 }].concat(parts.map((p) => ({ id: p.room.id, i: p.j, sg: -1 }))), orig, snap, delta: 0, affected: [], valid: true, info: info || null, solo: !!solo, t0 };
     return { ok: true };
   };
   Wm.apply = (delta) => {
@@ -207,9 +209,16 @@
     }
     for (const id in P.orig) { const r = App.byId(id); if (!r) continue; P.affected.filter((a) => a.id === id && a.locked).forEach((a) => { r.locks[a.i].L = false; }); r.locks = PL.solver.syncLocks(r.pts, r.locks); }
     const n = P.affected.length; S.pending = null; App.end(true);
-    App.toast(`Cloison déplacée de ${App.fmtCm(Math.abs(P.delta))} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}`);
+    App.toast(P.solo && P.t0 != null ? `Cloison ${P.delta > 0 ? 'épaissie' : 'amincie'} : ${App.fmtCm(P.t0, 0)} → ${App.fmtCm(P.t0 + P.delta, 0)} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}` : `Cloison déplacée de ${App.fmtCm(Math.abs(P.delta))} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}`);
   };
 
+  /* épaisseur voulue : on avance cette face seule (aperçu, puis Valider) */
+  Wm.setThickness = (room, i, t) => {
+    const t0 = Wm.thickness(room, i); if (t0 == null) return { err: 'Pas de pièce de l\'autre côté : épaisseur inconnue' };
+    if (!(t >= 10)) return { err: 'Épaisseur trop faible' };
+    const b = Wm.begin(room, i, `épaisseur ${App.fmtCm(t0, 0)} → ${App.fmtCm(t, 0)} cm`, true); if (b.err) return b;
+    Wm.apply(t - t0); return { ok: true };
+  };
   /* longueur d'un mur : on déplace le mur voisin choisi, parallèlement */
   Wm.lengthPlan = (room, i, end, newL) => {
     const n = room.pts.length, W = App.ops.wall(room, i), j = end === 'B' ? (i + 1) % n : (i - 1 + n) % n, V = App.ops.wall(room, j);

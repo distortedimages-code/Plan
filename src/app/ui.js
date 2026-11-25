@@ -264,8 +264,9 @@
 
   /* ---------- sélection ---------- */
   let lastSel = null;
+  let lastWall = null;
   ui.onSelect = (again) => {
-    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
+    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const wk = S.sel && S.sel.wall != null ? sid + ':' + S.sel.wall : null; if (wk !== lastWall) { S.wallSolo = false; lastWall = wk; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
     if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {

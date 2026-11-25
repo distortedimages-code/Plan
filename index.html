@@ -2622,9 +2622,10 @@ details[open] summary::after{content:"–"}
   function drawWallSel(r, i) {
     if (i >= r.pts.length) return; const W = App.ops.wall(r, i); const parts = App.walls.partners(r, i); const locked = App.walls.isLocked(r, i);
     ctx.lineCap = 'round';
-    for (const p of parts) { const V = App.ops.wall(p.room, p.j); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; segLine(V.a, V.b); }
+    const solo = !!S.wallSolo || !!(S.pending && S.pending.solo); // épaisseur : seule cette face bouge, l'autre reste en gris
+    for (const p of parts) { const V = App.ops.wall(p.room, p.j); ctx.strokeStyle = solo ? C.ink3 : C.red; ctx.lineWidth = 2.5; if (solo) ctx.setLineDash([4, 4]); segLine(V.a, V.b); ctx.setLineDash([]); }
     // bande de la cloison
-    if (parts.length) { const th = Math.min(...parts.map((p) => p.off)); const q = [W.a, W.b, G.add(W.b, G.mul(W.nin, -th)), G.add(W.a, G.mul(W.nin, -th))]; path(q); ctx.fillStyle = C.red; ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1; }
+    if (parts.length) { const th = Math.min(...parts.map((p) => p.off)); const q = [W.a, W.b, G.add(W.b, G.mul(W.nin, -th)), G.add(W.a, G.mul(W.nin, -th))]; path(q); ctx.fillStyle = C.red; ctx.globalAlpha = solo ? 0.28 : 0.16; ctx.fill(); ctx.globalAlpha = 1; if (solo) { const c = App.w2s(G.add(G.lerp(W.a, W.b, 0.62), G.mul(W.nin, -th / 2))); pill('ép. ' + App.fmtCm(th, 0) + ' cm', c.x, c.y, true); } }
     ctx.strokeStyle = C.red; ctx.lineWidth = 4.5; segLine(W.a, W.b); ctx.lineCap = 'butt';
     const s0 = App.w2s(W.a), s1 = App.w2s(W.b), m = G.lerp(s0, s1, 0.5); const ns = G.norm({ x: W.nin.x, y: -W.nin.y });
     // cote du mur
@@ -3303,7 +3304,7 @@ details[open] summary::after{content:"–"}
     }
     if (act.kind === 'wmove') {
       if (!act.moved) return;
-      if (!S.pending) { const r = App.byId(act.h.id); const res = App.walls.begin(r, act.h.i); if (res.err) { App.toast(res.err); act = null; return; } }
+      if (!S.pending) { const r = App.byId(act.h.id); const res = App.walls.begin(r, act.h.i, null, !!S.wallSolo); if (res.err) { App.toast(res.err); act = null; return; } }
       let delta = act.base + G.dot(G.sub(App.s2w(p), act.w0), act.W.nin); delta = Math.round(delta / 5) * 5;
       App.walls.apply(delta); App.ctx.renderOpbar(); App.render(); return;
     }
@@ -3717,8 +3718,9 @@ details[open] summary::after{content:"–"}
 
   /* ---------- sélection ---------- */
   let lastSel = null;
+  let lastWall = null;
   ui.onSelect = (again) => {
-    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
+    const s = App.selected(); const sid = S.sel ? S.sel.id : null; if (sid !== lastSel) { S.editPts = false; if (S.resizeRoom !== sid) S.resizeRoom = null; lastSel = sid; } const wk = S.sel && S.sel.wall != null ? sid + ':' + S.sel.wall : null; if (wk !== lastWall) { S.wallSolo = false; lastWall = wk; } const ctxSel = S.sel && (S.sel.oid || S.sel.wall != null);
     const onPlan = s && ['meuble', 'poteau', 'forme'].includes(s.kind) && !ctxSel; // la barre flottante suffit : le plan reste dégagé
     if (s && !onPlan && innerWidth < 900 && $('sheet').dataset.h === 'min') ui.sheet('half');
     if (ctxSel) {
@@ -5049,16 +5051,18 @@ details[open] summary::after{content:"–"}
     }
   };
 
-  Wm.begin = (room, i, info) => {
+  /* solo : seule cette face bouge (la cloison s'épaissit ou s'amincit), la pièce d'en face ne change pas */
+  Wm.begin = (room, i, info, solo) => {
     Wm.cancel(true);
     if (room.locked) return { err: `${room.name || 'La pièce'} est verrouillée` };
     if (Wm.isLocked(room, i)) return { err: 'Cloison verrouillée : déverrouillez-la pour la déplacer' };
-    const parts = Wm.partners(room, i);
+    const t0 = Wm.thickness(room, i);
+    const parts = solo ? [] : Wm.partners(room, i);
     const bad = parts.find((p) => p.room.locked || Wm.isLocked(p.room, p.j));
     if (bad) return { err: `Cloison verrouillée côté ${bad.room.name || 'voisin'}` };
     const snap = App.snapshot(); App.begin();
     const orig = {}; App.shapesOn(room.floor).filter((r) => r.kind === 'piece').forEach((r) => { orig[r.id] = { pts: G.clone(r.pts), openings: JSON.parse(JSON.stringify(r.openings || [])) }; });
-    S.pending = { id: room.id, i, moving: [{ id: room.id, i, sg: 1 }].concat(parts.map((p) => ({ id: p.room.id, i: p.j, sg: -1 }))), orig, snap, delta: 0, affected: [], valid: true, info: info || null };
+    S.pending = { id: room.id, i, moving: [{ id: room.id, i, sg: 1 }].concat(parts.map((p) => ({ id: p.room.id, i: p.j, sg: -1 }))), orig, snap, delta: 0, affected: [], valid: true, info: info || null, solo: !!solo, t0 };
     return { ok: true };
   };
   Wm.apply = (delta) => {
@@ -5101,9 +5105,16 @@ details[open] summary::after{content:"–"}
     }
     for (const id in P.orig) { const r = App.byId(id); if (!r) continue; P.affected.filter((a) => a.id === id && a.locked).forEach((a) => { r.locks[a.i].L = false; }); r.locks = PL.solver.syncLocks(r.pts, r.locks); }
     const n = P.affected.length; S.pending = null; App.end(true);
-    App.toast(`Cloison déplacée de ${App.fmtCm(Math.abs(P.delta))} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}`);
+    App.toast(P.solo && P.t0 != null ? `Cloison ${P.delta > 0 ? 'épaissie' : 'amincie'} : ${App.fmtCm(P.t0, 0)} → ${App.fmtCm(P.t0 + P.delta, 0)} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}` : `Cloison déplacée de ${App.fmtCm(Math.abs(P.delta))} cm${n ? ' · ' + n + ' mur' + (n > 1 ? 's' : '') + ' étiré' + (n > 1 ? 's' : '') : ''}`);
   };
 
+  /* épaisseur voulue : on avance cette face seule (aperçu, puis Valider) */
+  Wm.setThickness = (room, i, t) => {
+    const t0 = Wm.thickness(room, i); if (t0 == null) return { err: 'Pas de pièce de l\'autre côté : épaisseur inconnue' };
+    if (!(t >= 10)) return { err: 'Épaisseur trop faible' };
+    const b = Wm.begin(room, i, `épaisseur ${App.fmtCm(t0, 0)} → ${App.fmtCm(t, 0)} cm`, true); if (b.err) return b;
+    Wm.apply(t - t0); return { ok: true };
+  };
   /* longueur d'un mur : on déplace le mur voisin choisi, parallèlement */
   Wm.lengthPlan = (room, i, end, newL) => {
     const n = room.pts.length, W = App.ops.wall(room, i), j = end === 'B' ? (i + 1) % n : (i - 1 + n) % n, V = App.ops.wall(room, j);
@@ -5216,6 +5227,7 @@ details[open] summary::after{content:"–"}
       <div class="field"><label>Longueur ${App.walls.name(room, i)}</label><div class="unit"><input data-xc="wlen" inputmode="decimal" value="${fmt(W.el / 10)}" ${locked ? '' : ''}><span>cm</span></div></div>
       <div class="seg"><button data-x="wend" data-v="A" aria-pressed="${end === 'A'}">Allonger côté ${L(i)}</button><button data-x="wend" data-v="B" aria-pressed="${end === 'B'}">Allonger côté ${L((i + 1) % n)}</button></div>
       <p class="hint2">Le mur voisin de ce côté se déplace parallèlement ; les autres ne bougent pas.</p>
+      ${parts.length && th != null ? `<h3>Épaisseur</h3><div class="field"><label>Épaisseur de la cloison</label><div class="unit"><input data-xc="wthick" inputmode="decimal" value="${fmt(th / 10)}"><span>cm</span></div></div><p class="hint2">Seul le côté ${esc(room.name || 'de cette pièce')} bouge ; ${esc(others[0] ? others[0].name || 'la pièce voisine' : 'la pièce voisine')} ne change pas. Sur le plan : bouton « Épaisseur », puis glissez la poignée ↔.</p>` : ''}
       <h3>Déplacer la cloison</h3>
       <div class="field"><label>Décaler de</label><div class="unit"><input data-xc="wmove" inputmode="decimal" placeholder="0"><span>cm</span></div></div>
       <div class="seg"><button data-x="wdir" data-v="out" aria-pressed="${S.wallDir !== 'in'}">Agrandir ${esc(room.name || 'la pièce')}</button><button data-x="wdir" data-v="in" aria-pressed="${S.wallDir === 'in'}">${others.length ? 'Agrandir ' + esc(others[0].name || 'la voisine') : 'Réduire la pièce'}</button></div>
@@ -5235,6 +5247,7 @@ details[open] summary::after{content:"–"}
     else if (S.skPlan && S.skPlan.kind === 'step') { const p = S.skPlan; h = `<span class="ob-v">${p.mode === 'cloison' ? 'Cloison décalée' : 'Décrochement'}</span><label class="ob-len">prof.<input data-obx="skdepth" type="number" inputmode="decimal" step="0.5" min="1" value="${+(p.depth / 10).toFixed(1)}">cm</label><label class="ob-len">long.<input data-obx="skslen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
     else if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
     else if (S.simpFocus && App.walls.spots().some((x) => x.key === S.simpFocus)) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); h = `<span class="ob-v">Décrochement</span><span class="ob-n">${App.esc(x.name)} · ${App.fmtCm(x.depth, 0)} cm${x.width > 1 ? ' × ' + App.fmtCm(x.width, 0) + ' cm' : ''}</span><button data-ob="simpx">Fermer</button><button data-ob="simpign" data-v="${App.esc(x.key)}">Ignorer</button><button data-ob="simpok" data-v="${App.esc(x.key)}" class="ok">Simplifier</button>`; }
+    else if (P && P.solo && P.t0 != null) h = `<span class="ob-v">ép. ${App.fmtCm(P.t0, 0)} → ${App.fmtCm(P.t0 + P.delta, 0)} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
     else if (f) {
       const t = f.o.type;
@@ -5253,9 +5266,12 @@ details[open] summary::after{content:"–"}
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && ['meuble', 'poteau', 'forme'].includes(App.selected().kind) && !App.selected().locked) {
       const m = App.selected();
       h = `<button data-ob="editpts">${S.editPts ? 'Cadre' : 'Points'}</button><button data-ob="rot90">Pivoter</button>${m.kind === 'meuble' && m.pts.length >= 4 ? '<button data-ob="backwall">Dos au mur</button>' : ''}<button data-ob="sdel">Supprimer</button><button data-ob="more">Réglages</button>`;
+    } else if (S.sel && S.sel.wall != null && App.selected() && S.wallSolo && !P) {
+      const r = App.selected(), th = App.walls.thickness(r, S.sel.wall);
+      h = `<span class="ob-v">Épaisseur</span><label class="ob-len">ép.<input data-obx="wthick" type="number" inputmode="decimal" step="0.5" min="1" value="${th != null ? +(th / 10).toFixed(1) : ''}">cm</label><span class="ob-n">ou glissez ↔ : ce côté seul</span><button data-ob="wsolo" class="ok">Terminé</button>`;
     } else if (S.sel && S.sel.wall != null && App.selected()) {
-      const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall);
-      h = `<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
+      const r = App.selected(); const lk = App.walls.isLocked(r, S.sel.wall); const hasT = !lk && App.walls.thickness(r, S.sel.wall) != null;
+      h = `${hasT ? '<button data-ob="wsolo">Épaisseur</button>' : ''}<button data-ob="lock">${lk ? 'Déverrouiller' : 'Verrouiller'}</button>${!lk && App.walls.canStraighten(r, S.sel.wall) ? '<button data-ob="wstraight">Redresser</button>' : ''}${!lk && App.sketch.joinCandidate(r, S.sel.wall) ? '<button data-ob="wjoin">Joindre</button>' : ''}<button data-ob="door">+ Porte</button><button data-ob="more">Réglages</button>`;
     }
     bar.innerHTML = h; bar.hidden = !h; X.placeOpbar();
   };
@@ -5346,6 +5362,7 @@ details[open] summary::after{content:"–"}
       case 'tour': { const r = App.selected(); if (r && App.fps) App.fps.open({ floor: r.floor, room: r.id }); break; }
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
+      case 'wsolo': { S.wallSolo = !S.wallSolo; App.toast(S.wallSolo ? 'Épaisseur : la poignée ↔ ne déplace plus que ce côté de la cloison' : 'Poignée ↔ : toute la cloison se déplace'); App.ui.refresh(); break; }
       case 'vdel': { const r = App.selected(); if (r && S.sel.vtx != null && App.ui.deletePoint(r, S.sel.vtxs || [S.sel.vtx])) { S.sel = { id: r.id }; App.ui.onSelect(true); } break; }
       case 'vx': { if (S.sel) S.sel = { id: S.sel.id }; App.ui.onSelect(true); break; }
       case 'skok': App.sketch.validate(); break;
@@ -5378,6 +5395,7 @@ details[open] summary::after{content:"–"}
       const b = App.walls.begin(r, plan.j, `longueur ${App.walls.name(r, i)} → ${fmt(v)} cm`); if (b.err) { App.toast(b.err + (end === 'B' ? ' — essayez l\'autre côté' : '')); App.ui.refresh(true); return; }
       App.walls.apply(plan.delta); App.ui.refresh(true); App.render(); return;
     }
+    if (c === 'wthick') { if (!v) return; const q = App.walls.setThickness(r, i, v * 10); if (q.err) App.toast(q.err); App.ui.refresh(true); App.render(); return; }
     if (c === 'wmove') {
       if (!v) return; const b = App.walls.begin(r, i); if (b.err) { App.toast(b.err); App.ui.refresh(true); return; }
       App.walls.apply((S.wallDir === 'in' ? 1 : -1) * v * 10); App.ui.refresh(true); App.render();
@@ -5388,7 +5406,7 @@ details[open] summary::after{content:"–"}
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
     $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
-    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } if (t.dataset.obx === 'skdepth' || t.dataset.obx === 'skslen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) t.dataset.obx === 'skdepth' ? App.sketch.setStep(v, null) : App.sketch.setStep(null, v); } });
+    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } if (t.dataset.obx === 'wthick') { const v = parseFloat(String(t.value).replace(',', '.')); const r = App.selected(); if (v > 0 && r && S.sel && S.sel.wall != null) { const q = App.walls.setThickness(r, S.sel.wall, v * 10); if (q.err) App.toast(q.err); App.ui.refresh(); App.render(); } } if (t.dataset.obx === 'skdepth' || t.dataset.obx === 'skslen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) t.dataset.obx === 'skdepth' ? App.sketch.setStep(v, null) : App.sketch.setStep(null, v); } });
     $('opbar').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.obx) e.target.blur(); });
   };
 })();

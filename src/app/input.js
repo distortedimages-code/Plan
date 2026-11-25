@@ -159,7 +159,7 @@
     }
     if (act.kind === 'wmove') {
       if (!act.moved) return;
-      if (!S.pending) { const r = App.byId(act.h.id); const res = App.walls.begin(r, act.h.i); if (res.err) { App.toast(res.err); act = null; return; } }
+      if (!S.pending) { const r = App.byId(act.h.id); const res = App.walls.begin(r, act.h.i, null, !!S.wallSolo); if (res.err) { App.toast(res.err); act = null; return; } }
       let delta = act.base + G.dot(G.sub(App.s2w(p), act.w0), act.W.nin); delta = Math.round(delta / 5) * 5;
       App.walls.apply(delta); App.ctx.renderOpbar(); App.render(); return;
     }
