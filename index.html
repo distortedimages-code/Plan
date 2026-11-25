@@ -48,7 +48,17 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .ib{width:40px;height:40px;display:grid;place-items:center;border-radius:0}
 .ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5}
 .ib:disabled{opacity:.3}
-@media(max-width:600px){.brand span{display:none}.floors{max-width:60vw}.floors button{padding:0 10px;font-size:13px}}
+.ib.sv{width:auto;min-width:40px;padding:0 8px;display:flex;align-items:center;gap:7px;position:relative}
+.svlab{font-size:12px;color:var(--ink-2);white-space:nowrap}
+.svdot{position:absolute;top:9px;right:8px;width:7px;height:7px;border-radius:50%;background:transparent;transition:background .2s}
+.ib.sv[data-st=dirty] .svdot{background:var(--ink-2)}
+.ib.sv[data-st=err] .svdot{background:var(--red)}
+.ib.sv[data-st=err] .svlab{color:var(--red);font-weight:700}
+.vmeta{font-size:12.5px;color:var(--ink-2)}
+.item.ver{flex-wrap:nowrap}
+.item.ver .vt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.item.ver .vt .nm{flex:none}
+@media(max-width:600px){.svlab{display:none}.top{gap:8px}.topact .ib{width:34px;min-width:34px}.ib.sv{padding:0}.svdot{right:4px}.brand span{display:none}.floors{max-width:60vw}.floors button{padding:0 10px;font-size:13px}}
 
 .stage{position:relative;overflow:hidden;touch-action:none;background:var(--paper)}
 .stage canvas#cv{position:absolute;inset:0;display:block;touch-action:none}
@@ -294,6 +304,7 @@ details[open] summary::after{content:"–"}
     <div class="brand"><b>Calepin</b><span id="projName">Ma maison</span></div>
     <nav class="floors" id="floors" aria-label="Étages"></nav>
     <div class="topact">
+      <button class="ib sv" id="savebtn" title="Enregistrer une version" aria-label="Enregistrer"><span class="svlab" id="savelab">Enregistré</span><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/></svg><i class="svdot"></i></button>
       <button class="ib" id="undo" title="Annuler" aria-label="Annuler"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2"/></svg></button>
       <button class="ib" id="redo" title="Rétablir" aria-label="Rétablir"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2"/></svg></button>
     </div>
@@ -2186,7 +2197,7 @@ details[open] summary::after{content:"–"}
     S.calc = {};
     if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);
-    clearTimeout(saveT); saveT = setTimeout(App.save, 400);
+    clearTimeout(saveT); saveT = setTimeout(App.save, 400); if (S.saveState !== 'err') S.saveState = 'dirty';
     App.render && App.render();
     App.ui && App.ui.refresh();
   };
@@ -2201,8 +2212,12 @@ details[open] summary::after{content:"–"}
 
   /* ---------- persistance locale ---------- */
   App.save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { /* stockage indisponible */ }
+    clearTimeout(saveT); let ok = true;
+    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    S.saveState = ok ? 'ok' : 'err'; if (ok) S.savedAt = Date.now();
+    if (!ok && !S.saveWarned && App.toast) { S.saveWarned = true; App.toast('Enregistrement automatique impossible ici : enregistrez une version ou exportez le projet'); }
     App.cloud && App.cloud.push();
+    App.ui && App.ui.saveBadge && App.ui.saveBadge();
   };
   App.load = () => {
     let p = null;
@@ -2291,13 +2306,14 @@ details[open] summary::after{content:"–"}
       try {
         const [db, user] = await Promise.all([globalThis.claude.use('db'), globalThis.claude.use('user')]);
         if (!db || !user) return; const uid = await user.id(); if (!uid) return;
-        this.db = db; this.uid = uid; this.ref = db.collection('data/users/' + uid).doc('projet');
+        this.db = db; this.uid = uid; this.col = db.collection('data/users/' + uid); this.ref = this.col.doc('projet');
         const snap = await Promise.race([this.ref.get(), new Promise((r) => setTimeout(() => r(null), 10000))]);
         this.ready = true;
         if (snap && snap.exists) {
           const d = snap.data(); const cloudAt = d.updatedAt || 0;
           if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { const cp = App.seedPolicy(JSON.parse(d.json)); if (!(cp.seeded && S.p.seeded)) { S.p = migrate(cp); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } } catch (e) { /* */ } }
         }
+        if (App.versions) App.versions.list = null;
         App.ui && App.ui.refresh();
       } catch (e) { this.db = null; }
     },
@@ -2309,6 +2325,64 @@ details[open] summary::after{content:"–"}
       catch (e) { if (e && (e.code === 'revoked' || e.code === 'not_granted' || e.code === 'invalid_argument')) this.ready = false; }
       this.busy = false;
       if (this.again) { this.again = false; setTimeout(() => this.push(), 1500); }
+    },
+  };
+
+  /* ---------- versions enregistrées (copies nommées du projet) ----------
+     sur l'appareil : IndexedDB 'ver:<id>' + index 'versions:index' ;
+     dans le compte (artefact) : docs 'v_<id>' + index 'versions'. */
+  const VIDX = 'versions:index';
+  const cloudOn = () => App.cloud && App.cloud.ready && App.cloud.col;
+  const cloudIdx = async () => { try { const s = await App.cloud.col.doc('versions').get(); return s && s.exists ? JSON.parse(s.data().json || '[]') : []; } catch (e) { return []; } };
+  App.versions = {
+    list: null, loading: null,
+    meta(name, auto) {
+      const P = S.p; const rooms = (P.shapes || []).filter((x) => x.kind === 'piece').length;
+      return { id: App.uid(), name: String(name || 'Version').slice(0, 80), at: Date.now(), rooms, floors: (P.floors || []).length, proj: P.name || '', auto: !!auto };
+    },
+    load() {
+      if (this.loading) return this.loading;
+      this.loading = (async () => {
+        const loc = (await App.fileGet(VIDX)) || []; const cl = cloudOn() ? await cloudIdx() : [];
+        const m = new Map();
+        for (const v of loc) m.set(v.id, Object.assign({}, v, { local: true }));
+        for (const v of cl) { const o = m.get(v.id); m.set(v.id, o ? Object.assign(o, { cloud: true }) : Object.assign({}, v, { cloud: true })); }
+        this.list = [...m.values()].sort((a, b) => b.at - a.at); this.loading = null; return this.list;
+      })();
+      return this.loading;
+    },
+    async save(name, auto) {
+      App.save();
+      const meta = this.meta(name, auto); const json = JSON.stringify(S.p);
+      let local = false, cloud = false;
+      if (await App.filePut('ver:' + meta.id, json)) { const idx = (await App.fileGet(VIDX)) || []; idx.push(meta); local = await App.filePut(VIDX, idx); }
+      if (cloudOn() && json.length < 240000) {
+        try { await App.cloud.col.doc('v_' + meta.id).set({ json, at: meta.at }); const ci = await cloudIdx(); ci.push(meta); await App.cloud.col.doc('versions').set({ json: JSON.stringify(ci), updatedAt: Date.now() }); cloud = true; } catch (e) { cloud = false; }
+      }
+      this.list = null;
+      return { ok: local || cloud, local, cloud, meta };
+    },
+    async json(id) {
+      const v = await App.fileGet('ver:' + id); if (typeof v === 'string') return v;
+      if (cloudOn()) { try { const s = await App.cloud.col.doc('v_' + id).get(); if (s && s.exists) return s.data().json || null; } catch (e) { /* */ } }
+      return null;
+    },
+    async restore(id) {
+      const v = (this.list || []).find((x) => x.id === id); const text = await this.json(id); if (!text) return false;
+      let p; try { p = migrate(JSON.parse(text)); } catch (e) { return false; }
+      await this.save('Avant restauration' + (v ? ' de « ' + v.name + ' »' : ''), true);
+      S.sel = null; S.draft = null; S.step = null; S.bgs = {}; S.bgMissing = {};
+      App.mutate(() => { S.p = p; });
+      App.fitAll && App.fitAll(); App.save();
+      return true;
+    },
+    async remove(id) {
+      await App.fileDel('ver:' + id);
+      const idx = (await App.fileGet(VIDX)) || []; await App.filePut(VIDX, idx.filter((x) => x.id !== id));
+      if (cloudOn()) {
+        try { const d = App.cloud.col.doc('v_' + id); if (d.delete) await d.delete(); const ci = await cloudIdx(); await App.cloud.col.doc('versions').set({ json: JSON.stringify(ci.filter((x) => x.id !== id)), updatedAt: Date.now() }); } catch (e) { /* */ }
+      }
+      this.list = null;
     },
   };
 
@@ -3295,9 +3369,46 @@ details[open] summary::after{content:"–"}
     return { bottom: Math.max(0, h - 4) + 12, right: 0, top };
   };
 
+  /* ---------- enregistrement : état + versions ---------- */
+  const hm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const when = (t) => { const d = new Date(t), now = new Date(); const day = d.toDateString() === now.toDateString() ? 'aujourd\'hui' : d.toDateString() === new Date(now - 864e5).toDateString() ? 'hier' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }); return day + ' à ' + hm(t); };
+  ui.saveBadge = () => {
+    const b = $('savebtn'); if (!b) return; const st = S.saveState || 'ok'; b.dataset.st = st;
+    $('savelab').textContent = st === 'err' ? 'Non enregistré' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
+    b.title = st === 'err' ? 'L\'enregistrement automatique a échoué — toucher pour enregistrer une version' : (S.savedAt ? 'Enregistré automatiquement à ' + hm(S.savedAt) : 'Enregistré automatiquement') + ' — toucher pour enregistrer une version';
+  };
+  ui.openVersions = () => { ui.setTab('projet'); if (innerWidth < 900) ui.sheet('full'); setTimeout(() => { const el = $('panel').querySelector('#vers'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); };
+  ui.saveDialog = async () => {
+    if (!$('modal').hidden) return;
+    App.save();
+    const cloud = App.cloud && App.cloud.ready;
+    const def = 'Version du ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ', ' + hm(Date.now());
+    const status = S.saveState === 'err'
+      ? '<p class="warn">L\'enregistrement automatique ne fonctionne pas dans ce navigateur (stockage plein ou désactivé). Enregistrez une version ou exportez le projet pour ne rien perdre.</p>'
+      : `<p>Vos modifications sont déjà enregistrées automatiquement, à chaque changement${S.savedAt ? ` (dernier enregistrement à ${hm(S.savedAt)})` : ''}${cloud ? ', et synchronisées avec votre compte' : ''}.</p>`;
+    const r = await ui.dialog('Enregistrer', status + '<p class="hint2">Une version garde une copie de l\'état actuel du projet : avant de gros changements, c\'est un point de retour que vous pourrez restaurer depuis l\'onglet Projet.</p><div class="field"><label>Nom de la version</label><input name="n" maxlength="80" value="' + esc(def) + '"></div>',
+      [{ label: 'Annuler', cls: 'ghost' }, { label: 'Voir les versions', cls: 'ghost' }, { label: 'Enregistrer la version', cls: 'primary', def: true }]);
+    if (r.i === 1) { ui.openVersions(); return; }
+    if (r.i !== 2) return;
+    const name = (r.vals.n || '').trim() || def;
+    const res = await App.versions.save(name);
+    App.toast(res.ok ? `Version « ${name} » enregistrée${res.cloud ? '' : res.local && cloud ? ' sur cet appareil' : ''}` : 'Impossible d\'enregistrer la version : exportez le projet');
+    ui.refresh();
+  };
+  const versionsHTML = () => {
+    const V = App.versions; const cloud = App.cloud && App.cloud.ready;
+    if (!V.list) { V.load().then(() => { if (S.tab === 'projet') ui.refresh(); }); }
+    const list = V.list || [];
+    const rows = !V.list ? '<p class="hint2">Chargement…</p>' : !list.length ? '<p class="hint2">Aucune version pour l\'instant.</p>'
+      : `<div class="list">${list.map((v) => `<div class="item ver"><span class="vt"><span class="nm">${esc(v.name)}</span><span class="vmeta">${when(v.at)} · ${v.rooms} pièce${v.rooms > 1 ? 's' : ''}${cloud && !v.cloud ? ' · sur cet appareil' : ''}${!v.local ? ' · depuis votre compte' : ''}</span></span><button class="btn sm" data-a="vrest" data-v="${esc(v.id)}">Restaurer</button><button class="btn sm ghost" data-a="vdel" data-v="${esc(v.id)}" aria-label="Supprimer la version">✕</button></div>`).join('')}</div>`;
+    return `<h3 id="vers">Versions</h3><p class="hint2">Des copies nommées du projet, à restaurer en cas de besoin. ${cloud ? 'Elles sont gardées dans votre compte.' : 'Elles sont gardées sur cet appareil.'}</p><div class="row" style="margin-bottom:8px"><button class="btn sm" data-a="vsave">+ Enregistrer une version</button></div>${rows}`;
+  };
+
   /* ---------- initialisation ---------- */
   ui.init = () => {
     $('undo').onclick = App.undo; $('redo').onclick = App.redo;
+    $('savebtn').onclick = () => ui.saveDialog();
+    window.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key || '').toLowerCase() === 's') { e.preventDefault(); if ($('modal').hidden && !(App.fps && App.fps.active && App.fps.active())) ui.saveDialog(); } });
     $('modes').onclick = (e) => { const b = e.target.closest('[data-mode]'); if (b) ui.setMode(b.dataset.mode); };
     $('rail').onclick = (e) => { const b = e.target.closest('[data-tool]'); if (b) ui.setTool(b.dataset.tool === S.tool && b.dataset.tool !== 'select' ? 'select' : b.dataset.tool); };
     $('zIn').onclick = () => zoomBy(1.5); $('zOut').onclick = () => zoomBy(1 / 1.5); $('zFit').onclick = () => { S.sel = null; App.fitAll(); ui.refresh(); };
@@ -3529,7 +3640,7 @@ details[open] summary::after{content:"–"}
     $('projName').textContent = S.p.name || 'Projet';
     $('floors').innerHTML = S.p.floors.slice().sort((a, b) => a.level - b.level).map((f) => `<button data-f="${f.id}" aria-pressed="${f.id === S.p.floorId}">${esc(f.name)}</button>`).join('');
     $('floors').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b) ui.switchFloor(b.dataset.f); };
-    $('undo').disabled = !App.canUndo(); $('redo').disabled = !App.canRedo();
+    $('undo').disabled = !App.canUndo(); $('redo').disabled = !App.canRedo(); ui.saveBadge();
     document.querySelectorAll('#modes [data-mode]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
     document.querySelectorAll('#rail [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === S.tool || (b.dataset.tool === 'measure' && S.tool === 'calib')));
     const sel = App.selected(); const rooms = App.rooms();
@@ -3795,8 +3906,9 @@ details[open] summary::after{content:"–"}
       <h3>Apparence</h3><div class="seg">${[['light', 'Claire'], ['dark', 'Sombre'], ['auto', 'Comme l\'appareil']].map(([k, v]) => `<button data-x="theme" data-v="${k}" aria-pressed="${App.theme() === k}">${v}</button>`).join('')}</div>
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
-      <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
+      <h3>Sauvegarde</h3><p>${cloud ? 'Chaque modification est enregistrée automatiquement et synchronisée avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Chaque modification est enregistrée automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'}${S.savedAt ? ` Dernier enregistrement à ${hm(S.savedAt)}.` : ''} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
       <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
+      ${versionsHTML()}
       <h3>Affichage</h3>
       ${ui.bgSlider()}
       ${[['fond', 'Fond de plan importé'], ['cotes', 'Cotes des murs'], ['mobilier', 'Mobilier (vue Plan)'], ['elec', 'Électricité (vue Plan)'], ['calepinage', 'Lames (vue Plan)']].map(([k, v]) => `<div class="field"><label>${v}</label><input type="checkbox" data-c="layer.${k}" ${S.layers[k] ? 'checked' : ''}></div>`).join('')}
@@ -3859,6 +3971,9 @@ details[open] summary::after{content:"–"}
       case 'dlFiche': App.download(`calepinage-${App.floor().name}.txt`, ui.ficheText(), 'text/plain'); break;
       case 'dlPng': { const blob = await App.exportPNG(); if (blob) App.download(`plan-${App.floor().name}.png`, blob, 'image/png'); break; }
       case 'mtool': S.sel = null; ui.setTool('measure'); break;
+      case 'vsave': ui.saveDialog(); break;
+      case 'vrest': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; const r = await ui.dialog('Restaurer la version', `<p>Le projet revient à « ${esc(ver.name)} » (${esc(when(ver.at))}).</p><p class="hint2">L'état actuel est d'abord gardé comme version « Avant restauration », et vous pouvez aussi annuler avec la flèche ↶.</p>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Restaurer', cls: 'primary', def: true }]); if (r.i !== 1) break; const ok = await App.versions.restore(v); App.toast(ok ? `Version « ${ver.name} » restaurée` : 'Version introuvable sur cet appareil'); ui.refresh(); break; }
+      case 'vdel': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; if (!(await ui.confirm('Supprimer la version', `« ${ver.name} » sera supprimée${ver.cloud ? ' de votre compte et de cet appareil' : ''}. Le projet en cours n'est pas touché.`, 'Supprimer'))) break; await App.versions.remove(v); App.toast('Version supprimée'); ui.refresh(); break; }
       case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }

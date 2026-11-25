@@ -45,7 +45,7 @@
     S.calc = {};
     if (App.feat && App.feat.normalizeAll) App.feat.normalizeAll();
     if (App.ops) App.ops.relink(S.p, S.p.floorId);
-    clearTimeout(saveT); saveT = setTimeout(App.save, 400);
+    clearTimeout(saveT); saveT = setTimeout(App.save, 400); if (S.saveState !== 'err') S.saveState = 'dirty';
     App.render && App.render();
     App.ui && App.ui.refresh();
   };
@@ -60,8 +60,12 @@
 
   /* ---------- persistance locale ---------- */
   App.save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { /* stockage indisponible */ }
+    clearTimeout(saveT); let ok = true;
+    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    S.saveState = ok ? 'ok' : 'err'; if (ok) S.savedAt = Date.now();
+    if (!ok && !S.saveWarned && App.toast) { S.saveWarned = true; App.toast('Enregistrement automatique impossible ici : enregistrez une version ou exportez le projet'); }
     App.cloud && App.cloud.push();
+    App.ui && App.ui.saveBadge && App.ui.saveBadge();
   };
   App.load = () => {
     let p = null;
@@ -150,13 +154,14 @@
       try {
         const [db, user] = await Promise.all([globalThis.claude.use('db'), globalThis.claude.use('user')]);
         if (!db || !user) return; const uid = await user.id(); if (!uid) return;
-        this.db = db; this.uid = uid; this.ref = db.collection('data/users/' + uid).doc('projet');
+        this.db = db; this.uid = uid; this.col = db.collection('data/users/' + uid); this.ref = this.col.doc('projet');
         const snap = await Promise.race([this.ref.get(), new Promise((r) => setTimeout(() => r(null), 10000))]);
         this.ready = true;
         if (snap && snap.exists) {
           const d = snap.data(); const cloudAt = d.updatedAt || 0;
           if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { const cp = App.seedPolicy(JSON.parse(d.json)); if (!(cp.seeded && S.p.seeded)) { S.p = migrate(cp); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } } catch (e) { /* */ } }
         }
+        if (App.versions) App.versions.list = null;
         App.ui && App.ui.refresh();
       } catch (e) { this.db = null; }
     },
@@ -168,6 +173,64 @@
       catch (e) { if (e && (e.code === 'revoked' || e.code === 'not_granted' || e.code === 'invalid_argument')) this.ready = false; }
       this.busy = false;
       if (this.again) { this.again = false; setTimeout(() => this.push(), 1500); }
+    },
+  };
+
+  /* ---------- versions enregistrées (copies nommées du projet) ----------
+     sur l'appareil : IndexedDB 'ver:<id>' + index 'versions:index' ;
+     dans le compte (artefact) : docs 'v_<id>' + index 'versions'. */
+  const VIDX = 'versions:index';
+  const cloudOn = () => App.cloud && App.cloud.ready && App.cloud.col;
+  const cloudIdx = async () => { try { const s = await App.cloud.col.doc('versions').get(); return s && s.exists ? JSON.parse(s.data().json || '[]') : []; } catch (e) { return []; } };
+  App.versions = {
+    list: null, loading: null,
+    meta(name, auto) {
+      const P = S.p; const rooms = (P.shapes || []).filter((x) => x.kind === 'piece').length;
+      return { id: App.uid(), name: String(name || 'Version').slice(0, 80), at: Date.now(), rooms, floors: (P.floors || []).length, proj: P.name || '', auto: !!auto };
+    },
+    load() {
+      if (this.loading) return this.loading;
+      this.loading = (async () => {
+        const loc = (await App.fileGet(VIDX)) || []; const cl = cloudOn() ? await cloudIdx() : [];
+        const m = new Map();
+        for (const v of loc) m.set(v.id, Object.assign({}, v, { local: true }));
+        for (const v of cl) { const o = m.get(v.id); m.set(v.id, o ? Object.assign(o, { cloud: true }) : Object.assign({}, v, { cloud: true })); }
+        this.list = [...m.values()].sort((a, b) => b.at - a.at); this.loading = null; return this.list;
+      })();
+      return this.loading;
+    },
+    async save(name, auto) {
+      App.save();
+      const meta = this.meta(name, auto); const json = JSON.stringify(S.p);
+      let local = false, cloud = false;
+      if (await App.filePut('ver:' + meta.id, json)) { const idx = (await App.fileGet(VIDX)) || []; idx.push(meta); local = await App.filePut(VIDX, idx); }
+      if (cloudOn() && json.length < 240000) {
+        try { await App.cloud.col.doc('v_' + meta.id).set({ json, at: meta.at }); const ci = await cloudIdx(); ci.push(meta); await App.cloud.col.doc('versions').set({ json: JSON.stringify(ci), updatedAt: Date.now() }); cloud = true; } catch (e) { cloud = false; }
+      }
+      this.list = null;
+      return { ok: local || cloud, local, cloud, meta };
+    },
+    async json(id) {
+      const v = await App.fileGet('ver:' + id); if (typeof v === 'string') return v;
+      if (cloudOn()) { try { const s = await App.cloud.col.doc('v_' + id).get(); if (s && s.exists) return s.data().json || null; } catch (e) { /* */ } }
+      return null;
+    },
+    async restore(id) {
+      const v = (this.list || []).find((x) => x.id === id); const text = await this.json(id); if (!text) return false;
+      let p; try { p = migrate(JSON.parse(text)); } catch (e) { return false; }
+      await this.save('Avant restauration' + (v ? ' de « ' + v.name + ' »' : ''), true);
+      S.sel = null; S.draft = null; S.step = null; S.bgs = {}; S.bgMissing = {};
+      App.mutate(() => { S.p = p; });
+      App.fitAll && App.fitAll(); App.save();
+      return true;
+    },
+    async remove(id) {
+      await App.fileDel('ver:' + id);
+      const idx = (await App.fileGet(VIDX)) || []; await App.filePut(VIDX, idx.filter((x) => x.id !== id));
+      if (cloudOn()) {
+        try { const d = App.cloud.col.doc('v_' + id); if (d.delete) await d.delete(); const ci = await cloudIdx(); await App.cloud.col.doc('versions').set({ json: JSON.stringify(ci.filter((x) => x.id !== id)), updatedAt: Date.now() }); } catch (e) { /* */ }
+      }
+      this.list = null;
     },
   };
 

@@ -34,9 +34,46 @@
     return { bottom: Math.max(0, h - 4) + 12, right: 0, top };
   };
 
+  /* ---------- enregistrement : état + versions ---------- */
+  const hm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const when = (t) => { const d = new Date(t), now = new Date(); const day = d.toDateString() === now.toDateString() ? 'aujourd\'hui' : d.toDateString() === new Date(now - 864e5).toDateString() ? 'hier' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }); return day + ' à ' + hm(t); };
+  ui.saveBadge = () => {
+    const b = $('savebtn'); if (!b) return; const st = S.saveState || 'ok'; b.dataset.st = st;
+    $('savelab').textContent = st === 'err' ? 'Non enregistré' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
+    b.title = st === 'err' ? 'L\'enregistrement automatique a échoué — toucher pour enregistrer une version' : (S.savedAt ? 'Enregistré automatiquement à ' + hm(S.savedAt) : 'Enregistré automatiquement') + ' — toucher pour enregistrer une version';
+  };
+  ui.openVersions = () => { ui.setTab('projet'); if (innerWidth < 900) ui.sheet('full'); setTimeout(() => { const el = $('panel').querySelector('#vers'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); };
+  ui.saveDialog = async () => {
+    if (!$('modal').hidden) return;
+    App.save();
+    const cloud = App.cloud && App.cloud.ready;
+    const def = 'Version du ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ', ' + hm(Date.now());
+    const status = S.saveState === 'err'
+      ? '<p class="warn">L\'enregistrement automatique ne fonctionne pas dans ce navigateur (stockage plein ou désactivé). Enregistrez une version ou exportez le projet pour ne rien perdre.</p>'
+      : `<p>Vos modifications sont déjà enregistrées automatiquement, à chaque changement${S.savedAt ? ` (dernier enregistrement à ${hm(S.savedAt)})` : ''}${cloud ? ', et synchronisées avec votre compte' : ''}.</p>`;
+    const r = await ui.dialog('Enregistrer', status + '<p class="hint2">Une version garde une copie de l\'état actuel du projet : avant de gros changements, c\'est un point de retour que vous pourrez restaurer depuis l\'onglet Projet.</p><div class="field"><label>Nom de la version</label><input name="n" maxlength="80" value="' + esc(def) + '"></div>',
+      [{ label: 'Annuler', cls: 'ghost' }, { label: 'Voir les versions', cls: 'ghost' }, { label: 'Enregistrer la version', cls: 'primary', def: true }]);
+    if (r.i === 1) { ui.openVersions(); return; }
+    if (r.i !== 2) return;
+    const name = (r.vals.n || '').trim() || def;
+    const res = await App.versions.save(name);
+    App.toast(res.ok ? `Version « ${name} » enregistrée${res.cloud ? '' : res.local && cloud ? ' sur cet appareil' : ''}` : 'Impossible d\'enregistrer la version : exportez le projet');
+    ui.refresh();
+  };
+  const versionsHTML = () => {
+    const V = App.versions; const cloud = App.cloud && App.cloud.ready;
+    if (!V.list) { V.load().then(() => { if (S.tab === 'projet') ui.refresh(); }); }
+    const list = V.list || [];
+    const rows = !V.list ? '<p class="hint2">Chargement…</p>' : !list.length ? '<p class="hint2">Aucune version pour l\'instant.</p>'
+      : `<div class="list">${list.map((v) => `<div class="item ver"><span class="vt"><span class="nm">${esc(v.name)}</span><span class="vmeta">${when(v.at)} · ${v.rooms} pièce${v.rooms > 1 ? 's' : ''}${cloud && !v.cloud ? ' · sur cet appareil' : ''}${!v.local ? ' · depuis votre compte' : ''}</span></span><button class="btn sm" data-a="vrest" data-v="${esc(v.id)}">Restaurer</button><button class="btn sm ghost" data-a="vdel" data-v="${esc(v.id)}" aria-label="Supprimer la version">✕</button></div>`).join('')}</div>`;
+    return `<h3 id="vers">Versions</h3><p class="hint2">Des copies nommées du projet, à restaurer en cas de besoin. ${cloud ? 'Elles sont gardées dans votre compte.' : 'Elles sont gardées sur cet appareil.'}</p><div class="row" style="margin-bottom:8px"><button class="btn sm" data-a="vsave">+ Enregistrer une version</button></div>${rows}`;
+  };
+
   /* ---------- initialisation ---------- */
   ui.init = () => {
     $('undo').onclick = App.undo; $('redo').onclick = App.redo;
+    $('savebtn').onclick = () => ui.saveDialog();
+    window.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key || '').toLowerCase() === 's') { e.preventDefault(); if ($('modal').hidden && !(App.fps && App.fps.active && App.fps.active())) ui.saveDialog(); } });
     $('modes').onclick = (e) => { const b = e.target.closest('[data-mode]'); if (b) ui.setMode(b.dataset.mode); };
     $('rail').onclick = (e) => { const b = e.target.closest('[data-tool]'); if (b) ui.setTool(b.dataset.tool === S.tool && b.dataset.tool !== 'select' ? 'select' : b.dataset.tool); };
     $('zIn').onclick = () => zoomBy(1.5); $('zOut').onclick = () => zoomBy(1 / 1.5); $('zFit').onclick = () => { S.sel = null; App.fitAll(); ui.refresh(); };
@@ -268,7 +305,7 @@
     $('projName').textContent = S.p.name || 'Projet';
     $('floors').innerHTML = S.p.floors.slice().sort((a, b) => a.level - b.level).map((f) => `<button data-f="${f.id}" aria-pressed="${f.id === S.p.floorId}">${esc(f.name)}</button>`).join('');
     $('floors').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b) ui.switchFloor(b.dataset.f); };
-    $('undo').disabled = !App.canUndo(); $('redo').disabled = !App.canRedo();
+    $('undo').disabled = !App.canUndo(); $('redo').disabled = !App.canRedo(); ui.saveBadge();
     document.querySelectorAll('#modes [data-mode]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
     document.querySelectorAll('#rail [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === S.tool || (b.dataset.tool === 'measure' && S.tool === 'calib')));
     const sel = App.selected(); const rooms = App.rooms();
@@ -534,8 +571,9 @@
       <h3>Apparence</h3><div class="seg">${[['light', 'Claire'], ['dark', 'Sombre'], ['auto', 'Comme l\'appareil']].map(([k, v]) => `<button data-x="theme" data-v="${k}" aria-pressed="${App.theme() === k}">${v}</button>`).join('')}</div>
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
-      <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
+      <h3>Sauvegarde</h3><p>${cloud ? 'Chaque modification est enregistrée automatiquement et synchronisée avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Chaque modification est enregistrée automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'}${S.savedAt ? ` Dernier enregistrement à ${hm(S.savedAt)}.` : ''} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
       <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
+      ${versionsHTML()}
       <h3>Affichage</h3>
       ${ui.bgSlider()}
       ${[['fond', 'Fond de plan importé'], ['cotes', 'Cotes des murs'], ['mobilier', 'Mobilier (vue Plan)'], ['elec', 'Électricité (vue Plan)'], ['calepinage', 'Lames (vue Plan)']].map(([k, v]) => `<div class="field"><label>${v}</label><input type="checkbox" data-c="layer.${k}" ${S.layers[k] ? 'checked' : ''}></div>`).join('')}
@@ -598,6 +636,9 @@
       case 'dlFiche': App.download(`calepinage-${App.floor().name}.txt`, ui.ficheText(), 'text/plain'); break;
       case 'dlPng': { const blob = await App.exportPNG(); if (blob) App.download(`plan-${App.floor().name}.png`, blob, 'image/png'); break; }
       case 'mtool': S.sel = null; ui.setTool('measure'); break;
+      case 'vsave': ui.saveDialog(); break;
+      case 'vrest': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; const r = await ui.dialog('Restaurer la version', `<p>Le projet revient à « ${esc(ver.name)} » (${esc(when(ver.at))}).</p><p class="hint2">L'état actuel est d'abord gardé comme version « Avant restauration », et vous pouvez aussi annuler avec la flèche ↶.</p>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Restaurer', cls: 'primary', def: true }]); if (r.i !== 1) break; const ok = await App.versions.restore(v); App.toast(ok ? `Version « ${ver.name} » restaurée` : 'Version introuvable sur cet appareil'); ui.refresh(); break; }
+      case 'vdel': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; if (!(await ui.confirm('Supprimer la version', `« ${ver.name} » sera supprimée${ver.cloud ? ' de votre compte et de cet appareil' : ''}. Le projet en cours n'est pas touché.`, 'Supprimer'))) break; await App.versions.remove(v); App.toast('Version supprimée'); ui.refresh(); break; }
       case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }
