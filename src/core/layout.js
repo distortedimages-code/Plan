@@ -25,7 +25,7 @@
         const a = R[i], b = R[(i + 1) % R.length], d = G.sub(b, a), l = G.len(d);
         if (l < 150 || Math.abs(d.y) / l > tol) continue;
         const dirPlus = d.x > 0; const side = dirPlus !== isHole ? 'B' : 'T';
-        out.push({ y: (a.y + b.y) / 2, len: l, side, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), dev: Math.abs(d.y), isHole });
+        out.push({ y: (a.y + b.y) / 2, ya: Math.min(a.y, b.y), yb: Math.max(a.y, b.y), len: l, side, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), dev: Math.abs(d.y), isHole });
       }
     };
     push(outer, false); holes.forEach((H) => push(H, true));
@@ -39,9 +39,16 @@
     return piece;
   }
 
+  /* bande au plus fin le long d'un bord : un mur un peu hors d'équerre est évalué à ses deux bouts
+     (sinon une pointe de quelques mm peut déborder dans le rang voisin sans être vue) */
+  function edgePiece(e, p, W) {
+    const mid = pieceAt(e, p, W);
+    if (!(e.dev > 3 && e.dev <= W / 3)) return mid;
+    return Math.min(mid, pieceAt({ side: e.side, y: e.ya }, p, W), pieceAt({ side: e.side, y: e.yb }, p, W));
+  }
   function phaseQuality(edges, p, W) {
     let mn = W, sum = 0, sl = 0, at = null;
-    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
+    for (const e of edges) { const pc = edgePiece(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
     return { min: mn, avg: sl ? sum / sl : W, at };
   }
 
@@ -219,7 +226,7 @@
     if (side === 'T') { ang += Math.PI; R = build(ang); }
     const leadR2 = R.find((x) => x.room === lead);
     const startE = startEdgeIdx != null ? (() => { const a = leadR2.loc[startEdgeIdx], b = leadR2.loc[(startEdgeIdx + 1) % n]; return { a, b, y: Math.min(a.y, b.y) + P.gap }; })() : null;
-    const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? near.y : oy.y0; })() : G.bbox(leadR2.outer).y0;
+    const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? (near.dev > 3 && near.dev <= W / 3 ? near.ya : near.y) : oy.y0; })() : G.bbox(leadR2.outer).y0;
     // phase
     const edges = R.flatMap((x) => horizEdges(x.outer, x.holes));
     const ph = bestPhase(edges, W, startY, P, (lead.cal && lead.cal.first) || P.firstRow);
@@ -266,17 +273,22 @@
             let h = 0; ivy.forEach((v) => { const a = Math.max(v[0], ya), b = Math.min(v[1], yb); if (b > a) h += b - a; });
             if (h > 0.5) { row.ripMax = Math.max(row.ripMax, h); row.ripMin = Math.min(row.ripMin, h); }
           }
+        }
+        if (row.ripMin === Infinity) row.ripMin = row.ripMax;
+        if (row.ripMax < 3) continue; // pointe de moins de 3 mm : absorbée par le jeu au mur
+        for (const run of runs) {
           const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern);
           r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
           row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
           r.joints.forEach((j) => rowJ.push(j));
           if (r.warn.length) row.warn.push(...r.warn);
         }
-        if (row.ripMin === Infinity) row.ripMin = row.ripMax;
         out[ri].rows.push(row);
       }
       prev2J = prevJ; prevJ = rowJ;
     }
+    // numérotation continue des rangs réellement posés
+    { const ks = [...new Set(out.flatMap((o) => o.rows.map((r) => r.k)))].sort((a, b) => a - b); const kn = new Map(ks.map((k, i) => [k, i + 1])); out.forEach((o) => o.rows.forEach((r) => { r.num = kn.get(r.k); })); }
     // comptages par pièce (les chutes circulent dans le groupe)
     out.forEach((o) => { let nb = 0, cuts = 0; o.rows.forEach((r) => r.runs.forEach((ru) => ru.pieces.forEach((pc) => { if (pc.src === 'new' && (pc.kind === 'full' || true)) nb++; if (pc.kind === 'cut') cuts++; }))); o.piecesNew = nb; o.cuts = cuts; });
     return { ang, side, rec, p, phase: ph, rooms: out, stats: st, startEdgeIdx, lead, startY, kmin, s };

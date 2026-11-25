@@ -718,7 +718,7 @@ details[open] summary::after{content:"–"}
         const a = R[i], b = R[(i + 1) % R.length], d = G.sub(b, a), l = G.len(d);
         if (l < 150 || Math.abs(d.y) / l > tol) continue;
         const dirPlus = d.x > 0; const side = dirPlus !== isHole ? 'B' : 'T';
-        out.push({ y: (a.y + b.y) / 2, len: l, side, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), dev: Math.abs(d.y), isHole });
+        out.push({ y: (a.y + b.y) / 2, ya: Math.min(a.y, b.y), yb: Math.max(a.y, b.y), len: l, side, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), dev: Math.abs(d.y), isHole });
       }
     };
     push(outer, false); holes.forEach((H) => push(H, true));
@@ -732,9 +732,16 @@ details[open] summary::after{content:"–"}
     return piece;
   }
 
+  /* bande au plus fin le long d'un bord : un mur un peu hors d'équerre est évalué à ses deux bouts
+     (sinon une pointe de quelques mm peut déborder dans le rang voisin sans être vue) */
+  function edgePiece(e, p, W) {
+    const mid = pieceAt(e, p, W);
+    if (!(e.dev > 3 && e.dev <= W / 3)) return mid;
+    return Math.min(mid, pieceAt({ side: e.side, y: e.ya }, p, W), pieceAt({ side: e.side, y: e.yb }, p, W));
+  }
   function phaseQuality(edges, p, W) {
     let mn = W, sum = 0, sl = 0, at = null;
-    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
+    for (const e of edges) { const pc = edgePiece(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
     return { min: mn, avg: sl ? sum / sl : W, at };
   }
 
@@ -912,7 +919,7 @@ details[open] summary::after{content:"–"}
     if (side === 'T') { ang += Math.PI; R = build(ang); }
     const leadR2 = R.find((x) => x.room === lead);
     const startE = startEdgeIdx != null ? (() => { const a = leadR2.loc[startEdgeIdx], b = leadR2.loc[(startEdgeIdx + 1) % n]; return { a, b, y: Math.min(a.y, b.y) + P.gap }; })() : null;
-    const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? near.y : oy.y0; })() : G.bbox(leadR2.outer).y0;
+    const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? (near.dev > 3 && near.dev <= W / 3 ? near.ya : near.y) : oy.y0; })() : G.bbox(leadR2.outer).y0;
     // phase
     const edges = R.flatMap((x) => horizEdges(x.outer, x.holes));
     const ph = bestPhase(edges, W, startY, P, (lead.cal && lead.cal.first) || P.firstRow);
@@ -959,17 +966,22 @@ details[open] summary::after{content:"–"}
             let h = 0; ivy.forEach((v) => { const a = Math.max(v[0], ya), b = Math.min(v[1], yb); if (b > a) h += b - a; });
             if (h > 0.5) { row.ripMax = Math.max(row.ripMax, h); row.ripMin = Math.min(row.ripMin, h); }
           }
+        }
+        if (row.ripMin === Infinity) row.ripMin = row.ripMax;
+        if (row.ripMax < 3) continue; // pointe de moins de 3 mm : absorbée par le jeu au mur
+        for (const run of runs) {
           const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern);
           r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
           row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
           r.joints.forEach((j) => rowJ.push(j));
           if (r.warn.length) row.warn.push(...r.warn);
         }
-        if (row.ripMin === Infinity) row.ripMin = row.ripMax;
         out[ri].rows.push(row);
       }
       prev2J = prevJ; prevJ = rowJ;
     }
+    // numérotation continue des rangs réellement posés
+    { const ks = [...new Set(out.flatMap((o) => o.rows.map((r) => r.k)))].sort((a, b) => a - b); const kn = new Map(ks.map((k, i) => [k, i + 1])); out.forEach((o) => o.rows.forEach((r) => { r.num = kn.get(r.k); })); }
     // comptages par pièce (les chutes circulent dans le groupe)
     out.forEach((o) => { let nb = 0, cuts = 0; o.rows.forEach((r) => r.runs.forEach((ru) => ru.pieces.forEach((pc) => { if (pc.src === 'new' && (pc.kind === 'full' || true)) nb++; if (pc.kind === 'cut') cuts++; }))); o.piecesNew = nb; o.cuts = cuts; });
     return { ang, side, rec, p, phase: ph, rooms: out, stats: st, startEdgeIdx, lead, startY, kmin, s };
@@ -2691,14 +2703,40 @@ details[open] summary::after{content:"–"}
       // numéros de rangs et délignage
       if (z > 0.05) {
         const dirx = { x: Math.cos(res.ang), y: Math.sin(res.ang) };
+        // les numéros se placent sur la partie du rang réellement dans la pièce (pas au milieu de la bande)
+        const swo = res.outer ? [res.outer.map((v) => ({ x: v.y, y: v.x }))] : null, swh = (res.holes || []).map((H) => H.map((v) => ({ x: v.y, y: v.x })));
+        const coverAt = (row, xv) => {
+          let iv = G.intervalsAtY(swo, xv); if (swh.length) iv = G.subtractIntervals(iv, G.mergeIntervals(swh.flatMap((H) => G.intervalsAtY([H], xv))));
+          let best = null; iv.forEach((v) => { const a = Math.max(v[0], row.ya), b = Math.min(v[1], row.yb); if (b - a > 0.3 && (!best || b - a > best[1] - best[0])) best = [a, b]; }); return best;
+        };
+        const labelSpot = (row, x0, x1, xl) => {
+          if (!swo) return { x: xl, y: (row.ya + row.yb) / 2, h: row.yb - row.ya };
+          let c = coverAt(row, xl), x = xl;
+          for (let t = 1; t <= 16 && !c; t++) { x = x1 - ((x1 - x0) * t) / 17; c = coverAt(row, x); }
+          return c ? { x, y: (c[0] + c[1]) / 2, h: c[1] - c[0] } : { x: xl, y: (row.ya + row.yb) / 2, h: row.yb - row.ya };
+        };
         res.rows.forEach((row) => {
-          const run = row.runs[0]; if (!run) return;
-          const sx = res.startEdgeIdx != null || true ? (row.runs[0].u0 < row.runs[0].u1 ? null : null) : null;
-          const xs = (P && true) ? (run.pieces[0].x0 + run.pieces[0].x1) / 2 : 0;
-          const startX = Math.max(...row.runs.map((ru) => ru.x1));
-          const p = G.rot({ x: startX - 60 / z * 0 - 25 / z, y: (row.ya + row.yb) / 2 }, res.ang); const q = App.w2s(p);
-          if (row.num === 1 || row.num % (z > 0.12 ? 1 : 5) === 0) text(String(row.num), q.x, q.y, 600, 9, C.ink);
-          if (row.ripMax < P.W - 0.5) { const p2 = G.rot({ x: startX - 110 / z, y: (row.ya + row.yb) / 2 }, res.ang); const q2 = App.w2s(p2); if (z > 0.09) text(Math.round(row.ripMax) + ' mm', q2.x, q2.y, 600, 9, C.red, 'right'); }
+          if (!row.runs.length) return;
+          const ru = row.runs.reduce((m, r) => (r.x1 > m.x1 ? r : m), row.runs[0]);
+          const sp = labelSpot(row, ru.x0, ru.x1, Math.max(ru.x0 + 1, ru.x1 - 25 / z));
+          const thin = sp.h * z < 12; // bande trop fine pour le texte : petite étiquette sur fond papier
+          const tag = (str, q, col, align) => { if (thin) { ctx.font = font(600, 9); const tw = ctx.measureText(str).width; const x0 = align === 'right' ? q.x - tw - 2 : align === 'left' ? q.x - 2 : q.x - tw / 2 - 2; ctx.fillStyle = C.paper; ctx.fillRect(x0, q.y - 6, tw + 4, 12); } text(str, q.x, q.y, 600, 9, col, align); };
+          const q = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang));
+          if (row.num === 1 || row.num % (z > 0.12 ? 1 : 5) === 0) tag(String(row.num), q, C.ink, 'center');
+          if (row.ripMax < P.W - 0.5 && z > 0.09) {
+            // largeur du délignage juste à côté du numéro, vers l'intérieur de la pièce
+            const inward = (ru.x0 + ru.x1) / 2 >= sp.x ? 100 : -100; const u = G.norm(G.sub(App.w2s(G.rot({ x: sp.x + inward, y: sp.y }, res.ang)), q));
+            const side = Math.abs(u.x) > 0.5; const q2 = side ? { x: q.x + u.x * 12, y: q.y } : { x: q.x, y: q.y + (u.y > 0 ? 13 : -13) };
+            const str = Math.round(row.ripMax) + ' mm'; ctx.font = font(600, 9);
+            const room = Math.abs((inward > 0 ? ru.x1 : ru.x0) - sp.x) * z, need = (side ? ctx.measureText(str).width : 10) + 16;
+            if (room >= need) tag(str, q2, C.red, side ? (u.x > 0 ? 'left' : 'right') : 'center');
+            else if (side) { const q4 = { x: q.x - u.x * 10, y: q.y }; const a4 = u.x > 0 ? 'right' : 'left'; const tw = ctx.measureText(str).width; ctx.fillStyle = C.paper; ctx.fillRect(a4 === 'right' ? q4.x - tw - 2 : q4.x - 2, q4.y - 6, tw + 4, 12); text(str, q4.x, q4.y, 600, 9, C.red, a4); } // pas la place dans la pièce : de l'autre côté du numéro, sur fond papier
+          } else if (row.ripMin < P.W - 2 && z > 0.09 && swo) {
+            // rang entier ici mais délignée ailleurs (le long d'un autre mur) : on l'indique là où il est délignée
+            let spot = null;
+            for (const r2 of row.runs) for (let t = 0; t <= 24 && !spot; t++) { const xv = r2.x1 - 30 / z - ((r2.x1 - r2.x0 - 60 / z) * t) / 24; const c = coverAt(row, xv); if (c && c[1] - c[0] < P.W - 2) spot = { x: xv, y: (c[0] + c[1]) / 2, h: c[1] - c[0] }; }
+            if (spot) { const q3 = App.w2s(G.rot(spot, res.ang)); tag(Math.round(spot.h) + ' mm', q3, C.red, 'center'); }
+          }
         });
       }
       // départ
