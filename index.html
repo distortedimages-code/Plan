@@ -189,6 +189,7 @@ input[type=checkbox]{accent-color:var(--red);width:20px;height:20px}
 .empty .big{font-size:52px}
 .empty{position:relative}.empty::before{content:"";display:block;height:28px;background:var(--hatch);margin:0 0 16px;opacity:.6}
 .note{font-size:13px;color:var(--ink-2);border-left:3px solid var(--red);padding:2px 0 2px 10px;margin:12px 0}
+.sync{font-size:13px;line-height:1.45;border:1px solid var(--ink);padding:10px 12px;margin:8px 0 10px}.sync b{font-weight:700}.sync .row{margin-top:8px}.sync.ok{border-color:var(--ink)}.sync.err{border-color:var(--red)}.sync.err b{color:var(--red)}
 details{border-bottom:1px solid var(--rule)}
 summary{min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;cursor:pointer;list-style:none}
 summary::-webkit-details-marker{display:none}
@@ -2412,7 +2413,9 @@ details[open] summary::after{content:"–"}
   /* ---------- persistance locale ---------- */
   App.save = () => {
     clearTimeout(saveT); let ok = true;
-    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    const json = JSON.stringify(S.p);
+    try { localStorage.setItem(KEY, json); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    if (!S.p.seeded) App.filePut('projet:auto', json).then((r) => { if (r && !ok) { S.saveState = 'ok'; S.savedAt = Date.now(); App.ui && App.ui.saveBadge && App.ui.saveBadge(); } });
     S.saveState = ok ? 'ok' : 'err'; if (ok) S.savedAt = Date.now();
     if (!ok && !S.saveWarned && App.toast) { S.saveWarned = true; App.toast('Enregistrement automatique impossible ici : enregistrez une version ou exportez le projet'); }
     App.cloud && App.cloud.push();
@@ -2492,39 +2495,85 @@ details[open] summary::after{content:"–"}
         await App.filePut(key, v); n++;
       } catch (e) { console.error(e); }
     }
-    const p = App.migrate(raw); App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
-    App.toast(n ? `Projet chargé avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? 'Projet chargé — fonds de plan absents de ce fichier' : 'Projet chargé');
+    const p = App.migrate(raw); delete p.seeded; App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
+    App.save(); const synced = App.cloud && App.cloud.ready ? await App.cloud.push(true) : false;
+    const bg = n ? ` avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? ' (fonds de plan absents de ce fichier)' : '';
+    App.toast('Projet chargé' + bg + (synced ? ' et enregistré dans votre compte : vos autres appareils le reçoivent' : App.cloud && App.cloud.state === 'err' ? ' sur cet appareil — la synchronisation a échoué' : ''));
   };
   App.fileDel = async (key) => { const db = await idb(); if (!db) return; try { db.transaction('files', 'readwrite').objectStore('files').delete(key); } catch (e) { /* */ } };
 
   /* ---------- synchronisation (capacité db de l'artefact, si disponible) ---------- */
   App.cloud = {
     db: null, uid: null, ready: false, busy: false, again: false, last: 0,
+    seen: 0, // updatedAt de la dernière copie du compte reçue ou envoyée
+    state: 'off', err: '', hooked: false,
+    note() { App.ui && App.ui.saveBadge && App.ui.saveBadge(); if (App.ui && S.tab === 'projet') App.ui.refresh(); },
     async init() {
-      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') return;
+      await App.restoreLocal();
+      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') { this.state = 'off'; this.note(); return; }
+      this.state = 'wait'; this.note();
       try {
         const [db, user] = await Promise.all([globalThis.claude.use('db'), globalThis.claude.use('user')]);
-        if (!db || !user) return; const uid = await user.id(); if (!uid) return;
+        if (!db || !user) { this.state = 'off'; this.note(); return; }
+        const uid = await user.id(); if (!uid) { this.state = 'off'; this.note(); return; }
         this.db = db; this.uid = uid; this.col = db.collection('data/users/' + uid); this.ref = this.col.doc('projet');
         const snap = await Promise.race([this.ref.get(), new Promise((r) => setTimeout(() => r(null), 10000))]);
-        this.ready = true;
-        if (snap && snap.exists) {
-          const d = snap.data(); const cloudAt = d.updatedAt || 0;
-          if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { const cp = App.seedPolicy(JSON.parse(d.json)); if (!(cp.seeded && S.p.seeded)) { S.p = migrate(cp); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } } catch (e) { /* */ } }
-        }
+        if (!snap) { this.state = 'err'; this.err = 'compte injoignable'; this.ready = true; this.note(); this.hook(); return; }
+        this.ready = true; this.state = 'ok';
+        if (snap.exists) this.apply(snap.data(), true);
+        // copie de l'appareil plus récente (projet importé avant la connexion, modifs hors ligne…) : on l'envoie
+        if (!S.p.seeded && (!snap.exists || (S.p.updatedAt || 0) > this.seen + 1000)) await this.push(true);
         if (App.versions) App.versions.list = null;
-        App.ui && App.ui.refresh();
-      } catch (e) { this.db = null; }
+        this.hook(); this.note();
+      } catch (e) { this.db = null; this.state = 'err'; this.err = (e && (e.code || e.message)) || 'erreur'; this.note(); }
     },
-    async push() {
-      if (!this.ready || !this.ref) return;
-      if (this.busy) { this.again = true; return; }
-      this.busy = true;
-      try { const json = JSON.stringify(S.p); if (json.length < 240000) await this.ref.set({ json, updatedAt: S.p.updatedAt || Date.now() }); this.last = Date.now(); }
-      catch (e) { if (e && (e.code === 'revoked' || e.code === 'not_granted' || e.code === 'invalid_argument')) this.ready = false; }
-      this.busy = false;
+    // écoute les modifications faites depuis un autre appareil, et relit le compte quand l'app revient au premier plan
+    hook() {
+      if (this.hooked) return; this.hooked = true;
+      try { if (this.ref && typeof this.ref.onSnapshot === 'function') this.ref.onSnapshot((sn) => { if (sn && sn.exists) this.apply(sn.data()); }, () => {}); } catch (e) { /* */ }
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.pull(); });
+      window.addEventListener('focus', () => this.pull());
+    },
+    async pull() {
+      if (!this.ready || !this.ref || this.busy) return;
+      try { const sn = await this.ref.get(); if (sn && sn.exists) this.apply(sn.data()); if (!S.p.seeded && (S.p.updatedAt || 0) > this.seen + 1000) this.push(); } catch (e) { /* */ }
+    },
+    // copie du compte : prise si elle est plus récente que celle de l'appareil
+    apply(d, first) {
+      const at = d.updatedAt || 0;
+      if (!first && at <= this.seen + 500) return; // notre propre envoi, ou déjà vu
+      const local = S.p.updatedAt || 0;
+      if (!(at > local + 1000 || S.p.seeded)) { this.seen = Math.max(this.seen, at); return; }
+      let cp; try { cp = App.seedPolicy(JSON.parse(d.json)); } catch (e) { return; }
+      if (cp.seeded && S.p.seeded) { this.seen = at; return; }
+      // des modifications de cet appareil pas encore envoyées : gardées dans une version avant de prendre celle du compte
+      const before = App.snapshot();
+      if (!S.p.seeded && this.seen && local > this.seen + 1000 && App.versions) App.versions.save('Copie de cet appareil avant synchronisation', true, before);
+      if (!S.p.seeded) { hist.push(before); if (hist.length > 80) hist.shift(); fut.length = 0; }
+      S.p = migrate(cp); S.sel = null; S.draft = null; App.changed(); S.p.updatedAt = at; this.seen = at; this.state = 'ok'; this.err = ''; this.last = Date.now(); this.note();
+      App.fitAll && App.fitAll(); if (!first || local) App.toast('Projet mis à jour depuis votre compte');
+    },
+    async push(force) {
+      if (!this.ready || !this.ref || S.p.seeded) return false;
+      const at = S.p.updatedAt || Date.now();
+      if (!force && at <= this.seen) return true;
+      if (this.busy) { this.again = true; return false; }
+      this.busy = true; let ok = false;
+      try { await this.ref.set({ json: JSON.stringify(S.p), updatedAt: at }); this.seen = Math.max(this.seen, at); this.last = Date.now(); this.state = 'ok'; this.err = ''; ok = true; }
+      catch (e) { this.state = 'err'; this.err = (e && (e.code || e.message)) || 'erreur'; if (e && (e.code === 'revoked' || e.code === 'not_granted')) this.ready = false; }
+      this.busy = false; this.note();
       if (this.again) { this.again = false; setTimeout(() => this.push(), 1500); }
+      return ok;
     },
+  };
+
+  /* copie de secours dans IndexedDB : certains navigateurs intégrés vident le localStorage entre deux ouvertures */
+  App.restoreLocal = async () => {
+    try {
+      const t = await App.fileGet('projet:auto'); if (typeof t !== 'string') return;
+      const p = JSON.parse(t); if (!p || p.seeded) return;
+      if ((p.updatedAt || 0) > (S.p.updatedAt || 0) + 1000 || S.p.seeded || !(S.p.shapes || []).length) { S.p = migrate(App.seedPolicy(p)); S.sel = null; App.changed(); S.p.updatedAt = p.updatedAt; App.fitAll && App.fitAll(); }
+    } catch (e) { /* */ }
   };
 
   /* ---------- versions enregistrées (copies nommées du projet) ----------
@@ -2550,9 +2599,9 @@ details[open] summary::after{content:"–"}
       })();
       return this.loading;
     },
-    async save(name, auto) {
-      App.save();
-      const meta = this.meta(name, auto); const json = JSON.stringify(S.p);
+    async save(name, auto, json0) {
+      if (!json0) App.save();
+      const meta = this.meta(name, auto); const json = json0 || JSON.stringify(S.p);
       let local = false, cloud = false;
       if (await App.filePut('ver:' + meta.id, json)) { const idx = (await App.fileGet(VIDX)) || []; idx.push(meta); local = await App.filePut(VIDX, idx); }
       if (cloudOn() && json.length < 240000) {
@@ -3682,9 +3731,19 @@ details[open] summary::after{content:"–"}
   /* ---------- enregistrement : état + versions ---------- */
   const hm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const when = (t) => { const d = new Date(t), now = new Date(); const day = d.toDateString() === now.toDateString() ? 'aujourd\'hui' : d.toDateString() === new Date(now - 864e5).toDateString() ? 'hier' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }); return day + ' à ' + hm(t); };
+  /* état de la synchronisation avec le compte Claude, en clair */
+  function syncHTML() {
+    const C = App.cloud || {}, st = C.state || 'off';
+    if (st === 'ok') return `<div class="sync ok"><b>Synchronisé avec votre compte Claude</b>${C.last ? ` à ${hm(C.last)}` : ''}. Ouvrez ce même projet depuis Claude (claude.ai ou l'app) sur vos autres appareils, avec le même compte : il s'y met à jour tout seul.<div class="row"><button class="btn sm" data-a="cloudsync">Synchroniser maintenant</button></div></div>`;
+    if (st === 'wait') return `<div class="sync"><b>Connexion à votre compte…</b></div>`;
+    if (st === 'err') return `<div class="sync err"><b>La synchronisation a échoué</b> (${esc(String(C.err || 'erreur'))}). Le projet reste enregistré sur cet appareil.<div class="row"><button class="btn sm" data-a="cloudsync">Réessayer</button></div></div>`;
+    return globalThis.claude ? `<div class="sync"><b>Pas de synchronisation ici</b> (compte non connecté). Le projet reste sur cet appareil : pour le retrouver ailleurs, exportez-le puis importez-le sur l'autre appareil.</div>`
+      : `<div class="sync"><b>Pas de synchronisation sur cette version publique.</b> Le projet reste dans ce navigateur. Pour le retrouver identique sur un autre appareil : Exporter ici, puis Importer un projet là-bas — ou travaillez dans la version ouverte depuis Claude, synchronisée avec votre compte.</div>`;
+  }
   ui.saveBadge = () => {
     const b = $('savebtn'); if (!b) return; const st = S.saveState || 'ok'; b.dataset.st = st;
-    $('savelab').textContent = st === 'err' ? 'Non enregistré' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
+    const cerr = App.cloud && App.cloud.state === 'err' && st !== 'err'; if (cerr) b.dataset.st = 'err';
+    $('savelab').textContent = st === 'err' ? 'Non enregistré' : cerr ? 'Non synchronisé' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
     b.title = st === 'err' ? 'L\'enregistrement automatique a échoué — toucher pour enregistrer une version' : (S.savedAt ? 'Enregistré automatiquement à ' + hm(S.savedAt) : 'Enregistré automatiquement') + ' — toucher pour enregistrer une version';
   };
   ui.openVersions = () => { ui.setTab('projet'); if (innerWidth < 900) ui.sheet('full'); setTimeout(() => { const el = $('panel').querySelector('#vers'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); };
@@ -4273,13 +4332,12 @@ details[open] summary::after{content:"–"}
   /* ----- Projet ----- */
   function panelProjet() {
     const fl = S.p.floors.slice().sort((a, b) => a.level - b.level);
-    const cloud = App.cloud && App.cloud.ready;
     return `<h2>Projet</h2>
       <div class="field" style="border-top:1px solid var(--ink)"><label>Nom du projet</label><input data-c="pname" value="${esc(S.p.name || '')}"></div>
       <h3>Apparence</h3><div class="seg">${[['light', 'Claire'], ['dark', 'Sombre'], ['auto', 'Comme l\'appareil']].map(([k, v]) => `<button data-x="theme" data-v="${k}" aria-pressed="${App.theme() === k}">${v}</button>`).join('')}</div>
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
-      <h3>Sauvegarde</h3><p>${cloud ? 'Chaque modification est enregistrée automatiquement et synchronisée avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Chaque modification est enregistrée automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'}${S.savedAt ? ` Dernier enregistrement à ${hm(S.savedAt)}.` : ''} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
+      <h3>Sauvegarde et synchronisation</h3>${syncHTML()}<p>Chaque modification est enregistrée automatiquement sur cet appareil${S.savedAt ? ` (dernier enregistrement à ${hm(S.savedAt)})` : ''}. Les fonds de plan restent sur l'appareil où ils ont été importés : ils voyagent seulement dans le fichier exporté.</p>
       <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
       ${versionsHTML()}
       <h3>Affichage</h3>
@@ -4352,6 +4410,7 @@ details[open] summary::after{content:"–"}
       case 'vrest': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; const r = await ui.dialog('Restaurer la version', `<p>Le projet revient à « ${esc(ver.name)} » (${esc(when(ver.at))}).</p><p class="hint2">L'état actuel est d'abord gardé comme version « Avant restauration », et vous pouvez aussi annuler avec la flèche ↶.</p>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Restaurer', cls: 'primary', def: true }]); if (r.i !== 1) break; const ok = await App.versions.restore(v); App.toast(ok ? `Version « ${ver.name} » restaurée` : 'Version introuvable sur cet appareil'); ui.refresh(); break; }
       case 'vdel': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; if (!(await ui.confirm('Supprimer la version', `« ${ver.name} » sera supprimée${ver.cloud ? ' de votre compte et de cet appareil' : ''}. Le projet en cours n'est pas touché.`, 'Supprimer'))) break; await App.versions.remove(v); App.toast('Version supprimée'); ui.refresh(); break; }
       case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
+      case 'cloudsync': { const C = App.cloud; if (!C) break; if (!C.ready) await C.init(); else { await C.pull(); await C.push(true); } App.toast(C.state === 'ok' ? 'Projet synchronisé avec votre compte' : 'Synchronisation impossible pour le moment'); ui.refresh(); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }
       case 'fadd': { const r = await ui.dialog('Nouvel étage', '<div class="field"><label>Nom</label><input name="n" value="Étage"></div>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Ajouter', cls: 'primary', def: true }]); if (r.i !== 1) break; const f = { id: App.uid(), name: r.vals.n || 'Étage', level: Math.max(...S.p.floors.map((x) => x.level)) + 1 }; App.mutate((P) => { P.floors.push(f); P.floorId = f.id; }); App.fitAll(); break; }

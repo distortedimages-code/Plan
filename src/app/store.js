@@ -61,7 +61,9 @@
   /* ---------- persistance locale ---------- */
   App.save = () => {
     clearTimeout(saveT); let ok = true;
-    try { localStorage.setItem(KEY, JSON.stringify(S.p)); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    const json = JSON.stringify(S.p);
+    try { localStorage.setItem(KEY, json); } catch (e) { ok = false; /* stockage indisponible ou plein */ }
+    if (!S.p.seeded) App.filePut('projet:auto', json).then((r) => { if (r && !ok) { S.saveState = 'ok'; S.savedAt = Date.now(); App.ui && App.ui.saveBadge && App.ui.saveBadge(); } });
     S.saveState = ok ? 'ok' : 'err'; if (ok) S.savedAt = Date.now();
     if (!ok && !S.saveWarned && App.toast) { S.saveWarned = true; App.toast('Enregistrement automatique impossible ici : enregistrez une version ou exportez le projet'); }
     App.cloud && App.cloud.push();
@@ -141,39 +143,85 @@
         await App.filePut(key, v); n++;
       } catch (e) { console.error(e); }
     }
-    const p = App.migrate(raw); App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
-    App.toast(n ? `Projet chargé avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? 'Projet chargé — fonds de plan absents de ce fichier' : 'Projet chargé');
+    const p = App.migrate(raw); delete p.seeded; App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
+    App.save(); const synced = App.cloud && App.cloud.ready ? await App.cloud.push(true) : false;
+    const bg = n ? ` avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? ' (fonds de plan absents de ce fichier)' : '';
+    App.toast('Projet chargé' + bg + (synced ? ' et enregistré dans votre compte : vos autres appareils le reçoivent' : App.cloud && App.cloud.state === 'err' ? ' sur cet appareil — la synchronisation a échoué' : ''));
   };
   App.fileDel = async (key) => { const db = await idb(); if (!db) return; try { db.transaction('files', 'readwrite').objectStore('files').delete(key); } catch (e) { /* */ } };
 
   /* ---------- synchronisation (capacité db de l'artefact, si disponible) ---------- */
   App.cloud = {
     db: null, uid: null, ready: false, busy: false, again: false, last: 0,
+    seen: 0, // updatedAt de la dernière copie du compte reçue ou envoyée
+    state: 'off', err: '', hooked: false,
+    note() { App.ui && App.ui.saveBadge && App.ui.saveBadge(); if (App.ui && S.tab === 'projet') App.ui.refresh(); },
     async init() {
-      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') return;
+      await App.restoreLocal();
+      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') { this.state = 'off'; this.note(); return; }
+      this.state = 'wait'; this.note();
       try {
         const [db, user] = await Promise.all([globalThis.claude.use('db'), globalThis.claude.use('user')]);
-        if (!db || !user) return; const uid = await user.id(); if (!uid) return;
+        if (!db || !user) { this.state = 'off'; this.note(); return; }
+        const uid = await user.id(); if (!uid) { this.state = 'off'; this.note(); return; }
         this.db = db; this.uid = uid; this.col = db.collection('data/users/' + uid); this.ref = this.col.doc('projet');
         const snap = await Promise.race([this.ref.get(), new Promise((r) => setTimeout(() => r(null), 10000))]);
-        this.ready = true;
-        if (snap && snap.exists) {
-          const d = snap.data(); const cloudAt = d.updatedAt || 0;
-          if (cloudAt > (S.p.updatedAt || 0) + 1000 || S.p.seeded) { try { const cp = App.seedPolicy(JSON.parse(d.json)); if (!(cp.seeded && S.p.seeded)) { S.p = migrate(cp); S.sel = null; App.changed(true); App.fitAll && App.fitAll(); App.toast('Projet synchronisé'); } } catch (e) { /* */ } }
-        }
+        if (!snap) { this.state = 'err'; this.err = 'compte injoignable'; this.ready = true; this.note(); this.hook(); return; }
+        this.ready = true; this.state = 'ok';
+        if (snap.exists) this.apply(snap.data(), true);
+        // copie de l'appareil plus récente (projet importé avant la connexion, modifs hors ligne…) : on l'envoie
+        if (!S.p.seeded && (!snap.exists || (S.p.updatedAt || 0) > this.seen + 1000)) await this.push(true);
         if (App.versions) App.versions.list = null;
-        App.ui && App.ui.refresh();
-      } catch (e) { this.db = null; }
+        this.hook(); this.note();
+      } catch (e) { this.db = null; this.state = 'err'; this.err = (e && (e.code || e.message)) || 'erreur'; this.note(); }
     },
-    async push() {
-      if (!this.ready || !this.ref) return;
-      if (this.busy) { this.again = true; return; }
-      this.busy = true;
-      try { const json = JSON.stringify(S.p); if (json.length < 240000) await this.ref.set({ json, updatedAt: S.p.updatedAt || Date.now() }); this.last = Date.now(); }
-      catch (e) { if (e && (e.code === 'revoked' || e.code === 'not_granted' || e.code === 'invalid_argument')) this.ready = false; }
-      this.busy = false;
+    // écoute les modifications faites depuis un autre appareil, et relit le compte quand l'app revient au premier plan
+    hook() {
+      if (this.hooked) return; this.hooked = true;
+      try { if (this.ref && typeof this.ref.onSnapshot === 'function') this.ref.onSnapshot((sn) => { if (sn && sn.exists) this.apply(sn.data()); }, () => {}); } catch (e) { /* */ }
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.pull(); });
+      window.addEventListener('focus', () => this.pull());
+    },
+    async pull() {
+      if (!this.ready || !this.ref || this.busy) return;
+      try { const sn = await this.ref.get(); if (sn && sn.exists) this.apply(sn.data()); if (!S.p.seeded && (S.p.updatedAt || 0) > this.seen + 1000) this.push(); } catch (e) { /* */ }
+    },
+    // copie du compte : prise si elle est plus récente que celle de l'appareil
+    apply(d, first) {
+      const at = d.updatedAt || 0;
+      if (!first && at <= this.seen + 500) return; // notre propre envoi, ou déjà vu
+      const local = S.p.updatedAt || 0;
+      if (!(at > local + 1000 || S.p.seeded)) { this.seen = Math.max(this.seen, at); return; }
+      let cp; try { cp = App.seedPolicy(JSON.parse(d.json)); } catch (e) { return; }
+      if (cp.seeded && S.p.seeded) { this.seen = at; return; }
+      // des modifications de cet appareil pas encore envoyées : gardées dans une version avant de prendre celle du compte
+      const before = App.snapshot();
+      if (!S.p.seeded && this.seen && local > this.seen + 1000 && App.versions) App.versions.save('Copie de cet appareil avant synchronisation', true, before);
+      if (!S.p.seeded) { hist.push(before); if (hist.length > 80) hist.shift(); fut.length = 0; }
+      S.p = migrate(cp); S.sel = null; S.draft = null; App.changed(); S.p.updatedAt = at; this.seen = at; this.state = 'ok'; this.err = ''; this.last = Date.now(); this.note();
+      App.fitAll && App.fitAll(); if (!first || local) App.toast('Projet mis à jour depuis votre compte');
+    },
+    async push(force) {
+      if (!this.ready || !this.ref || S.p.seeded) return false;
+      const at = S.p.updatedAt || Date.now();
+      if (!force && at <= this.seen) return true;
+      if (this.busy) { this.again = true; return false; }
+      this.busy = true; let ok = false;
+      try { await this.ref.set({ json: JSON.stringify(S.p), updatedAt: at }); this.seen = Math.max(this.seen, at); this.last = Date.now(); this.state = 'ok'; this.err = ''; ok = true; }
+      catch (e) { this.state = 'err'; this.err = (e && (e.code || e.message)) || 'erreur'; if (e && (e.code === 'revoked' || e.code === 'not_granted')) this.ready = false; }
+      this.busy = false; this.note();
       if (this.again) { this.again = false; setTimeout(() => this.push(), 1500); }
+      return ok;
     },
+  };
+
+  /* copie de secours dans IndexedDB : certains navigateurs intégrés vident le localStorage entre deux ouvertures */
+  App.restoreLocal = async () => {
+    try {
+      const t = await App.fileGet('projet:auto'); if (typeof t !== 'string') return;
+      const p = JSON.parse(t); if (!p || p.seeded) return;
+      if ((p.updatedAt || 0) > (S.p.updatedAt || 0) + 1000 || S.p.seeded || !(S.p.shapes || []).length) { S.p = migrate(App.seedPolicy(p)); S.sel = null; App.changed(); S.p.updatedAt = p.updatedAt; App.fitAll && App.fitAll(); }
+    } catch (e) { /* */ }
   };
 
   /* ---------- versions enregistrées (copies nommées du projet) ----------
@@ -199,9 +247,9 @@
       })();
       return this.loading;
     },
-    async save(name, auto) {
-      App.save();
-      const meta = this.meta(name, auto); const json = JSON.stringify(S.p);
+    async save(name, auto, json0) {
+      if (!json0) App.save();
+      const meta = this.meta(name, auto); const json = json0 || JSON.stringify(S.p);
       let local = false, cloud = false;
       if (await App.filePut('ver:' + meta.id, json)) { const idx = (await App.fileGet(VIDX)) || []; idx.push(meta); local = await App.filePut(VIDX, idx); }
       if (cloudOn() && json.length < 240000) {

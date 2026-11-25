@@ -37,9 +37,19 @@
   /* ---------- enregistrement : état + versions ---------- */
   const hm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const when = (t) => { const d = new Date(t), now = new Date(); const day = d.toDateString() === now.toDateString() ? 'aujourd\'hui' : d.toDateString() === new Date(now - 864e5).toDateString() ? 'hier' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }); return day + ' à ' + hm(t); };
+  /* état de la synchronisation avec le compte Claude, en clair */
+  function syncHTML() {
+    const C = App.cloud || {}, st = C.state || 'off';
+    if (st === 'ok') return `<div class="sync ok"><b>Synchronisé avec votre compte Claude</b>${C.last ? ` à ${hm(C.last)}` : ''}. Ouvrez ce même projet depuis Claude (claude.ai ou l'app) sur vos autres appareils, avec le même compte : il s'y met à jour tout seul.<div class="row"><button class="btn sm" data-a="cloudsync">Synchroniser maintenant</button></div></div>`;
+    if (st === 'wait') return `<div class="sync"><b>Connexion à votre compte…</b></div>`;
+    if (st === 'err') return `<div class="sync err"><b>La synchronisation a échoué</b> (${esc(String(C.err || 'erreur'))}). Le projet reste enregistré sur cet appareil.<div class="row"><button class="btn sm" data-a="cloudsync">Réessayer</button></div></div>`;
+    return globalThis.claude ? `<div class="sync"><b>Pas de synchronisation ici</b> (compte non connecté). Le projet reste sur cet appareil : pour le retrouver ailleurs, exportez-le puis importez-le sur l'autre appareil.</div>`
+      : `<div class="sync"><b>Pas de synchronisation sur cette version publique.</b> Le projet reste dans ce navigateur. Pour le retrouver identique sur un autre appareil : Exporter ici, puis Importer un projet là-bas — ou travaillez dans la version ouverte depuis Claude, synchronisée avec votre compte.</div>`;
+  }
   ui.saveBadge = () => {
     const b = $('savebtn'); if (!b) return; const st = S.saveState || 'ok'; b.dataset.st = st;
-    $('savelab').textContent = st === 'err' ? 'Non enregistré' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
+    const cerr = App.cloud && App.cloud.state === 'err' && st !== 'err'; if (cerr) b.dataset.st = 'err';
+    $('savelab').textContent = st === 'err' ? 'Non enregistré' : cerr ? 'Non synchronisé' : st === 'dirty' ? 'Enregistrement…' : 'Enregistré';
     b.title = st === 'err' ? 'L\'enregistrement automatique a échoué — toucher pour enregistrer une version' : (S.savedAt ? 'Enregistré automatiquement à ' + hm(S.savedAt) : 'Enregistré automatiquement') + ' — toucher pour enregistrer une version';
   };
   ui.openVersions = () => { ui.setTab('projet'); if (innerWidth < 900) ui.sheet('full'); setTimeout(() => { const el = $('panel').querySelector('#vers'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); };
@@ -628,13 +638,12 @@
   /* ----- Projet ----- */
   function panelProjet() {
     const fl = S.p.floors.slice().sort((a, b) => a.level - b.level);
-    const cloud = App.cloud && App.cloud.ready;
     return `<h2>Projet</h2>
       <div class="field" style="border-top:1px solid var(--ink)"><label>Nom du projet</label><input data-c="pname" value="${esc(S.p.name || '')}"></div>
       <h3>Apparence</h3><div class="seg">${[['light', 'Claire'], ['dark', 'Sombre'], ['auto', 'Comme l\'appareil']].map(([k, v]) => `<button data-x="theme" data-v="${k}" aria-pressed="${App.theme() === k}">${v}</button>`).join('')}</div>
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
-      <h3>Sauvegarde</h3><p>${cloud ? 'Chaque modification est enregistrée automatiquement et synchronisée avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Chaque modification est enregistrée automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'}${S.savedAt ? ` Dernier enregistrement à ${hm(S.savedAt)}.` : ''} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
+      <h3>Sauvegarde et synchronisation</h3>${syncHTML()}<p>Chaque modification est enregistrée automatiquement sur cet appareil${S.savedAt ? ` (dernier enregistrement à ${hm(S.savedAt)})` : ''}. Les fonds de plan restent sur l'appareil où ils ont été importés : ils voyagent seulement dans le fichier exporté.</p>
       <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
       ${versionsHTML()}
       <h3>Affichage</h3>
@@ -707,6 +716,7 @@
       case 'vrest': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; const r = await ui.dialog('Restaurer la version', `<p>Le projet revient à « ${esc(ver.name)} » (${esc(when(ver.at))}).</p><p class="hint2">L'état actuel est d'abord gardé comme version « Avant restauration », et vous pouvez aussi annuler avec la flèche ↶.</p>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Restaurer', cls: 'primary', def: true }]); if (r.i !== 1) break; const ok = await App.versions.restore(v); App.toast(ok ? `Version « ${ver.name} » restaurée` : 'Version introuvable sur cet appareil'); ui.refresh(); break; }
       case 'vdel': { const ver = (App.versions.list || []).find((x) => x.id === v); if (!ver) break; if (!(await ui.confirm('Supprimer la version', `« ${ver.name} » sera supprimée${ver.cloud ? ' de votre compte et de cet appareil' : ''}. Le projet en cours n'est pas touché.`, 'Supprimer'))) break; await App.versions.remove(v); App.toast('Version supprimée'); ui.refresh(); break; }
       case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
+      case 'cloudsync': { const C = App.cloud; if (!C) break; if (!C.ready) await C.init(); else { await C.pull(); await C.push(true); } App.toast(C.state === 'ok' ? 'Projet synchronisé avec votre compte' : 'Synchronisation impossible pour le moment'); ui.refresh(); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }
       case 'fadd': { const r = await ui.dialog('Nouvel étage', '<div class="field"><label>Nom</label><input name="n" value="Étage"></div>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Ajouter', cls: 'primary', def: true }]); if (r.i !== 1) break; const f = { id: App.uid(), name: r.vals.n || 'Étage', level: Math.max(...S.p.floors.map((x) => x.level)) + 1 }; App.mutate((P) => { P.floors.push(f); P.floorId = f.id; }); App.fitAll(); break; }
