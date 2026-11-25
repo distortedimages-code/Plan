@@ -59,6 +59,7 @@
     F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
     // ---- studio : supports (cotes fabricant) ----
     F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
+    F('pied', 'Studio · mobilier', 'Pied d\'enceinte (tweeter à hauteur d\'oreille)', 30, 30, { short: 'Pied', m: 'pied', ref: 'plateau 20 × 23 · réglé sur l\'oreille assis' }),
     F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
     // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
     ...[
@@ -222,6 +223,13 @@
         M.decks.push({ pts: rect(side, v0, w - side, v1), z, name: 'étage ' + (k + 1), arm: L });
       });
     },
+    // pied d'enceinte : embase, colonne, plateau 20 × 23 cm ; le plateau monte pour mettre le tweeter à hauteur d'oreille
+    pied: (w, d, M, it, sh) => {
+      const top = PL.standTop(sh), pw = Math.min(w, 200), pd = Math.min(d, 230), q = rect((w - pw) / 2, (d - pd) / 2, (w + pw) / 2, (d + pd) / 2); M.h = top; M.fill = false;
+      M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 15 }, { pts: rect(w / 2 - 30, d / 2 - 30, w / 2 + 30, d / 2 + 30), z0: 15, z1: top - 12 }, { pts: q, z0: top - 12, z1: top });
+      M.plan.push({ pts: q, dash: true }, { pts: rect(w / 2 - 30, d / 2 - 30, w / 2 + 30, d / 2 + 30) });
+      M.decks = [{ pts: q, z: top, name: 'plateau' }];
+    },
     // bureau Idåsen : plateau 160 × 80 (ép. 2,5), deux colonnes télescopiques sur pieds en T, poutre entre les colonnes
     idasen: (w, d, M, it, sh) => {
       const top = PL.deskTop(sh) * 10, t = 25, ui = Math.min(120, w * 0.075); M.h = top;
@@ -355,6 +363,9 @@
   };
   /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
   PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
+  // pied d'enceinte : hauteur d'oreille de l'auditeur (cm) et hauteur du tweeter de l'enceinte posée (mm, KH 120 par défaut)
+  PL.earHeight = (sh) => Math.max(80, Math.min(180, (sh && +sh.ear) || 120));
+  PL.standTop = (sh) => Math.max(300, Math.min(1600, PL.earHeight(sh) * 10 - ((sh && +sh.tw) || 216)));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).

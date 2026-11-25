@@ -683,6 +683,8 @@
       case 'stfloor': App.mutate(() => { App.stack.toFloor(s); s.floorLock = true; }); ui.refresh(); break;
       case 'stsel': S.sel = { id: v }; ui.onSelect(); App.render(); break;
       case 'desktopq': App.mutate(() => { s.top = +v; }); break;
+      case 'earq': App.mutate(() => { s.ear = +v; }); break;
+      case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
@@ -744,6 +746,7 @@
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
     if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
+    if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }
     if (c === 'desktop') { const v = num(val); if (!(v >= 63 && v <= 127)) { App.toast('Le plateau Idåsen va de 63 à 127 cm'); ui.refresh(true); return; } App.mutate(() => { s.top = v; }); return; }
     if (c === 'drop') { const v = num(val); if (!(v > 0)) { App.toast('Épaisseur en cm, supérieure à 0'); ui.refresh(true); return; } App.mutate(() => { s.drop = v; }); return; }
     if (c === 'noParquet') { App.mutate(() => { s.noParquet = val; }); return; }
