@@ -138,7 +138,7 @@
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
-    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Zone entourée : pièce <button data-h="done">Terminer</button>`;
+    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Trait en L depuis un mur : décrochement · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
     h.hidden = !html; h.innerHTML = html;

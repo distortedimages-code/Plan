@@ -3586,7 +3586,7 @@ details[open] summary::after{content:"–"}
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
-    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Zone entourée : pièce <button data-h="done">Terminer</button>`;
+    else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Trait en L depuis un mur : décrochement · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
     h.hidden = !html; h.innerHTML = html;
@@ -5204,6 +5204,7 @@ details[open] summary::after{content:"–"}
     const bar = $('opbar'); if (!bar) return; let h = '';
     const P = S.pending; const f = App.ops.selected();
     if (S.skPlan && S.skPlan.handle) { const p = S.skPlan, full = p.kind === 'line'; h = `<span class="ob-v">${full ? 'Jusqu\'au mur' : 'Prolonger'}</span>${full ? `<span class="ob-n">${App.esc(App.sketch.summary())}</span>` : `<label class="ob-len">+<input data-obx="sklen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label>${p.canClose ? '<button data-ob="skclose">Jusqu\'au mur</button>' : ''}`}<button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
+    else if (S.skPlan && S.skPlan.kind === 'step') { const p = S.skPlan; h = `<span class="ob-v">${p.mode === 'cloison' ? 'Cloison décalée' : 'Décrochement'}</span><label class="ob-len">prof.<input data-obx="skdepth" type="number" inputmode="decimal" step="0.5" min="1" value="${+(p.depth / 10).toFixed(1)}">cm</label><label class="ob-len">long.<input data-obx="skslen" type="number" inputmode="decimal" step="0.5" min="5" value="${+(p.len / 10).toFixed(1)}">cm</label><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`; }
     else if (S.skPlan) h = `<span class="ob-v">${S.skPlan.kind === 'line' || S.skPlan.kind === 'join' ? 'Cloison' : 'Pièce'}</span><span class="ob-n">${App.esc(App.sketch.summary())}</span><button data-ob="skcancel">Annuler</button><button data-ob="skok" class="ok">Valider</button>`;
     else if (S.simpFocus && App.walls.spots().some((x) => x.key === S.simpFocus)) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); h = `<span class="ob-v">Décrochement</span><span class="ob-n">${App.esc(x.name)} · ${App.fmtCm(x.depth, 0)} cm${x.width > 1 ? ' × ' + App.fmtCm(x.width, 0) + ' cm' : ''}</span><button data-ob="simpx">Fermer</button><button data-ob="simpign" data-v="${App.esc(x.key)}">Ignorer</button><button data-ob="simpok" data-v="${App.esc(x.key)}" class="ok">Simplifier</button>`; }
     else if (P) h = `<span class="ob-v">${P.delta >= 0 ? '' : '−'}${App.fmtCm(Math.abs(P.delta))} cm</span>${P.affected.length ? `<span class="ob-n">${P.affected.length} mur${P.affected.length > 1 ? 's' : ''} étiré${P.affected.length > 1 ? 's' : ''}${P.affected.some((a) => a.locked) ? ' · cote verrouillée' : ''}</span>` : ''}<button data-ob="cancel">Annuler</button><button data-ob="ok" class="ok" ${P.valid ? '' : 'disabled'}>Valider</button>`;
@@ -5354,7 +5355,7 @@ details[open] summary::after{content:"–"}
     $('panel').addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) X.act(b.dataset.x, b.dataset.v, b); });
     $('panel').addEventListener('change', (e) => { const t = e.target; if (t.dataset.xc) X.change(t.dataset.xc, t.value); });
     $('opbar').addEventListener('click', (e) => { const b = e.target.closest('[data-ob]'); if (b) X.act(b.dataset.ob, b.dataset.v ?? null, b); });
-    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } });
+    $('opbar').addEventListener('change', (e) => { const t = e.target; if (t.dataset.obx === 'sklen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) App.sketch.setLen(v); } if (t.dataset.obx === 'skdepth' || t.dataset.obx === 'skslen') { const v = parseFloat(String(t.value).replace(',', '.')); if (v > 0) t.dataset.obx === 'skdepth' ? App.sketch.setStep(v, null) : App.sketch.setStep(null, v); } });
     $('opbar').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.obx) e.target.blur(); });
   };
 })();
@@ -5524,6 +5525,7 @@ details[open] summary::after{content:"–"}
     const gap = G.dist(W[0], W[W.length - 1]); const bb = G.bbox(W), diag = Math.hypot(bb.w, bb.h);
     const closed = gap < Math.max(60 / z, 0.3 * diag) && len > 2.2 * diag;
     if (closed) return zone(W);
+    if (stepLike(W)) { const st = step(W); if (st) return st; }
     const j = joinStroke(W); if (j) return j;
     return line(W);
   };
@@ -5600,7 +5602,7 @@ details[open] summary::after{content:"–"}
     for (let i = 0; i < R.length; i++) {
       const p = R[i], q = R[(i + 1) % R.length]; const perp = o === 'H' ? Math.abs(p.x - q.x) < 1e-6 : Math.abs(p.y - q.y) < 1e-6; if (!perp) continue;
       const pos = o === 'H' ? p.x : p.y, s0 = Math.min(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x), s1 = Math.max(o === 'H' ? p.y : p.x, o === 'H' ? q.y : q.x);
-      if (s1 < band.a - 1 || s0 > band.b + 1) continue; if (pos <= sLo + 1) lo = Math.max(lo, pos); if (pos >= sHi - 1) hi = Math.min(hi, pos);
+      if (s1 < band.a - 1 || s0 > band.b + 1) continue; const midS = (sLo + sHi) / 2; if (pos < midS) lo = Math.max(lo, pos); else hi = Math.min(hi, pos); // premier mur de chaque côté du milieu du trait (le trait peut commencer un peu avant ou après le mur)
     }
     // bout de cloison : le trait part d'un mur (ou du bout d'une cloison) et s'arrête au milieu de la pièce
     const snap = Math.max(tol, 200), nearLo = isFinite(lo) && sLo - lo <= snap, nearHi = isFinite(hi) && hi - sHi <= snap;
@@ -5617,6 +5619,102 @@ details[open] summary::after{content:"–"}
     if (!out.err) out.stroke = W;
     return out;
   }
+  /* ---------- décrochement : trait en L (ou en U) qui part d'un mur ----------
+     Le trait devient la nouvelle face du mur. S'il y a une pièce de l'autre côté de ce mur (cloison),
+     la cloison se déplace : la pièce d'en face récupère la surface ; sinon la pièce perd ce coin. */
+  function openRuns(P, eps) {
+    const Q = G.simplifyDP(P, eps, false); const runs = [];
+    for (let i = 1; i < Q.length; i++) {
+      const a = Q[i - 1], b = Q[i], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy); if (l < eps * 0.6) continue;
+      const o = Math.abs(dy) <= 0.5 * Math.abs(dx) ? 'H' : Math.abs(dx) <= 0.5 * Math.abs(dy) ? 'V' : null; if (!o) return null;
+      const r = runs[runs.length - 1], v = o === 'H' ? (a.y + b.y) / 2 : (a.x + b.x) / 2, s0 = o === 'H' ? a.x : a.y, s1 = o === 'H' ? b.x : b.y;
+      if (r && r.o === o) { r.v = (r.v * r.l + v * l) / (r.l + l); r.l += l; r.s1 = s1; } else runs.push({ o, v, l, s0, s1 });
+    }
+    return runs;
+  }
+  const stepLike = (W) => { const z = S.view.z; const fr = frameFor(roomAt(W[Math.floor(W.length / 2)])); const runs = openRuns(W.map(fr.to), 14 / z); return !!(runs && runs.length >= 2 && runs.every((r) => r.l * z >= 14)); };
+  function step(W) {
+    const cnt = new Map(); for (const w of W) { const r = roomAt(w); if (r) cnt.set(r, (cnt.get(r) || 0) + 1); }
+    const home = [...cnt.entries()].sort((x, y) => y[1] - x[1]).map((x) => x[0])[0]; if (!home) return { err: 'Tracez le décrochement dans la pièce, en partant d\'un mur' };
+    const fr = frameFor(home), z = S.view.z, runs = openRuns(W.map(fr.to), 14 / z);
+    if (!runs || runs.length < 2) return null;
+    if (runs.length > 3) return { err: 'Décrochement : tracez un L (du mur, on avance, puis on longe le mur) ou un U' };
+    const F = faces(fr), tol = tolMm();
+    // face touchée par le bout libre d'un passage : perpendiculaire au passage, tournée vers lui
+    const endFace = (r, atStart) => {
+      const s = atStart ? r.s0 : r.s1, dirIn = Math.sign(atStart ? r.s1 - r.s0 : r.s0 - r.s1); let best = null;
+      for (const f of F) { if (f.room !== home || f.o === r.o || f.n !== dirIn || Math.abs(f.v - s) > tol || r.v < f.lo - 1 || r.v > f.hi + 1) continue; if (!best || Math.abs(f.v - s) < Math.abs(best.v - s)) best = f; }
+      return best;
+    };
+    const fa = endFace(runs[0], true), fb = endFace(runs[runs.length - 1], false);
+    if (!fa || !fb) return { err: 'Décrochement : partez d\'un mur et finissez sur un mur' };
+    const nb = (f) => F.some((g) => g.room !== home && g.o === f.o && g.n === -f.n && (f.v - g.v) * f.n >= 30 && (f.v - g.v) * f.n <= 400 && Math.min(f.hi, g.hi) - Math.max(f.lo, g.lo) > 200);
+    let st;
+    if (runs.length === 3) {
+      const [r0, r1, r2] = runs; if (r0.o !== r2.o || Math.abs(fa.v - fb.v) > 5 || fa.n !== fb.n) return { err: 'Décrochement en U : partez du mur et revenez sur le même mur' };
+      st = { fr, home, o: fa.o, xv: fa.v, sB: fa.n, u1: r0.v, u3: r2.v, depth: Math.abs(r1.v - fa.v) };
+    } else {
+      const [r0, r1] = runs;
+      // X : le mur longé (parallèle au passage long) ; on préfère une cloison avec une pièce derrière
+      const cands = [{ X: fa, d: r0, p: r1, Y: fb }, { X: fb, d: r1, p: r0, Y: fa }];
+      cands.sort((a, b) => (nb(b.X) - nb(a.X)) || (b.p.l - a.p.l));
+      const c = cands[0];
+      st = { fr, home, o: c.X.o, xv: c.X.v, sB: c.X.n, u1: c.d.v, uE: c.Y.v, depth: Math.abs(c.p.v - c.X.v) };
+    }
+    // arrondis au cm
+    st.depth = Math.max(10, Math.round(st.depth / 10) * 10);
+    if (st.uE != null) { const L = Math.max(50, Math.round(Math.abs(st.uE - st.u1) / 10) * 10); st.u1 = st.uE - Math.sign(st.uE - st.u1 || 1) * L; }
+    else { const f0 = fa.lo; st.u1 = f0 + Math.round((st.u1 - f0) / 10) * 10; st.u3 = st.u1 + Math.sign(st.u3 - st.u1 || 1) * Math.max(50, Math.round(Math.abs(st.u3 - st.u1) / 10) * 10); }
+    const out = stepPlan(st); if (!out.err) out.stroke = W; return out;
+  }
+  const stepLen = (st) => Math.abs((st.uE != null ? st.uE : st.u3) - st.u1);
+  function stepPlan(st) {
+    const { fr, home, o, xv, sB, depth } = st; const w1 = xv + sB * depth;
+    const P = O.square(home.pts.map(fr.to)); if (!P) return { err: 'Cette pièce a un mur en biais : décrochement impossible au trait' };
+    const S2 = st.uE != null ? [PT(o, st.u1, xv), PT(o, st.u1, w1), PT(o, st.uE, w1)] : [PT(o, st.u1, xv), PT(o, st.u1, w1), PT(o, st.u3, w1), PT(o, st.u3, xv)];
+    // points de départ et d'arrivée posés sur les murs de la pièce
+    const n = P.length;
+    const onEdge = (q) => { let best = null; for (let i = 0; i < n; i++) { const a = P[i], b = P[(i + 1) % n], pr = G.projSeg(q, a, b), d = G.dist(pr.p, q); if (d < 4 && (!best || d < best.d)) best = { i, d, t: G.dist(a, pr.p) / Math.max(1e-9, G.dist(a, b)), p: pr.p }; } return best; };
+    const e0 = onEdge(S2[0]), eN = onEdge(S2[S2.length - 1]); if (!e0 || !eN) return { err: 'Le décrochement doit partir d\'un mur et finir sur un mur' };
+    S2[0] = e0.p; S2[S2.length - 1] = eN.p;
+    const fwd = () => { const v = []; if (eN.i === e0.i && e0.t >= eN.t) return v; let k = eN.i; do { k = (k + 1) % n; v.push(P[k]); } while (k !== e0.i); return v; };
+    const bwd = () => { const v = []; if (eN.i === e0.i && e0.t <= eN.t) return v; let k = eN.i; for (let g = 0; g <= n; g++) { v.push(P[k]); if (k === (e0.i + 1) % n) break; k = (k - 1 + n) % n; } return v; };
+    const loops = [S2.concat(fwd()), S2.concat(bwd())].map((L) => G.cleanPoly(L, 0.5, 1)).filter((L) => L.length >= 4 && !G.isSelfIntersecting(L));
+    if (loops.length !== 2) return { err: 'Le décrochement sort de la pièce : tracez-le à l\'intérieur' };
+    loops.sort((a, b) => Math.abs(G.area(a)) - Math.abs(G.area(b)));
+    const SB = loops[0]; if (Math.abs(G.area(SB)) < 0.005e6) return { err: 'Décrochement trop petit' };
+    const lo = Math.min(st.u1, st.uE != null ? st.uE : st.u3), hi = Math.max(st.u1, st.uE != null ? st.uE : st.u3);
+    const F = faces(fr); const R = (u0, u1, a, b) => (o === 'H' ? { x0: Math.min(u0, u1), x1: Math.max(u0, u1), y0: Math.min(a, b), y1: Math.max(a, b) } : { y0: Math.min(u0, u1), y1: Math.max(u0, u1), x0: Math.min(a, b), x1: Math.max(a, b) });
+    // pièce d'en face : face opposée, à une épaisseur de mur, qui longe le décrochement
+    let g = null; for (const f of F) { if (f.room === home || f.o !== o || f.n !== -sB) continue; const t = (xv - f.v) * sB; if (t < 30 || t > 400) continue; const ov = Math.min(hi, f.hi) - Math.max(lo, f.lo); if (ov < 0.6 * (hi - lo)) continue; if (!g || t < (xv - g.v) * sB) g = f; }
+    const sq = (pts) => pts.map((q) => ({ x: Math.round(q.x * 10) / 10, y: Math.round(q.y * 10) / 10 }));
+    const plan = { kind: 'step', fr, step: st, depth, len: stepLen(st), add: [], remove: [home], strips: [], zone: null, names: [home.name || 'Pièce'], line: S2.map(fr.from) };
+    // la pièce : on retire le coin (côté du mur)
+    const big = loops[1]; plan.add.push({ pts: sq(G.area(big) < 0 ? big.slice().reverse() : big).map(fr.from), from: home, keep: true, srcs: [home], tol: depth + 40 });
+    if (!g) { plan.strips = [SB.map(fr.from)]; plan.mode = 'retire'; return plan; }
+    // cloison déplacée : nouvelle bande d'épaisseur t le long du trait, côté du coin ; la pièce d'en face récupère le reste
+    const A = g.room, t = Math.round((xv - g.v) * sB), PA = O.square(A.pts.map(fr.to)); if (!PA) return { err: `${A.name || 'La pièce voisine'} a un mur en biais` };
+    const NB = [R(st.u1, st.uE != null ? st.uE : st.u3, w1, w1 - sB * t)];
+    const jogs = st.uE != null ? [[st.u1, Math.sign(st.uE - st.u1)]] : [[st.u1, Math.sign(st.u3 - st.u1)], [st.u3, Math.sign(st.u1 - st.u3)]];
+    for (const [u, dir] of jogs) NB.push(R(u, u + dir * t, g.v, w1));
+    const gap = R(Math.max(lo, g.lo), Math.min(hi, g.hi), g.v, xv);
+    const xs = O.coords(PA.map((q) => q.x).concat(SB.map((q) => q.x), NB.flatMap((r) => [r.x0, r.x1]), [gap.x0, gap.x1]));
+    const ys = O.coords(PA.map((q) => q.y).concat(SB.map((q) => q.y), NB.flatMap((r) => [r.y0, r.y1]), [gap.y0, gap.y1]));
+    const inNB = (x, y) => NB.some((r) => O.inRect(r, x, y));
+    const la = O.trace(xs, ys, (x, y) => G.pointInPoly({ x, y }, PA) || ((G.pointInPoly({ x, y }, SB) || O.inRect(gap, x, y)) && !inNB(x, y)));
+    const pos = la.filter((l) => G.area(l) > 0.1e6); if (pos.length !== 1 || la.some((l) => G.area(l) < 0)) return { err: `Décrochement impossible ici : ${A.name || 'la pièce voisine'} serait coupée` };
+    plan.remove.push(A); plan.add.push({ pts: sq(pos[0]).map(fr.from), from: A, keep: true, srcs: [A], tol: depth + 40 }); plan.names.push(A.name || 'Pièce');
+    plan.strips = NB.map((r) => O.rect(r.x0, r.y0, r.x1, r.y1).map(fr.from)); plan.mode = 'cloison'; plan.t = t;
+    return plan;
+  }
+  K.setStep = (depthCm, lenCm) => {
+    const p = S.skPlan; if (!p || p.kind !== 'step') return; const st = Object.assign({}, p.step);
+    if (depthCm != null && depthCm > 0) st.depth = Math.round(depthCm * 10);
+    if (lenCm != null && lenCm > 0) { const L = Math.round(lenCm * 10); if (st.uE != null) st.u1 = st.uE - Math.sign(st.uE - st.u1 || 1) * L; else st.u3 = st.u1 + Math.sign(st.u3 - st.u1 || 1) * L; }
+    const q = stepPlan(st); if (q.err) { App.toast(q.err); App.ui.refresh(); return; }
+    S.skPlan = q; App.ui.refresh(); App.ui.refreshHint(); App.render();
+  };
+
   /* ---------- prolonger une cloison depuis son bout libre ---------- */
   const PT = (o, u, w) => (o === 'H' ? { x: u, y: w } : { x: w, y: u });
   /* bouts libres de la cloison derrière le mur i de la pièce : là où la cloison s'arrête dans une pièce */
@@ -5797,15 +5895,24 @@ details[open] summary::after{content:"–"}
         made.push(sh); if (a.isNew || (plan.kind === 'line' && !a.keep)) sel = sh;
       }
       const gone = new Set(olds.map((r) => r.id)); P.shapes = P.shapes.filter((x) => !gone.has(x.id)); P.shapes.push(...made);
+      // un décrochement voulu n'est pas un « décrochement à simplifier »
+      if (plan.kind === 'step' && plan.line && App.walls && App.walls.simplify) {
+        const lim = plan.depth + (plan.t || 0) + 60, near = (v) => plan.line.some((a, i) => i && G.distPointSeg(v, plan.line[i - 1], a) < lim);
+        const m = Object.assign({}, P.simpIgnore || {});
+        for (const sh of made) { const c = JSON.parse(JSON.stringify(sh)), rec = []; try { App.walls.simplify(c, { record: rec }); } catch (e) { continue; } for (const sp of rec) { const ks = sp.key.split('|')[1].split(';'); if (ks.some((k) => { const [x, y] = k.split(',').map(Number); return near({ x: x * 10, y: y * 10 }); })) m[sh.id] = [...new Set((m[sh.id] || []).concat(ks))]; } }
+        P.simpIgnore = m;
+      }
     });
     App.ui.setTool('select'); App.ui.refreshHint(); if (sel) { S.sel = { id: sel.id }; App.ui.onSelect(); }
     if (plan.kind === 'join') { App.toast(`Une seule cloison de ${App.fmtCm(plan.t, 0)} cm entre ${plan.names.join(' et ')}`); return; }
     if (plan.kind === 'stub') { App.toast(`Cloison prolongée de ${App.fmtCm(plan.len, 0)} cm`); return; }
+    if (plan.kind === 'step') { App.toast(plan.mode === 'cloison' ? `Cloison décalée de ${App.fmtCm(plan.depth, 0)} cm sur ${App.fmtCm(plan.len, 0)} cm` : `Décrochement de ${App.fmtCm(plan.depth, 0)} × ${App.fmtCm(plan.len, 0)} cm`); return; }
     App.toast(plan.kind === 'line' ? 'Cloison fermée : deux pièces. Ajoutez une porte avec « + Porte » si besoin' : 'Pièce créée — renommez-la, ajoutez une porte sur la nouvelle cloison si besoin');
   };
   K.summary = () => {
     const p = S.skPlan; if (!p) return '';
     if (p.kind === 'stub') return `+ ${App.fmtCm(p.len, 0)} cm · ép. ${App.fmtCm(p.t, 0)} cm${isFinite(p.max) ? ` · reste ${App.fmtCm(p.max - p.len, 0)} cm jusqu'au mur` : ''}`;
+    if (p.kind === 'step') return p.mode === 'cloison' ? `${p.names[0]} → ${p.names[1]} : cloison de ${App.fmtCm(p.t, 0)} cm déplacée` : `${p.names[0]} : coin retiré`;
     if (p.kind === 'join') return `${p.names.join(' + ')} · écart ${App.fmtCm(p.gap, 0)} → cloison ${App.fmtCm(p.t, 0)} cm`;
     if (p.kind === 'line') return `${p.remove.map((r) => r.name || 'Pièce').join(', ')} coupée en ${p.add.length} · ${p.add.map((x) => App.fmtM2(Math.abs(G.area(x.pts)))).join(' + ')} m²`;
     return `${App.fmtCm(p.dims[0], 0)} × ${App.fmtCm(p.dims[1], 0)} cm · ${App.fmtM2(p.area)} m²`;
