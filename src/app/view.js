@@ -87,6 +87,8 @@
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
     if (S.layers.mobilier || S.mode === 'mobilier') for (const s of shapes) if (s.kind === 'meuble') drawFurniture(s, showCal && S.mode !== 'mobilier');
+    // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
+    for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes
     for (const r of rooms) drawRoomLabel(r, showCal);
     if (S.layers.cotes && S.mode !== 'elec' && !showCal) for (const r of rooms) drawDims(r, false);
@@ -395,8 +397,14 @@
     for (let x = x0; x < bb.x1; x += step) { ctx.moveTo(x, bb.y0); ctx.lineTo(x, bb.y1); } for (let y = y0; y < bb.y1; y += step) { ctx.moveTo(bb.x0, y); ctx.lineTo(bb.x1, y); }
     ctx.stroke(); ctx.restore();
   }
-  function drawZone(zn) {
-    const z = S.view.z; ctx.save(); path(zn.pts); ctx.clip(); const bb = G.bbox(zn.pts.map(App.w2s)); ctx.fillStyle = C.ink3; const st = Math.max(5, Math.min(9, 160 * z));
+  function drawZone(zn, over) {
+    const z = S.view.z;
+    if (zn.drop) { // faux plafond : hachures fines en biais (sous le mobilier), puis contour tireté et étiquette par-dessus
+      if (!over) { ctx.save(); path(zn.pts); ctx.clip(); const bb = G.bbox(zn.pts.map(App.w2s)); const st = Math.max(7, Math.min(14, 220 * z)); ctx.strokeStyle = C.ink3; ctx.lineWidth = 0.7; ctx.beginPath(); for (let x = bb.x0 - bb.h; x < bb.x1; x += st) { ctx.moveTo(x, bb.y1); ctx.lineTo(x + bb.h, bb.y0); } ctx.stroke(); ctx.restore(); return; }
+      path(zn.pts); ctx.setLineDash([6, 3, 1.5, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.1; ctx.stroke(); ctx.setLineDash([]);
+      if (z > 0.035) { const room = App.rooms().find((r) => G.pointInPoly(G.centroid(zn.pts), r.pts)), Hc = room ? App.feat.ceiling(room) : 250; const c = App.w2s(G.centroid(zn.pts)); const lbl = `Faux plafond −${App.fmtCm(zn.drop * 10, 0)} cm · ${((Hc - zn.drop) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`; ctx.font = font(600, 10); const tw = ctx.measureText(lbl).width; ctx.fillStyle = C.paper; ctx.fillRect(c.x - tw / 2 - 3, c.y - 7, tw + 6, 14); text(lbl, c.x, c.y, 600, 10, C.ink2); }
+      return;
+    } ctx.save(); path(zn.pts); ctx.clip(); const bb = G.bbox(zn.pts.map(App.w2s)); ctx.fillStyle = C.ink3; const st = Math.max(5, Math.min(9, 160 * z));
     for (let y = bb.y0; y < bb.y1; y += st) for (let x = bb.x0 + ((Math.round(y / st) % 2) * st) / 2; x < bb.x1; x += st) { ctx.fillRect(x, y, 1.2, 1.2); }
     ctx.restore(); path(zn.pts); ctx.setLineDash([2, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
     if (z > 0.035) { const c = App.w2s(G.centroid(zn.pts)); const f2 = (v) => (v / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); const lbl = zn.hmin ? `${f2(zn.hmin)} → ${f2(zn.hmax || 180)} m` : `< ${f2(zn.hmax || 180)} m`; ctx.font = font(600, 10); const tw = ctx.measureText(lbl).width; ctx.fillStyle = C.paper; ctx.fillRect(c.x - tw / 2 - 3, c.y - 7, tw + 6, 14); text(lbl, c.x, c.y, 600, 10, C.ink2); }

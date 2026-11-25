@@ -192,7 +192,7 @@
   };
 
   /* ---------- plafonds rampants (zones « sous 1,80 m ») ---------- */
-  const slopesOf = (room, Hc) => App.feat.zonesIn(room).map((z) => {
+  const slopesOf = (room, Hc) => App.feat.zonesIn(room).filter((z) => !z.drop).map((z) => {
     const n = z.pts.length; let best = null;
     for (let i = 0; i < n; i++) { const a = z.pts[i], b = z.pts[(i + 1) % n], l = G.dist(a, b); if (G.distPointPoly(G.lerp(a, b, 0.5), room.pts) < 80 && (!best || l > best.l)) best = { a, b, l }; }
     if (!best) return null;
@@ -298,6 +298,12 @@
       for (const part of minus(r.pts, ups)) fill(B, part.outer, part.holes, () => Hc, [0, -1, 0], st.col.ceil);
       const sl = slopesOf(r, Hc); st.slopes[r.id] = sl;
       for (const z of sl) { fill(B, z.poly, [], z.hAt, [0, -1, 0], st.col.ceil); for (let i = 0; i < z.poly.length; i++) { const a = z.poly[i], b = z.poly[(i + 1) % z.poly.length]; ln(P3(a, z.hAt(a)), P3(b, z.hAt(b))); } }
+      // faux plafonds : plafond abaissé de l'épaisseur, avec les côtés du coffrage là où il ne touche pas un mur
+      for (const z of App.feat.zonesIn(r).filter((x) => x.drop > 0)) {
+        const h = Hc - z.drop * 10; if (h <= 300) continue; const Z = G.area(z.pts) < 0 ? z.pts.slice().reverse() : z.pts;
+        fill(B, Z, [], () => h, [0, -1, 0], st.col.ceil);
+        for (let i = 0; i < Z.length; i++) { const a = Z[i], b = Z[(i + 1) % Z.length]; ln(P3(a, h), P3(b, h)); if (G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40) continue; const dd = G.norm(G.sub(b, a)), nout = { x: dd.y, y: -dd.x }; quad(B, P3(a, h), P3(b, h), P3(b, Hc), P3(a, Hc), H3(nout), st.col.wall); }
+      }
       for (let i = 0; i < n; i++) {
         const W = App.ops.wall(r, i); if (W.el < 1) continue;
         let nin = W.nin; if (!G.pointInPoly(G.add(G.lerp(W.a, W.b, 0.5), G.mul(nin, 15)), r.pts)) nin = G.mul(nin, -1);

@@ -13,7 +13,7 @@
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('chaise', 'Tables', 'Chaise', 45, 52),
     F('bureau140', 'Bureau', 'Bureau 140 × 65', 140, 65), F('bureau160', 'Bureau', 'Bureau 160 × 80', 160, 80), F('caisson', 'Bureau', 'Caisson', 36, 58), F('fauteuilbur', 'Bureau', 'Fauteuil de bureau', 65, 65, { round: true }),
     F('canape2', 'Salon', 'Canapé 2 places', 180, 90), F('canape3', 'Salon', 'Canapé 3 places', 228, 95), F('angle', 'Salon', 'Canapé d\'angle', 250, 160, { shape: 'L', t: 95 }), F('fauteuil', 'Salon', 'Fauteuil', 68, 82),
-    F('piano', 'Salon', 'Piano droit', 150, 60), F('pianon', 'Salon', 'Piano numérique', 140, 40),
+    F('piano', 'Salon', 'Piano droit (piano d\'étude)', 150, 60, { short: 'Piano droit', m: 'pianodroit' }), F('pianon', 'Salon', 'Piano numérique', 140, 40, { m: 'pianonum' }), F('banquette', 'Salon', 'Banquette de piano', 57, 33, { m: 'banquette' }),
     F('meublebas', 'Cuisine', 'Meuble bas 60', 60, 60), F('colonne', 'Cuisine', 'Colonne 60', 60, 60), F('frigo', 'Cuisine', 'Réfrigérateur', 60, 65), F('lv', 'Cuisine', 'Lave-vaisselle', 60, 60),
     F('ilot', 'Cuisine', 'Îlot 180 × 90', 180, 90, { noParquet: true }),
     // meubles vasque suspendus (cotes type Godmorgon : caisson 47 cm de profondeur, plan vasque 49 cm, dessus à 86 cm)
@@ -111,6 +111,29 @@
     billy: (w, d, M, it) => shelf(w, d, M, (it.H || 202) * 10, [1, 6], 18, 18, true),
     ivar: (w, d, M, it) => shelf(w, d, M, (it.H || 179) * 10, [1, 5], 0, 20, false, true),
     murale: (w, d, M) => { M.dash = true; M.h = 1450; M.solids.push({ pts: rect(0, 0, w, d), z0: 1400, z1: 1450 }); },
+    // piano d'étude : joues jusqu'au sol, clavier 88 touches, caisse haute de 30 cm, pupitre, couvercle à 1,24 m, 3 pédales
+    pianodroit: (w, d, M) => {
+      const cw = 55, du = 300; M.h = 1240;
+      for (const u of [0, w - cw]) M.solids.push({ pts: rect(u, 0, u + cw, d), z0: 0, z1: 760 }, { pts: rect(u, d - du, u + cw, d), z0: 760, z1: 1220 });
+      M.solids.push({ pts: rect(cw, d - 320, w - cw, d), z0: 0, z1: 40 }, { pts: rect(cw, d - 330, w - cw, d), z0: 40, z1: 640 }); // socle et panneau bas
+      M.solids.push({ pts: rect(cw, 40, w - cw, d - du), z0: 640, z1: 700 }); // sommier du clavier
+      keyboard(M, w, 60, 210, 700);
+      M.solids.push({ pts: rect(cw, 210, w - cw, d - du), z0: 700, z1: 800 }, { pts: rect(cw, d - du, w - cw, d), z0: 640, z1: 1220 }); // cylindre et caisse haute
+      M.solids.push({ pts: rect(w * 0.24, d - du - 45, w * 0.76, d - du), z0: 840, z1: 858 }, { pts: rect(w * 0.22, d - du - 18, w * 0.78, d - du), z0: 858, z1: 1080 }); // pupitre
+      M.solids.push({ pts: rect(0, d - du - 12, w, d), z0: 1220, z1: 1240 }); // couvercle
+      for (const k of [-1, 0, 1]) M.solids.push({ pts: rect(w / 2 + k * 65 - 13, d - 430, w / 2 + k * 65 + 13, d - 330), z0: 45, z1: 62 });
+      M.plan.push({ pts: [[cw, d - du], [w - cw, d - du]], open: true }, { pts: [[cw, 0], [cw, d - du]], open: true }, { pts: [[w - cw, 0], [w - cw, d - du]], open: true });
+    },
+    pianonum: (w, d, M) => {
+      const sw = 40, db = 230; M.h = 880;
+      for (const u of [0, w - sw]) M.solids.push({ pts: rect(u, 0, u + sw, d), z0: 0, z1: 880 });
+      M.solids.push({ pts: rect(sw, d - 20, w - sw, d), z0: 120, z1: 650 }, { pts: rect(sw, 0, w - sw, d - db), z0: 640, z1: 700 }, { pts: rect(sw, d - db, w - sw, d), z0: 640, z1: 880 });
+      keyboard(M, w, 15, 165, 700);
+      M.solids.push({ pts: rect(w * 0.2, d - db + 30, w * 0.8, d - db + 48), z0: 880, z1: 1130 });
+      M.solids.push({ pts: rect(w / 2 - 140, d - 200, w / 2 + 140, d - 40), z0: 0, z1: 45 }); for (const k of [-1, 0, 1]) M.solids.push({ pts: rect(w / 2 + k * 65 - 13, d - 300, w / 2 + k * 65 + 13, d - 200), z0: 35, z1: 50 });
+      M.plan.push({ pts: [[sw, d - db], [w - sw, d - db]], open: true });
+    },
+    banquette: (w, d, M) => { M.h = 500; M.solids.push({ pts: rect(0, 0, w, d), z0: 440, z1: 500 }); for (const [u, v] of [[20, 20], [w - 60, 20], [w - 60, d - 60], [20, d - 60]]) M.solids.push({ pts: rect(u, v, u + 40, v + 40), z0: 0, z1: 440 }); M.plan.push({ pts: rect(25, 25, w - 25, d - 25) }); },
     // cuisine : meubles bas (socle en retrait de 5 cm), colonnes, haut, hotte, plan, plaque, évier
     kbas: (w, d, M, it) => {
       M.h = 880; M.solids.push({ pts: rect(0, 50, w, d), z0: 0, z1: 100 }, { pts: rect(0, 0, w, d), z0: 100, z1: 880 });
@@ -133,6 +156,14 @@
     kevier: (w, d, M, it) => { const mu = it.k === 'D' ? (u) => w - u : (u) => u; M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(mu(50), 70, mu(w * 0.52), d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[mu(w * 0.58), v], [mu(w - 50), v]], open: true }); M.lines.push([[mu(w * 0.58), v, 922], [mu(w - 50), v, 922]]); } tap(mu(w * 0.29), d - 35, 921, M); },
     kpanneau: (w, d, M, it) => { const [z0, z1] = it.z || [0, 880]; M.h = z1; M.solids.push({ pts: rect(0, 0, w, d), z0, z1 }); },
   };
+  // clavier 88 touches (1 220 mm) centré : touches blanches (traits) et 36 noires en relief ; repère des do en plan
+  function keyboard(M, w, v0, v1, z) {
+    const KW = 1220, ww = KW / 52, u0 = (w - KW) / 2, names = 'ABCDEFG';
+    M.solids.push({ pts: rect(u0, v0, u0 + KW, v1), z0: z, z1: z + 20 });
+    M.plan.push({ pts: rect(u0, v0, u0 + KW, v1) });
+    for (let i = 1; i < 52; i++) { const u = u0 + i * ww; M.lines.push([[u, v0, z + 21], [u, v1, z + 21]]); if (names[i % 7] === 'C') M.plan.push({ pts: [[u, v0], [u, v1]], open: true }); }
+    for (let i = 0; i < 51; i++) if ('ACDFG'.includes(names[i % 7])) { const c = u0 + (i + 1) * ww; M.solids.push({ pts: rect(c - 6.5, v1 - 95, c + 6.5, v1), z0: z + 20, z1: z + 32 }); }
+  }
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
   function vanity(w, d, M, centers, vessel) {
     const z0 = 220, zc = 800, zt = vessel ? 820 : 860; M.h = zt;

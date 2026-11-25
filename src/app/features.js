@@ -136,7 +136,7 @@
 
   /* ---------- surface habitable (hauteur ≥ 1,80 m) ---------- */
   F.zonesIn = (room) => App.shapesOn(room.floor).filter((z) => z.kind === 'plafond' && G.pointInPoly(G.centroid(z.pts), room.pts));
-  F.habitable = (room) => { const A = Math.abs(G.area(room.pts)); const low = F.zonesIn(room).filter((z) => (z.hmax ?? 180) <= 180).reduce((s, z) => s + Math.min(Math.abs(G.area(z.pts)), G.overlapArea(z.pts, room.pts, 40)), 0); return { A, SH: Math.max(0, A - low), low }; };
+  F.habitable = (room) => { const A = Math.abs(G.area(room.pts)); const low = F.zonesIn(room).filter((z) => (z.drop ? F.ceiling(room) - z.drop : z.hmax ?? 180) < (z.drop ? 180 : 180.01)).reduce((s, z) => s + Math.min(Math.abs(G.area(z.pts)), G.overlapArea(z.pts, room.pts, 40)), 0); return { A, SH: Math.max(0, A - low), low }; };
   F.ceiling = (room) => room.ceiling || (S.p.floors.find((f) => f.id === room.floor) || {}).ceiling || 250;
 
   /* ---------- optimiseur de pose pour une pièce ---------- */

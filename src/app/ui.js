@@ -165,7 +165,8 @@
     const d = S.draft; if (!d || d.pts.length < 3) { App.toast('Il faut au moins 3 points'); return; }
     let pts = G.ensureCCW(G.cleanPoly(d.pts, 0.2, 1)); if (pts.length < 3 || G.isSelfIntersecting(pts)) { App.toast('La forme se croise : recommencez'); return; }
     const kind = d.kind || 'piece'; const n = App.shapesOn().filter((s) => s.kind === kind).length + 1;
-    const s = App.makeShape(kind, pts, { name: kind === 'piece' ? 'Pièce ' + n : KIND[kind] + ' ' + n });
+    const fp = kind === 'plafond' && S.drawFP; S.drawFP = false;
+    const s = App.makeShape(kind, pts, fp ? { name: 'Faux plafond ' + (App.shapesOn().filter((x) => x.kind === 'plafond' && x.drop).length + 1), drop: 20 } : { name: kind === 'piece' ? 'Pièce ' + n : KIND[kind] + ' ' + n });
     App.mutate((P) => P.shapes.push(s)); S.draft = null; S.sel = { id: s.id }; ui.setTool('select'); ui.onSelect(); App.toast('Forme créée — ajustez ses cotes');
   };
 
@@ -413,7 +414,7 @@
       <div class="row" style="margin:14px 0"><button class="btn primary" data-a="tab" data-v="import">Importer un plan</button><button class="btn" data-a="addRect">Pièce rectangulaire</button><button class="btn" data-a="draw">Tracer</button></div>
       <p class="note">PDF d'architecte, export magicplan (DXF, SVG, PDF, image) : les pièces, les cotes et les escaliers sont détectés automatiquement.</p></div>`;
     return `<h2>${esc(f.name)}</h2><p class="lead">${rooms.length} pièce${rooms.length > 1 ? 's' : ''} · ${App.fmtM2(total)} m² au sol</p>
-      <div class="row" style="margin:4px 0 14px"><button class="btn sm" data-a="addRect">+ Pièce</button><button class="btn sm" data-a="draw">Tracer</button><button class="btn sm" data-a="addLib" data-v="poteau20">+ Poteau</button><button class="btn sm" data-a="addLib" data-v="tremie">+ Zone sans parquet</button><button class="btn sm" data-a="drawKind" data-v="plafond">+ Plafond bas</button></div>
+      <div class="row" style="margin:4px 0 14px"><button class="btn sm" data-a="addRect">+ Pièce</button><button class="btn sm" data-a="draw">Tracer</button><button class="btn sm" data-a="addLib" data-v="poteau20">+ Poteau</button><button class="btn sm" data-a="addLib" data-v="tremie">+ Zone sans parquet</button><button class="btn sm" data-a="drawKind" data-v="plafond">+ Plafond bas</button><button class="btn sm" data-a="drawKind" data-v="fauxplafond">+ Faux plafond</button></div>
       ${S.bgs[S.p.floorId] && S.layers.fond ? ui.bgSlider() : ''}
       ${(() => { const sp = App.walls.spots(), ig = App.walls.ignoredCount(); if (!sp.length && !ig) return ''; const cm = (v) => App.fmtCm(v, 0);
         return `<div class="preview simp"><b>${sp.length ? `${sp.length} décrochement${sp.length > 1 ? 's' : ''} à simplifier` : 'Décrochements'}</b>${sp.length ? ' — petits creux dans les murs (embrasures, châssis lus comme des murs). Repérés en rouge sur le plan.' : ''}
@@ -445,7 +446,10 @@
         ${(() => { const st = App.stairs.stairsTouching(s).filter(() => Math.abs(G.area(s.pts)) < 8e6); return st.length ? `<div class="preview"><b>Partie d'escalier ?</b> Cette pièce touche ${esc(st[0].name || 'l\'escalier')}. Si c'est son palier ou ses marches tournantes, réunissez-les.<div class="row" style="margin-top:8px"><button class="btn sm red" data-x="stjoin2" data-v="${st[0].id}">Assembler à l'escalier</button></div></div>` : ''; })()}
         <p>Touchez un mur sur le plan (ou son nom ci-dessous) pour passer en mode cloison : verrou, longueur, déplacement avec aperçu avant validation.</p>`;
     }
-    if (s.kind === 'plafond') h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
+    if (s.kind === 'plafond') { const room = App.rooms().find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)), Hc = room ? App.feat.ceiling(room) : (App.floor().ceiling || 250);
+      h += `<h3>Type de zone</h3><div class="seg"><button data-a="zmode" data-v="rampant" aria-pressed="${!s.drop}">Sous toiture (rampant)</button><button data-a="zmode" data-v="fp" aria-pressed="${!!s.drop}">Faux plafond</button></div>`;
+      if (s.drop) h += `<h3>Faux plafond</h3><div class="field"><label>Épaisseur sous le plafond</label><div class="unit"><input data-c="drop" inputmode="decimal" value="${s.drop}"><span>cm</span></div></div><div class="chips sm">${[10, 15, 20, 30, 40].map((v) => `<button data-a="dropq" data-v="${v}" aria-pressed="${s.drop === v}">${v}</button>`).join('')}</div><p>Hauteur sous le faux plafond : <b>${fmt(Hc - s.drop, 0)} cm</b> (plafond ${room ? 'de ' + esc(room.name || 'la pièce') : 'de l\'étage'} à ${fmt(Hc, 0)} cm).${Hc - s.drop < 180 ? ' Sous 180 cm, la surface n\'est pas comptée comme habitable.' : ''} La visite 3D l'abaisse, coffrage compris.</p>`; }
+    if (s.kind === 'plafond' && !s.drop) h += `<h3>Hauteur</h3><div class="field"><label>Hauteur basse (pied-droit)</label><div class="unit"><input data-c="hmin" inputmode="decimal" value="${s.hmin ?? ''}"><span>cm</span></div></div><div class="field"><label>Hauteur haute</label><div class="unit"><input data-c="hmax" inputmode="decimal" value="${s.hmax ?? 180}"><span>cm</span></div></div><p>Sous 180 cm, la surface n'est pas comptée comme habitable ; le parquet, lui, se pose dessous.</p>`;
     if (s.kind === 'meuble') h += furnitureDims(s);
     if (s.kind === 'escalier') { const cands = App.stairs.candidates(s); const cur = App.stairs.current(s); const opt = (sh, sd, lbl) => `<button data-x="stshape" data-v="${sh}${sd ? ':' + sd : ''}" aria-pressed="${!!cur && cur.shape === sh && (!sd || cur.side === sd)}">${lbl}</button>`;
       h += `<h3>Forme</h3><p style="color:var(--ink);font-weight:700;margin:0 0 6px">${esc(App.stairs.kindName(s))}</p><div class="chips">${opt('droit', null, 'Droit')}${opt('L', 'g', 'En L à gauche')}${opt('L', 'd', 'En L à droite')}${opt('U', 'g', 'En U à gauche')}${opt('U', 'd', 'En U à droite')}</div>${(() => { const U = cur && cur.shape === 'U' && App.stairs.well(s); return U ? `<div class="field"><label>Jour (vide entre les volées)</label><div class="unit"><input data-xc="stjour" inputmode="decimal" value="${fmt(U.jour / 10)}"><span>cm</span></div></div><div class="field"><label>Longueur du mur central</label><div class="unit"><input data-xc="stwall" inputmode="decimal" value="${fmt(U.wall / 10)}"><span>cm</span></div></div>` : ''; })()}<p class="hint2">Le départ, la largeur et le nombre de marches sont gardés ; ajustez ensuite avec le cadre. Les points rouges pleins règlent le mur central (jour et longueur). « À gauche » : on tourne à gauche en montant.</p><div class="row"><button class="btn sm" data-x="stflip">Inverser départ / arrivée</button></div>${cands.length ? `<div class="preview"><b>Assembler</b> — une partie de l'escalier a été lue comme une pièce à part ? Réunissez-les : la forme (droite, en L ou en U) et les marches tournantes sont recalculées.<div class="row" style="margin-top:8px;flex-wrap:wrap">${cands.map((o) => `<button class="btn sm red" data-x="stjoin" data-v="${o.id}">Avec ${esc(o.name || (o.kind === 'escalier' ? 'l\'escalier' : 'la pièce'))} (${App.fmtM2(Math.abs(G.area(o.pts)))} m²)</button>`).join('')}</div></div>` : ''}<p class="hint2">Le rond marque le départ, la flèche l'arrivée ; les marches sont réparties sur la ligne de foulée et tournent dans les angles.</p>`; }
@@ -655,7 +659,7 @@
         const sh = App.makeShape('piece', G.rect(x0, y0, w, l), { name: r.vals.n || 'Pièce' }); if (r.vals.sq) sh.locks = PL.solver.syncLocks(sh.pts, sh.pts.map(() => ({ L: false, A: true })));
         App.mutate((P) => P.shapes.push(sh)); S.sel = { id: sh.id }; App.fitShape(sh); ui.refresh(); break; }
       case 'draw': S.drawKind = 'piece'; ui.setTool('draw'); if (innerWidth < 900) ui.sheet('min'); break;
-      case 'drawKind': S.drawKind = v; S.draft = null; ui.setTool('draw'); if (innerWidth < 900) ui.sheet('min'); App.toast('Tracez la zone point par point'); break;
+      case 'drawKind': S.drawFP = v === 'fauxplafond'; S.drawKind = S.drawFP ? 'plafond' : v; S.draft = null; ui.setTool('draw'); if (innerWidth < 900) ui.sheet('min'); App.toast(S.drawFP ? 'Tracez le faux plafond point par point (coffrage, soffite…)' : 'Tracez la zone point par point'); break;
       case 'merge': { const o = App.byId(document.getElementById('mergeWith').value); if (!o) break; const m = App.feat.merge(s, o); if (m) { S.sel = { id: m.id }; App.toast('Pièces fusionnées'); ui.refresh(); } break; }
       case 'opt': { const r = App.byId(v); S.optFor = v; S.optRes = App.feat.optimize(r); ui.refresh(); break; }
       case 'optApply': { const r = App.byId(S.optFor); const o = S.optRes[+v]; App.mutate(() => { r.cal = Object.assign({}, r.cal, { dir: o.dir.toFixed(3), start: o.startIdx != null ? String(o.startIdx) : 'auto' }); }); S.optRes = null; S.optFor = null; App.toast('Variante appliquée'); break; }
@@ -663,6 +667,8 @@
       case 'stepGo': { const res = App.calepinage().results[S.step.id]; S.step.row = Math.max(1, Math.min(res.rows.length, S.step.row + (+v))); ui.refresh(); App.render(); break; }
       case 'stepEnd': S.step = null; ui.refresh(); App.render(); break;
       case 'addLib': ui.placeLib(PL.lib.structure.find((x) => x.id === v)); break;
+      case 'zmode': App.mutate(() => { if (v === 'fp') { s.drop = s.drop || 20; if (/^Zone de plafond bas/.test(s.name || '')) s.name = 'Faux plafond'; } else { delete s.drop; } }); break;
+      case 'dropq': App.mutate(() => { s.drop = +v; }); break;
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
@@ -722,6 +728,7 @@
     if (c === 'ceil') { App.mutate(() => { s.ceiling = num(val) || null; }); return; }
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
+    if (c === 'drop') { const v = num(val); if (!(v > 0)) { App.toast('Épaisseur en cm, supérieure à 0'); ui.refresh(true); return; } App.mutate(() => { s.drop = v; }); return; }
     if (c === 'noParquet') { App.mutate(() => { s.noParquet = val; }); return; }
     if (c === 'guardH' || c === 'guardT') { const v = num(val); if (v > 0) App.mutate(() => { s.stair = Object.assign({}, s.stair, { [c]: v }); }); return; }
     if (c === 'sh') { const v = num(val); App.mutate(() => { if (v > 0) s.h = v; else delete s.h; }); return; }
