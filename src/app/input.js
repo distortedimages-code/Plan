@@ -240,11 +240,18 @@
       if (h && (h.t === 'opmove' || h.t === 'opend')) return;
       if (h && h.t === 'opening') { S.sel = { id: h.id, oid: h.oid }; App.ui.onSelect(); App.render(); return; }
       if (h && h.t === 'wall') { const same = S.sel && S.sel.id === h.id && S.sel.wall === h.i; S.sel = same ? { id: h.id } : { id: h.id, wall: h.i }; S.wallEnd = null; App.ui.onSelect(); App.render(); return; }
+      if (S.mode === 'calepinage' && !dbl && App.boardAt && (!h || h.t === 'shape')) {
+        // toucher une lame : son numéro, son rang et la coupe à faire
+        const w = App.s2w(p); let hit = null;
+        for (const r of App.rooms()) { const b = App.boardAt(r.id, w); if (b) { hit = { id: r.id, ...b }; break; } }
+        if (hit) { const was = S.sel && S.sel.id === hit.id; S.sel = { id: hit.id }; S.boardSel = { id: hit.id, n: hit.pc.n }; App.toast(App.boardInfo(hit), 4500); App.ui.onSelect(was); App.render(); return; }
+      }
       if (h && (h.t === 'shape' || h.t === 'point' || h.t === 'measure')) {
         const was = S.sel && S.sel.id === h.id; S.sel = { id: h.id };
         if (dbl && h.t === 'shape') App.fitShape(App.byId(h.id));
         App.ui.onSelect(was); App.render(); return;
       }
+      S.boardSel = null;
       if (S.sel) { S.sel = null; App.ui.onSelect(); App.render(); return; }
       if (dbl) App.fitAll();
       return;

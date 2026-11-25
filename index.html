@@ -805,22 +805,22 @@ details[open] summary::after{content:"–"}
   /* ---------- pose d'un rang ---------- */
   function takePool(pool, need) {
     let bi = -1; for (let i = 0; i < pool.length; i++) if (pool[i].v >= need - 0.5 && (bi < 0 || pool[i].v < pool[bi].v)) bi = i;
-    if (bi < 0) return null; const o = pool.splice(bi, 1)[0]; return { len: o.v, waste: o.v - need, from: o.row };
+    if (bi < 0) return null; const o = pool.splice(bi, 1)[0]; return { len: o.v, waste: o.v - need, from: o.row, fromN: o.n };
   }
 
-  function layRun(u0, u1, prevJ, prev2J, st, P, rowIdx, patt) {
+  function layRun(u0, u1, prevJ, prev2J, st, P, rowIdx, patt, rowNo, nextN = () => 0) {
     const L = P.L, S = u1 - u0, pieces = [], warn = [];
     const minP = P.minPiece, minS = P.minStagger;
     const keep = Math.max(minP, 100);
     const addWaste = (w) => { if (w > 0.5) st.wasteLen += w; };
     const newBoard = () => { st.boards++; };
-    const row = rowIdx + 1;
+    const row = rowNo || rowIdx + 1;
     if (S <= L + 0.5) {
-      let src = 'new', w, from = null, rest = 0;
+      let src = 'new', w, from = null, fromN = null, rest = 0; const n = nextN();
       const t = takePool(st.poolS, S) || takePool(st.poolE, S);
-      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; }
-      else { newBoard(); w = L - S; if (w >= keep) { st.poolS.push({ v: w, row }); rest = w; } else addWaste(w); }
-      pieces.push({ a: u0, b: u1, len: S, kind: S >= L - 0.5 ? 'full' : 'cut', src, from, rest });
+      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; fromN = t.fromN; }
+      else { newBoard(); w = L - S; if (w >= keep) { st.poolS.push({ v: w, row, n }); rest = w; } else addWaste(w); }
+      pieces.push({ a: u0, b: u1, len: S, kind: S >= L - 0.5 ? 'full' : 'cut', src, from, fromN, rest, n });
       return { pieces, joints: [], warn };
     }
     const jointsFor = (s) => { const js = []; let j = u0 + s; while (j < u1 - 0.5) { js.push(j); j += L; } return js; };
@@ -857,24 +857,25 @@ details[open] summary::after{content:"–"}
       if (choice.last < minP - 0.5) warn.push('chute de ' + fmt(choice.last));
     }
     // matérialiser
-    const s = choice.s; let src = 'new', from = null, rest = 0;
+    const s = choice.s; let src = 'new', from = null, fromN = null, rest = 0; const n1 = nextN();
     if (s >= L - 0.5) { newBoard(); }
     else {
       const t = choice.pool ? takePool(st.poolS, s) : null;
-      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; }
-      else { newBoard(); const r = L - s; if (r >= keep) { st.poolE.push({ v: r, row }); rest = r; } else addWaste(r); }
+      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; fromN = t.fromN; }
+      else { newBoard(); const r = L - s; if (r >= keep) { st.poolE.push({ v: r, row, n: n1 }); rest = r; } else addWaste(r); }
     }
-    pieces.push({ a: u0, b: u0 + s, len: s, kind: s >= L - 0.5 ? 'full' : 'cut', src, from, rest });
+    pieces.push({ a: u0, b: u0 + s, len: s, kind: s >= L - 0.5 ? 'full' : 'cut', src, from, fromN, rest, n: n1 });
     const js = choice.js;
     for (let k = 0; k < js.length; k++) {
       const a = js[k], b = k + 1 < js.length ? js[k + 1] : u1, len = b - a;
-      if (k + 1 < js.length) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new' }); continue; }
-      let src2 = 'new', from2 = null, rest2 = 0;
-      if (len >= L - 0.5) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new' }); continue; }
+      const n = nextN();
+      if (k + 1 < js.length) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new', n }); continue; }
+      let src2 = 'new', from2 = null, fromN2 = null, rest2 = 0;
+      if (len >= L - 0.5) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new', n }); continue; }
       const t = takePool(st.poolE, len);
-      if (t) { src2 = 'chute'; addWaste(t.waste); st.reused++; from2 = t.from; }
-      else { newBoard(); const r = L - len; if (r >= keep) { st.poolS.push({ v: r, row }); rest2 = r; } else addWaste(r); }
-      pieces.push({ a, b, len, kind: 'cut', src: src2, from: from2, rest: rest2 });
+      if (t) { src2 = 'chute'; addWaste(t.waste); st.reused++; from2 = t.from; fromN2 = t.fromN; }
+      else { newBoard(); const r = L - len; if (r >= keep) { st.poolS.push({ v: r, row, n }); rest2 = r; } else addWaste(r); }
+      pieces.push({ a, b, len, kind: 'cut', src: src2, from: from2, fromN: fromN2, rest: rest2, n });
     }
     return { pieces, joints: js.slice(), warn, stagger: choice.stag };
   }
@@ -943,9 +944,15 @@ details[open] summary::after{content:"–"}
       st.X0 = best ? best.X0 : 0;
     }
     const out = R.map((x) => ({ room: x.room, rows: [], warn: [], boards: 0, outer: x.outer, holes: x.holes, obs: x.obs }));
-    let prevJ = [], prev2J = [];
-    for (let k = kmin; k < kmax; k++) {
+    // ordre de pose : le rang du mur de départ, puis on s'en éloigne ; les rangs situés derrière le mur de départ
+    // (niche, renfoncement) viennent ensuite, en repartant du 1er rang vers eux
+    const kStart = Math.min(kmax - 1, Math.max(kmin, Math.floor((startY + 0.5 - p) / W)));
+    const order = []; for (let k = kStart; k < kmax; k++) order.push({ k, back: false }); for (let k = kStart - 1; k >= kmin; k--) order.push({ k, back: true });
+    const J = new Map(); let seq = 0, rowNo = 0;
+    for (const { k, back } of order) {
       const ya = p + k * W, yb = ya + W, rowIdx = k - kmin; const rowJ = [];
+      const prevJ = J.get(back ? k + 1 : k - 1) || [], prev2J = J.get(back ? k + 2 : k - 2) || [];
+      const items = [];
       for (let ri = 0; ri < R.length; ri++) {
         const x = R[ri], ob = G.bbox(x.outer); if (yb <= ob.y0 + 0.01 || ya >= ob.y1 - 0.01) continue;
         const ys = [ya + 0.3, yb - 0.3, (ya + yb) / 2];
@@ -955,7 +962,7 @@ details[open] summary::after{content:"–"}
         if (!iv.length) continue;
         const sw = [swap(x.outer)], swh = x.holes.map(swap);
         const runs = iv.map((v) => ({ u0: Math.min(s * v[0], s * v[1]), u1: Math.max(s * v[0], s * v[1]), x0: v[0], x1: v[1] })).sort((a, b) => a.u0 - b.u0);
-        const row = { k, num: rowIdx + 1, ya, yb, runs: [], ripMax: 0, ripMin: Infinity, warn: [] };
+        const row = { k, num: 0, back, ya, yb, runs: [], ripMax: 0, ripMin: Infinity, warn: [] };
         for (const run of runs) {
           // largeur couverte (délignage)
           const xs = []; for (let t = 0; t <= 12; t++) xs.push(run.x0 + ((run.x1 - run.x0) * t) / 12);
@@ -969,19 +976,22 @@ details[open] summary::after{content:"–"}
         }
         if (row.ripMin === Infinity) row.ripMin = row.ripMax;
         if (row.ripMax < 3) continue; // pointe de moins de 3 mm : absorbée par le jeu au mur
-        for (const run of runs) {
-          const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern);
-          r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
-          row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
-          r.joints.forEach((j) => rowJ.push(j));
-          if (r.warn.length) row.warn.push(...r.warn);
-        }
-        out[ri].rows.push(row);
+        items.push({ ri, row, runs });
       }
-      prev2J = prevJ; prevJ = rowJ;
+      if (!items.length) continue;
+      rowNo++;
+      // un rang se pose d'un bout à l'autre, à travers les passages d'une pose continue
+      const all = items.flatMap((it) => it.runs.map((run) => ({ it, run }))).sort((a, b) => a.run.u0 - b.run.u0);
+      for (const { it, run } of all) {
+        const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern, rowNo, () => ++seq);
+        r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
+        it.row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
+        r.joints.forEach((jj) => rowJ.push(jj));
+        if (r.warn.length) it.row.warn.push(...r.warn);
+      }
+      for (const it of items) { it.row.num = rowNo; it.row.n0 = Math.min(...it.row.runs.flatMap((ru) => ru.pieces.map((pc) => pc.n))); out[it.ri].rows.push(it.row); }
+      J.set(k, rowJ);
     }
-    // numérotation continue des rangs réellement posés
-    { const ks = [...new Set(out.flatMap((o) => o.rows.map((r) => r.k)))].sort((a, b) => a - b); const kn = new Map(ks.map((k, i) => [k, i + 1])); out.forEach((o) => o.rows.forEach((r) => { r.num = kn.get(r.k); })); }
     // comptages par pièce (les chutes circulent dans le groupe)
     out.forEach((o) => { let nb = 0, cuts = 0; o.rows.forEach((r) => r.runs.forEach((ru) => ru.pieces.forEach((pc) => { if (pc.src === 'new' && (pc.kind === 'full' || true)) nb++; if (pc.kind === 'cut') cuts++; }))); o.piecesNew = nb; o.cuts = cuts; });
     return { ang, side, rec, p, phase: ph, rooms: out, stats: st, startEdgeIdx, lead, startY, kmin, s };
@@ -991,7 +1001,8 @@ details[open] summary::after{content:"–"}
   function adviceFor(gr, o, P, ctx) {
     const room = o.room, n = room.pts.length, A = [], W = P.W, L = P.L;
     const rows = o.rows; if (!rows.length) return { lines: ['Pièce trop petite pour être calepinée.'], first: null, last: null };
-    const first = rows[0], last = rows[rows.length - 1];
+    const fwd = rows.filter((r) => !r.back), backs = rows.filter((r) => r.back);
+    const first = rows[0], last = (fwd.length ? fwd : rows)[(fwd.length ? fwd : rows).length - 1];
     const angDeg = ((G.deg(gr.ang) % 180) + 180) % 180;
     // mur parallèle de référence
     let refWall = 0, bestd = 9; for (let i = 0; i < n; i++) { const a = room.pts[i], b = room.pts[(i + 1) % n]; const d = Math.abs(G.normAng(2 * (Math.atan2(b.y - a.y, b.x - a.x) - gr.ang))); if (d < bestd && G.dist(a, b) > 500) { bestd = d; refWall = i; } }
@@ -1008,7 +1019,9 @@ details[open] summary::after{content:"–"}
       A.push({ t: 'depart', s: `Calepinage commun avec ${gr.lead.name || 'la pièce principale'} : rangs alignés à travers les passages.` });
     }
     const rip = (r) => (r.ripMax >= W - 0.5 ? 'lames entières' : `lames délignées à ${Math.round(r.ripMax)} mm` + (r.ripMax - r.ripMin > 2 ? ` (en biais, de ${Math.round(r.ripMin)} à ${Math.round(r.ripMax)} mm)` : ''));
-    A.push({ t: 'rangs', s: `${rows.length} rangs. 1er rang : ${rip(first)}${first.ripMax >= W - 0.5 && P.lay === 'flottante' ? ', languette retirée côté mur' : ''}. Dernier rang : ${rip(last)}.` });
+    const nb = rows.reduce((t, r) => t + r.runs.reduce((u, ru) => u + ru.pieces.length, 0), 0);
+    A.push({ t: 'rangs', s: `${rows.length} rangs, ${nb} lames numérotées dans l'ordre de pose. 1er rang : ${rip(first)}${first.ripMax >= W - 0.5 && P.lay === 'flottante' ? ', languette retirée côté mur' : ''}. Dernier rang : ${rip(last)}.` });
+    if (backs.length) { const a = Math.min(...backs.map((r) => r.num)), b = Math.max(...backs.map((r) => r.num)); A.push({ t: 'rangs', s: `${a === b ? `Rang ${a}` : `Rangs ${a} à ${b}`} : de l'autre côté du mur de départ (renfoncement). ${a === b ? 'Il se pose' : 'Ils se posent'} à la fin, en repartant du 1er rang vers le fond : emboîtement à rebours, au tire-lame.` }); }
     const thin = rows.filter((r) => r.ripMax < Math.max(P.minRow, 0.5) && r.ripMax > 0.5);
     if (thin.length) A.push({ t: 'fin', s: `${thin.length} rang(s) très étroit(s) (< ${P.minRow} mm) : glisser sous la plinthe ou ajuster le calepinage.`, warn: true });
     const warns = rows.flatMap((r) => r.warn.map((w) => `rang ${r.num} : ${w}`));
@@ -1091,7 +1104,7 @@ details[open] summary::after{content:"–"}
           if (atStart && atEnd) { cutA = cutB = true; }
           else if (atStart || atEnd) { const wallSideIsX0 = Math.abs(pc.x0 - run.x0) < 0.6; if (wallSideIsX0) cutA = true; else cutB = true; void startIsX0; }
         }
-        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, cutA, cutB });
+        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB });
       });
     }
     return out;
@@ -2674,6 +2687,21 @@ details[open] summary::after{content:"–"}
     }
   }
 
+  /* lame sous un point du plan (pour le détail au toucher) */
+  App.boardAt = (id, w) => {
+    const res = (App.calepinage().results || {})[id]; if (!res) return null; const q = G.rot(w, -res.ang);
+    if (!G.pointInPoly(q, res.outer) || (res.holes || []).some((H) => G.pointInPoly(q, H))) return null;
+    for (const row of res.rows) { if (q.y < row.ya || q.y > row.yb) continue; for (const ru of row.runs) for (const pc of ru.pieces) if (q.x >= pc.x0 - 1 && q.x <= pc.x1 + 1) return { row, pc, res }; }
+    return null;
+  };
+  App.boardInfo = ({ row, pc }) => {
+    const W = App.calepinage().P.W; const parts = [`Lame n° ${pc.n}`, `rang ${row.num}`];
+    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute de la n° ${pc.fromN || '?'}` : `à couper à ${Math.round(pc.len)} mm`);
+    if (row.ripMax < W - 0.5) parts.push(`délignée à ${Math.round(row.ripMax)} mm de large`);
+    if (pc.rest > 0) parts.push(`garder la chute (${Math.round(pc.rest)} mm)`);
+    return parts.join(' · ');
+  };
+
   function drawCalepinage(fid, rooms) {
     const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P;
     if (!cal.polys) { cal.polys = {}; for (const id in cal.results) cal.polys[id] = PL.layout.boardPolys(cal.results[id]); }
@@ -2690,6 +2718,7 @@ details[open] summary::after{content:"–"}
         ctx.fillStyle = b.src === 'chute' ? C.oakReuse : C.oak; ctx.fill();
         if (z > 0.012) { ctx.strokeStyle = C.oakLine; ctx.lineWidth = lw; ctx.stroke(); }
       }
+      if (S.boardSel && S.boardSel.id === r.id && S.sel && S.sel.id === r.id) { const b = polys.find((x) => x.n === S.boardSel.n); if (b) { path(b.poly); ctx.fillStyle = 'rgba(224,64,32,.18)'; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke(); } }
       // extrémités coupées en rouge
       ctx.strokeStyle = C.red; ctx.lineWidth = Math.max(1.2, Math.min(3, z * 60)); ctx.beginPath();
       for (const b of polys) {
@@ -2698,7 +2727,6 @@ details[open] summary::after{content:"–"}
         if (b.cutB) { ctx.moveTo(q[1].x, q[1].y); ctx.lineTo(q[2].x, q[2].y); }
       }
       ctx.stroke();
-      if (z > 0.16) for (const b of polys) { if (!b.cutA && !b.cutB) continue; const c = App.w2s(G.lerp(b.poly[0], b.poly[2], 0.5)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); text(String(Math.round(b.len)), 0, 0, 600, 9, C.ink); ctx.restore(); }
       ctx.restore();
       // numéros de rangs et délignage
       if (z > 0.05) {
@@ -2715,22 +2743,62 @@ details[open] summary::after{content:"–"}
           for (let t = 1; t <= 16 && !c; t++) { x = x1 - ((x1 - x0) * t) / 17; c = coverAt(row, x); }
           return c ? { x, y: (c[0] + c[1]) / 2, h: c[1] - c[0] } : { x: xl, y: (row.ya + row.yb) / 2, h: row.yb - row.ya };
         };
+        const showN = P.W * z >= 13 && !S.hideBoardNums; // assez de place : chaque lame porte son numéro de pose
+        const fsN = Math.max(9, Math.min(13, Math.round(P.W * z * 0.3)));
+        const boardLabel = (row, pc, extra) => {
+          const lenPx = (pc.x1 - pc.x0) * z; if (lenPx < 14) return;
+          const sp = labelSpot(row, pc.x0, pc.x1, (pc.x0 + pc.x1) / 2); const hPx = sp.h * z;
+          const lines = [{ t: String(pc.n), w: 700, px: fsN, col: C.ink }];
+          const cut = pc.kind === 'cut' ? { t: Math.round(pc.len) + ' mm', w: 600, px: 9, col: C.red } : null;
+          if (cut) lines.push(cut); if (extra) lines.push({ t: extra, w: 600, px: 9, col: C.red });
+          const tot = () => lines.reduce((a, l) => a + l.px + 2, 0);
+          while (lines.length > 1 && tot() > Math.max(hPx - 2, fsN + 2)) lines.splice(lines.includes(cut) && lines.length > 2 ? lines.indexOf(cut) : lines.length - 1, 1);
+          const wid = (l) => { ctx.font = font(l.w, l.px); return ctx.measureText(l.t).width; };
+          if (extra && lines.length === 1) {
+            // pas la hauteur pour 2 lignes : la largeur de délignage se met à côté du numéro
+            const ex = { t: extra, w: 600, px: 9, col: C.red }; const w0 = wid(lines[0]), w1 = wid(ex);
+            if (w0 + w1 + 14 <= lenPx) {
+              const c = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang)); const Hh = fsN + 2; const thin1 = hPx < Hh + 1;
+              ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(upright(-res.ang)); const x0 = -(w0 + w1 + 6) / 2;
+              if (thin1) { ctx.fillStyle = C.paper; ctx.fillRect(x0 - 3, -Hh / 2, w0 + w1 + 12, Hh); }
+              text(lines[0].t, x0, 0.5, lines[0].w, lines[0].px, lines[0].col, 'left'); text(ex.t, x0 + w0 + 6, 0.5, ex.w, ex.px, ex.col, 'left');
+              ctx.restore(); return;
+            }
+          }
+          for (let i = lines.length - 1; i > 0; i--) if (wid(lines[i]) + 6 > lenPx) lines.splice(i, 1);
+          if (wid(lines[0]) + 4 > lenPx) return;
+          const c = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang)); const H = tot(); const thin = hPx < H + 1;
+          ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(upright(-res.ang));
+          if (thin) { const bw = Math.max(...lines.map(wid)) + 6; ctx.fillStyle = C.paper; ctx.fillRect(-bw / 2, -H / 2, bw, H); }
+          let y = -H / 2; for (const l of lines) { text(l.t, 0, y + (l.px + 2) / 2 + 0.5, l.w, l.px, l.col); y += l.px + 2; }
+          ctx.restore();
+        };
         res.rows.forEach((row) => {
           if (!row.runs.length) return;
           const ru = row.runs.reduce((m, r) => (r.x1 > m.x1 ? r : m), row.runs[0]);
+          if (showN) {
+            // largeur de délignage : sur la 1re lame du rang (côté départ), ou là où le rang est délignée
+            let ripPc = null, ripTxt = null;
+            if (row.ripMax < P.W - 0.5) { ripPc = ru.pieces.reduce((m, pc) => (pc.x1 > m.x1 ? pc : m), ru.pieces[0]); ripTxt = '↕ ' + Math.round(row.ripMax) + ' mm'; }
+            else if (row.ripMin < P.W - 2 && swo) {
+              for (const r2 of row.runs) for (const pc of r2.pieces) { if (ripPc) break; for (let t = 1; t < 6; t++) { const c = coverAt(row, pc.x0 + ((pc.x1 - pc.x0) * t) / 6); if (c && c[1] - c[0] < P.W - 2) { ripPc = pc; ripTxt = '↕ ' + Math.round(c[1] - c[0]) + ' mm'; break; } } }
+            }
+            row.runs.forEach((r2) => r2.pieces.forEach((pc) => boardLabel(row, pc, pc === ripPc ? ripTxt : null)));
+            return;
+          }
           const sp = labelSpot(row, ru.x0, ru.x1, Math.max(ru.x0 + 1, ru.x1 - 25 / z));
           const thin = sp.h * z < 12; // bande trop fine pour le texte : petite étiquette sur fond papier
           const tag = (str, q, col, align) => { if (thin) { ctx.font = font(600, 9); const tw = ctx.measureText(str).width; const x0 = align === 'right' ? q.x - tw - 2 : align === 'left' ? q.x - 2 : q.x - tw / 2 - 2; ctx.fillStyle = C.paper; ctx.fillRect(x0, q.y - 6, tw + 4, 12); } text(str, q.x, q.y, 600, 9, col, align); };
           const q = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang));
-          if (row.num === 1 || row.num % (z > 0.12 ? 1 : 5) === 0) tag(String(row.num), q, C.ink, 'center');
+          if (row.num === 1 || row.num % 5 === 0) tag('rang ' + row.num, q, C.ink, 'center');
           if (row.ripMax < P.W - 0.5 && z > 0.09) {
             // largeur du délignage juste à côté du numéro, vers l'intérieur de la pièce
             const inward = (ru.x0 + ru.x1) / 2 >= sp.x ? 100 : -100; const u = G.norm(G.sub(App.w2s(G.rot({ x: sp.x + inward, y: sp.y }, res.ang)), q));
-            const side = Math.abs(u.x) > 0.5; const q2 = side ? { x: q.x + u.x * 12, y: q.y } : { x: q.x, y: q.y + (u.y > 0 ? 13 : -13) };
+            ctx.font = font(600, 9); const lw2 = (row.num === 1 || row.num % 5 === 0) ? ctx.measureText('rang ' + row.num).width / 2 + 6 : 4; const side = Math.abs(u.x) > 0.5; const q2 = side ? { x: q.x + u.x * lw2, y: q.y } : { x: q.x, y: q.y + (u.y > 0 ? 13 : -13) };
             const str = Math.round(row.ripMax) + ' mm'; ctx.font = font(600, 9);
             const room = Math.abs((inward > 0 ? ru.x1 : ru.x0) - sp.x) * z, need = (side ? ctx.measureText(str).width : 10) + 16;
             if (room >= need) tag(str, q2, C.red, side ? (u.x > 0 ? 'left' : 'right') : 'center');
-            else if (side) { const q4 = { x: q.x - u.x * 10, y: q.y }; const a4 = u.x > 0 ? 'right' : 'left'; const tw = ctx.measureText(str).width; ctx.fillStyle = C.paper; ctx.fillRect(a4 === 'right' ? q4.x - tw - 2 : q4.x - 2, q4.y - 6, tw + 4, 12); text(str, q4.x, q4.y, 600, 9, C.red, a4); } // pas la place dans la pièce : de l'autre côté du numéro, sur fond papier
+            else if (side) { const q4 = { x: q.x - u.x * lw2, y: q.y }; const a4 = u.x > 0 ? 'right' : 'left'; const tw = ctx.measureText(str).width; ctx.fillStyle = C.paper; ctx.fillRect(a4 === 'right' ? q4.x - tw - 2 : q4.x - 2, q4.y - 6, tw + 4, 12); text(str, q4.x, q4.y, 600, 9, C.red, a4); } // pas la place dans la pièce : de l'autre côté du numéro, sur fond papier
           } else if (row.ripMin < P.W - 2 && z > 0.09 && swo) {
             // rang entier ici mais délignée ailleurs (le long d'un autre mur) : on l'indique là où il est délignée
             let spot = null;
@@ -2779,7 +2847,7 @@ details[open] summary::after{content:"–"}
     const q = [{ x: x0, y: row.ya }, { x: x1, y: row.ya }, { x: x1, y: row.yb }, { x: x0, y: row.yb }].map((p) => G.rot(p, res.ang));
     path(q); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke();
     // lames du rang numérotées
-    row.runs.forEach((ru) => ru.pieces.forEach((pc, k) => { const c = App.w2s(G.rot({ x: (pc.x0 + pc.x1) / 2, y: (row.ya + row.yb) / 2 }, res.ang)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); ctx.font = font(700, 11); const t = String(Math.round(pc.len)); const tw = ctx.measureText(t).width; ctx.fillStyle = pc.kind === 'cut' ? C.red : C.ink; ctx.fillRect(-tw / 2 - 4, -8, tw + 8, 16); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, 0, 0.5); ctx.restore(); }));
+    row.runs.forEach((ru) => ru.pieces.forEach((pc, k) => { const c = App.w2s(G.rot({ x: (pc.x0 + pc.x1) / 2, y: (row.ya + row.yb) / 2 }, res.ang)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); ctx.font = font(700, 11); const t = (pc.n ? pc.n + ' · ' : '') + Math.round(pc.len); const tw = ctx.measureText(t).width; ctx.fillStyle = pc.kind === 'cut' ? C.red : C.ink; ctx.fillRect(-tw / 2 - 4, -8, tw + 8, 16); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, 0, 0.5); ctx.restore(); }));
   }
 
   function drawObstacle(s) {
@@ -3316,11 +3384,18 @@ details[open] summary::after{content:"–"}
       if (h && (h.t === 'opmove' || h.t === 'opend')) return;
       if (h && h.t === 'opening') { S.sel = { id: h.id, oid: h.oid }; App.ui.onSelect(); App.render(); return; }
       if (h && h.t === 'wall') { const same = S.sel && S.sel.id === h.id && S.sel.wall === h.i; S.sel = same ? { id: h.id } : { id: h.id, wall: h.i }; S.wallEnd = null; App.ui.onSelect(); App.render(); return; }
+      if (S.mode === 'calepinage' && !dbl && App.boardAt && (!h || h.t === 'shape')) {
+        // toucher une lame : son numéro, son rang et la coupe à faire
+        const w = App.s2w(p); let hit = null;
+        for (const r of App.rooms()) { const b = App.boardAt(r.id, w); if (b) { hit = { id: r.id, ...b }; break; } }
+        if (hit) { const was = S.sel && S.sel.id === hit.id; S.sel = { id: hit.id }; S.boardSel = { id: hit.id, n: hit.pc.n }; App.toast(App.boardInfo(hit), 4500); App.ui.onSelect(was); App.render(); return; }
+      }
       if (h && (h.t === 'shape' || h.t === 'point' || h.t === 'measure')) {
         const was = S.sel && S.sel.id === h.id; S.sel = { id: h.id };
         if (dbl && h.t === 'shape') App.fitShape(App.byId(h.id));
         App.ui.onSelect(was); App.render(); return;
       }
+      S.boardSel = null;
       if (S.sel) { S.sel = null; App.ui.onSelect(); App.render(); return; }
       if (dbl) App.fitAll();
       return;
@@ -3386,7 +3461,7 @@ details[open] summary::after{content:"–"}
 
   /* ---------- toast / dialogues ---------- */
   let toastT = null;
-  App.toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400); };
+  App.toast = (msg, ms = 2400) => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); };
   ui.dialog = (title, html, buttons) => new Promise((res) => {
     const m = $('modal'), box = $('modalBox');
     box.innerHTML = `<h4>${esc(title)}</h4>${html}<div class="row" style="justify-content:flex-end;margin-top:16px">${buttons.map((b, i) => `<button class="btn ${b.cls || ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div>`;
@@ -3837,14 +3912,14 @@ details[open] summary::after{content:"–"}
     if (!r || !res) { S.step = null; return panelCal(); }
     const row = res.rows[st.row - 1]; const rip = row.ripMax < P.W - 0.5;
     const pcs = row.runs.flatMap((ru, k) => ru.pieces.map((pc, i) => ({ ...pc, run: k, first: i === 0, last: i === ru.pieces.length - 1 })));
-    const chip = (pc) => `<div style="flex:none;border:1px solid ${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'};padding:8px 10px;min-width:74px;background:${pc.kind === 'cut' ? 'color-mix(in srgb,var(--red) 8%,var(--paper))' : 'var(--paper)'}"><div style="font-weight:200;font-size:26px;line-height:1;letter-spacing:-.02em;color:${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'}">${Math.round(pc.len)}</div><div style="font-size:11px;color:var(--ink-2);margin-top:4px">${pc.kind === 'full' ? 'entière' : pc.src === 'chute' ? 'chute du rang ' + (pc.from || '?') : 'à couper'}</div></div>`;
+    const chip = (pc) => `<div style="flex:none;border:1px solid ${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'};padding:8px 10px;min-width:74px;background:${pc.kind === 'cut' ? 'color-mix(in srgb,var(--red) 8%,var(--paper))' : 'var(--paper)'}"><div style="font-size:12px;font-weight:700;margin-bottom:4px">n° ${pc.n}</div><div style="font-weight:200;font-size:26px;line-height:1;letter-spacing:-.02em;color:${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'}">${Math.round(pc.len)}</div><div style="font-size:11px;color:var(--ink-2);margin-top:4px">${pc.kind === 'full' ? 'entière' : pc.src === 'chute' ? (pc.fromN ? 'chute de la n° ' + pc.fromN : 'chute du rang ' + (pc.from || '?')) : 'à couper'}</div></div>`;
     const keeps = pcs.filter((pc) => pc.rest > 0).map((pc) => Math.round(pc.rest));
     return `<button class="link" data-a="stepEnd">← Fin du pas à pas</button>
-      <h2 style="margin-top:10px">${esc(r.name || 'Pièce')}</h2><p class="lead">Rang ${st.row} sur ${res.rows.length}${st.row === 1 ? ' — le long du mur de départ' : ''}</p>
+      <h2 style="margin-top:10px">${esc(r.name || 'Pièce')}</h2><p class="lead">Rang ${row.num}${pcs.length ? ` · lames ${Math.min(...pcs.map((x) => x.n))} à ${Math.max(...pcs.map((x) => x.n))}` : ''}${row.num === 1 ? ' — le long du mur de départ' : row.back ? ' — derrière le mur de départ, à poser à rebours' : ''}<br><span style="font-size:13px;color:var(--ink-2)">${st.row} / ${res.rows.length} dans cette pièce</span></p>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div><b style="${rip ? 'color:var(--red)' : ''}">${rip ? Math.round(row.ripMax) : P.W}</b><span>${rip ? 'mm : lames délignées' + (row.ripMax - row.ripMin > 2 ? ' en biais (' + Math.round(row.ripMin) + '–' + Math.round(row.ripMax) + ')' : '') : 'mm : largeur entière'}</span></div><div><b>${pcs.length}</b><span>lames dans ce rang</span></div></div>
-      <p style="margin:4px 0 8px">Ordre de pose depuis l'angle de départ, longueurs en mm :</p>
+      <p style="margin:4px 0 8px">Dans l'ordre de pose, depuis l'angle de départ (longueurs en mm) :</p>
       <div class="pcs">${pcs.map(chip).join('<i>›</i>')}</div>
-      ${keeps.length ? `<p class="note">Gardez ${keeps.map((k) => k + ' mm').join(' et ')} de chute pour un rang suivant.</p>` : ''}
+      ${keeps.length ? `<p class="note">Gardez ${pcs.filter((pc) => pc.rest > 0).map((pc) => Math.round(pc.rest) + ' mm (de la n° ' + pc.n + ')').join(' et ')} de chute pour un rang suivant.</p>` : ''}
       ${row.warn.length ? `<p class="note">${esc(row.warn.join(' ; '))}</p>` : ''}
       <div class="row" style="margin-top:14px"><button class="btn" data-a="stepGo" data-v="-1" ${st.row <= 1 ? 'disabled' : ''} style="flex:1">‹ Rang précédent</button><button class="btn primary" data-a="stepGo" data-v="1" ${st.row >= res.rows.length ? 'disabled' : ''} style="flex:1">Rang suivant ›</button></div>`;
   }
@@ -3855,7 +3930,8 @@ details[open] summary::after{content:"–"}
     let h = `<h2>Calepinage · ${esc(App.floor().name)}</h2><p class="lead">${esc(P.name || 'Parquet')} — ${P.L} × ${P.W} mm, ${P.pattern === 'anglaise' ? 'pose à l\'anglaise' : P.pattern === 'pont12' ? 'pont de bateau ½' : 'pont de bateau ⅓'}</p>
       <div class="kpis"><div><b>${fmt(t.area, 1)}</b><span>m² de parquet</span></div><div><b>${t.boards}</b><span>lames entamées</span></div><div><b>${t.boxes ?? '—'}</b><span>paquets${t.perBox ? ' de ' + t.perBox : ''}</span></div></div>
       <p>${t.reused} chutes réemployées en début ou fin de rang. Estimation à la surface + ${P.waste} % : ${t.boardsArea} lames${t.boxesArea ? ' (' + t.boxesArea + ' paquets)' : ''}.</p>
-      <div class="legend"><span><i style="background:var(--oak)"></i>Lame entière</span><span><i style="background:var(--oak);border-right:3px solid var(--red)"></i>Coupe (trait rouge)</span><span><i style="background:var(--oak-reuse)"></i>Chute réemployée</span><span style="color:var(--red);font-weight:600">73 mm</span><span>rang déligné</span></div>
+      <div class="legend"><span><i style="background:var(--oak)"></i>Lame entière</span><span><i style="background:var(--oak);border-right:3px solid var(--red)"></i>Coupe (trait rouge)</span><span><i style="background:var(--oak-reuse)"></i>Chute réemployée</span><span style="color:var(--red);font-weight:600">↕ 73 mm</span><span>rang déligné</span></div>
+      <p class="hint2"><b style="color:var(--ink)">Les numéros sur les lames</b> donnent l'ordre de pose : on part de la lame 1, dans l'angle du drapeau rouge « Départ », puis rang par rang (zoomez pour les voir). Sous le numéro, en rouge, la longueur à couper. Touchez une lame pour le détail, ou suivez le pas à pas rang par rang.</p>
       ${S.mode !== 'calepinage' ? '<button class="btn primary" data-a="mode" data-v="calepinage" style="margin:6px 0">Afficher les lames sur le plan</button>' : ''}
       <details ${S.pqOpen ? 'open' : ''} data-d="pq"><summary>Référence du parquet</summary>
         <div class="field"><label>Référence</label><select data-c="pq.ref"><option value="">Personnalisée</option>${PL.lib.parquets.map((q) => `<option value="${q.id}" ${P.ref === q.id ? 'selected' : ''}>${esc(q.short || q.name)}</option>`).join('')}</select></div>
@@ -3895,7 +3971,7 @@ details[open] summary::after{content:"–"}
     return h;
   }
   function cutTable(res, P) {
-    return `<table class="cuts"><thead><tr><th>Rang</th><th>Largeur</th><th>1re lame</th><th>Dernière</th><th>Lames</th></tr></thead><tbody>${res.rows.map((r) => r.runs.map((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; const rip = r.ripMax < P.W - 0.5; return `<tr><td>${k ? '' : r.num}</td><td class="${rip ? 'r' : ''}">${k ? '' : rip ? Math.round(r.ripMax) + ' mm' : 'entière'}</td><td class="${f.kind === 'cut' ? 'r' : ''}">${Math.round(f.len)}${f.src === 'chute' ? '*' : ''}</td><td class="${ru.pieces.length > 1 && l.kind === 'cut' ? 'r' : ''}">${ru.pieces.length > 1 ? Math.round(l.len) + (l.src === 'chute' ? '*' : '') : '—'}</td><td>${ru.pieces.length}</td></tr>`; }).join('')).join('')}</tbody></table><p>Longueurs en mm, rangs numérotés depuis le mur de départ. * chute réemployée.</p>`;
+    return `<table class="cuts"><thead><tr><th>Rang</th><th>Largeur</th><th>1re lame</th><th>Dernière</th><th>Lames n°</th></tr></thead><tbody>${res.rows.map((r) => r.runs.map((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; const rip = r.ripMax < P.W - 0.5; return `<tr><td>${k ? '' : r.num}</td><td class="${rip ? 'r' : ''}">${k ? '' : rip ? Math.round(r.ripMax) + ' mm' : 'entière'}</td><td class="${f.kind === 'cut' ? 'r' : ''}">${Math.round(f.len)}${f.src === 'chute' ? '*' : ''}</td><td class="${ru.pieces.length > 1 && l.kind === 'cut' ? 'r' : ''}">${ru.pieces.length > 1 ? Math.round(l.len) + (l.src === 'chute' ? '*' : '') : '—'}</td><td>${f.n === l.n ? f.n : f.n + '–' + l.n}</td></tr>`; }).join('')).join('')}</tbody></table><p>Longueurs en mm, rangs numérotés depuis le mur de départ. * chute réemployée.</p>`;
   }
   ui.ficheText = () => {
     const cal = App.calepinage(); const P = S.p.parquet; const lines = [];
@@ -3903,7 +3979,7 @@ details[open] summary::after{content:"–"}
     for (const r of App.rooms()) {
       const res = cal.results[r.id]; if (!res) continue;
       lines.push(`== ${r.name} — ${(res.area / 1e6).toFixed(2)} m², ${res.rows.length} rangs`); res.advice.forEach((a, i) => lines.push(`${i + 1}. ${a.s}`));
-      lines.push('Rang | largeur | 1re lame | dernière'); res.rows.forEach((row) => row.runs.forEach((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; lines.push(`${k ? '  ' : row.num} | ${row.ripMax < P.W - 0.5 ? Math.round(row.ripMax) + ' mm' : 'entière'} | ${Math.round(f.len)} | ${ru.pieces.length > 1 ? Math.round(l.len) : '-'}`); })); lines.push('');
+      lines.push('Rang | largeur | lames n° | 1re lame | dernière'); res.rows.forEach((row) => row.runs.forEach((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; lines.push(`${k ? '  ' : row.num} | ${row.ripMax < P.W - 0.5 ? Math.round(row.ripMax) + ' mm' : 'entière'} | ${f.n === l.n ? f.n : f.n + '-' + l.n} | ${Math.round(f.len)} | ${ru.pieces.length > 1 ? Math.round(l.len) : '-'}`); })); lines.push('');
     }
     return lines.join('\n');
   };

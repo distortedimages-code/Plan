@@ -247,6 +247,21 @@
     }
   }
 
+  /* lame sous un point du plan (pour le détail au toucher) */
+  App.boardAt = (id, w) => {
+    const res = (App.calepinage().results || {})[id]; if (!res) return null; const q = G.rot(w, -res.ang);
+    if (!G.pointInPoly(q, res.outer) || (res.holes || []).some((H) => G.pointInPoly(q, H))) return null;
+    for (const row of res.rows) { if (q.y < row.ya || q.y > row.yb) continue; for (const ru of row.runs) for (const pc of ru.pieces) if (q.x >= pc.x0 - 1 && q.x <= pc.x1 + 1) return { row, pc, res }; }
+    return null;
+  };
+  App.boardInfo = ({ row, pc }) => {
+    const W = App.calepinage().P.W; const parts = [`Lame n° ${pc.n}`, `rang ${row.num}`];
+    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute de la n° ${pc.fromN || '?'}` : `à couper à ${Math.round(pc.len)} mm`);
+    if (row.ripMax < W - 0.5) parts.push(`délignée à ${Math.round(row.ripMax)} mm de large`);
+    if (pc.rest > 0) parts.push(`garder la chute (${Math.round(pc.rest)} mm)`);
+    return parts.join(' · ');
+  };
+
   function drawCalepinage(fid, rooms) {
     const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P;
     if (!cal.polys) { cal.polys = {}; for (const id in cal.results) cal.polys[id] = PL.layout.boardPolys(cal.results[id]); }
@@ -263,6 +278,7 @@
         ctx.fillStyle = b.src === 'chute' ? C.oakReuse : C.oak; ctx.fill();
         if (z > 0.012) { ctx.strokeStyle = C.oakLine; ctx.lineWidth = lw; ctx.stroke(); }
       }
+      if (S.boardSel && S.boardSel.id === r.id && S.sel && S.sel.id === r.id) { const b = polys.find((x) => x.n === S.boardSel.n); if (b) { path(b.poly); ctx.fillStyle = 'rgba(224,64,32,.18)'; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke(); } }
       // extrémités coupées en rouge
       ctx.strokeStyle = C.red; ctx.lineWidth = Math.max(1.2, Math.min(3, z * 60)); ctx.beginPath();
       for (const b of polys) {
@@ -271,7 +287,6 @@
         if (b.cutB) { ctx.moveTo(q[1].x, q[1].y); ctx.lineTo(q[2].x, q[2].y); }
       }
       ctx.stroke();
-      if (z > 0.16) for (const b of polys) { if (!b.cutA && !b.cutB) continue; const c = App.w2s(G.lerp(b.poly[0], b.poly[2], 0.5)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); text(String(Math.round(b.len)), 0, 0, 600, 9, C.ink); ctx.restore(); }
       ctx.restore();
       // numéros de rangs et délignage
       if (z > 0.05) {
@@ -288,22 +303,62 @@
           for (let t = 1; t <= 16 && !c; t++) { x = x1 - ((x1 - x0) * t) / 17; c = coverAt(row, x); }
           return c ? { x, y: (c[0] + c[1]) / 2, h: c[1] - c[0] } : { x: xl, y: (row.ya + row.yb) / 2, h: row.yb - row.ya };
         };
+        const showN = P.W * z >= 13 && !S.hideBoardNums; // assez de place : chaque lame porte son numéro de pose
+        const fsN = Math.max(9, Math.min(13, Math.round(P.W * z * 0.3)));
+        const boardLabel = (row, pc, extra) => {
+          const lenPx = (pc.x1 - pc.x0) * z; if (lenPx < 14) return;
+          const sp = labelSpot(row, pc.x0, pc.x1, (pc.x0 + pc.x1) / 2); const hPx = sp.h * z;
+          const lines = [{ t: String(pc.n), w: 700, px: fsN, col: C.ink }];
+          const cut = pc.kind === 'cut' ? { t: Math.round(pc.len) + ' mm', w: 600, px: 9, col: C.red } : null;
+          if (cut) lines.push(cut); if (extra) lines.push({ t: extra, w: 600, px: 9, col: C.red });
+          const tot = () => lines.reduce((a, l) => a + l.px + 2, 0);
+          while (lines.length > 1 && tot() > Math.max(hPx - 2, fsN + 2)) lines.splice(lines.includes(cut) && lines.length > 2 ? lines.indexOf(cut) : lines.length - 1, 1);
+          const wid = (l) => { ctx.font = font(l.w, l.px); return ctx.measureText(l.t).width; };
+          if (extra && lines.length === 1) {
+            // pas la hauteur pour 2 lignes : la largeur de délignage se met à côté du numéro
+            const ex = { t: extra, w: 600, px: 9, col: C.red }; const w0 = wid(lines[0]), w1 = wid(ex);
+            if (w0 + w1 + 14 <= lenPx) {
+              const c = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang)); const Hh = fsN + 2; const thin1 = hPx < Hh + 1;
+              ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(upright(-res.ang)); const x0 = -(w0 + w1 + 6) / 2;
+              if (thin1) { ctx.fillStyle = C.paper; ctx.fillRect(x0 - 3, -Hh / 2, w0 + w1 + 12, Hh); }
+              text(lines[0].t, x0, 0.5, lines[0].w, lines[0].px, lines[0].col, 'left'); text(ex.t, x0 + w0 + 6, 0.5, ex.w, ex.px, ex.col, 'left');
+              ctx.restore(); return;
+            }
+          }
+          for (let i = lines.length - 1; i > 0; i--) if (wid(lines[i]) + 6 > lenPx) lines.splice(i, 1);
+          if (wid(lines[0]) + 4 > lenPx) return;
+          const c = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang)); const H = tot(); const thin = hPx < H + 1;
+          ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(upright(-res.ang));
+          if (thin) { const bw = Math.max(...lines.map(wid)) + 6; ctx.fillStyle = C.paper; ctx.fillRect(-bw / 2, -H / 2, bw, H); }
+          let y = -H / 2; for (const l of lines) { text(l.t, 0, y + (l.px + 2) / 2 + 0.5, l.w, l.px, l.col); y += l.px + 2; }
+          ctx.restore();
+        };
         res.rows.forEach((row) => {
           if (!row.runs.length) return;
           const ru = row.runs.reduce((m, r) => (r.x1 > m.x1 ? r : m), row.runs[0]);
+          if (showN) {
+            // largeur de délignage : sur la 1re lame du rang (côté départ), ou là où le rang est délignée
+            let ripPc = null, ripTxt = null;
+            if (row.ripMax < P.W - 0.5) { ripPc = ru.pieces.reduce((m, pc) => (pc.x1 > m.x1 ? pc : m), ru.pieces[0]); ripTxt = '↕ ' + Math.round(row.ripMax) + ' mm'; }
+            else if (row.ripMin < P.W - 2 && swo) {
+              for (const r2 of row.runs) for (const pc of r2.pieces) { if (ripPc) break; for (let t = 1; t < 6; t++) { const c = coverAt(row, pc.x0 + ((pc.x1 - pc.x0) * t) / 6); if (c && c[1] - c[0] < P.W - 2) { ripPc = pc; ripTxt = '↕ ' + Math.round(c[1] - c[0]) + ' mm'; break; } } }
+            }
+            row.runs.forEach((r2) => r2.pieces.forEach((pc) => boardLabel(row, pc, pc === ripPc ? ripTxt : null)));
+            return;
+          }
           const sp = labelSpot(row, ru.x0, ru.x1, Math.max(ru.x0 + 1, ru.x1 - 25 / z));
           const thin = sp.h * z < 12; // bande trop fine pour le texte : petite étiquette sur fond papier
           const tag = (str, q, col, align) => { if (thin) { ctx.font = font(600, 9); const tw = ctx.measureText(str).width; const x0 = align === 'right' ? q.x - tw - 2 : align === 'left' ? q.x - 2 : q.x - tw / 2 - 2; ctx.fillStyle = C.paper; ctx.fillRect(x0, q.y - 6, tw + 4, 12); } text(str, q.x, q.y, 600, 9, col, align); };
           const q = App.w2s(G.rot({ x: sp.x, y: sp.y }, res.ang));
-          if (row.num === 1 || row.num % (z > 0.12 ? 1 : 5) === 0) tag(String(row.num), q, C.ink, 'center');
+          if (row.num === 1 || row.num % 5 === 0) tag('rang ' + row.num, q, C.ink, 'center');
           if (row.ripMax < P.W - 0.5 && z > 0.09) {
             // largeur du délignage juste à côté du numéro, vers l'intérieur de la pièce
             const inward = (ru.x0 + ru.x1) / 2 >= sp.x ? 100 : -100; const u = G.norm(G.sub(App.w2s(G.rot({ x: sp.x + inward, y: sp.y }, res.ang)), q));
-            const side = Math.abs(u.x) > 0.5; const q2 = side ? { x: q.x + u.x * 12, y: q.y } : { x: q.x, y: q.y + (u.y > 0 ? 13 : -13) };
+            ctx.font = font(600, 9); const lw2 = (row.num === 1 || row.num % 5 === 0) ? ctx.measureText('rang ' + row.num).width / 2 + 6 : 4; const side = Math.abs(u.x) > 0.5; const q2 = side ? { x: q.x + u.x * lw2, y: q.y } : { x: q.x, y: q.y + (u.y > 0 ? 13 : -13) };
             const str = Math.round(row.ripMax) + ' mm'; ctx.font = font(600, 9);
             const room = Math.abs((inward > 0 ? ru.x1 : ru.x0) - sp.x) * z, need = (side ? ctx.measureText(str).width : 10) + 16;
             if (room >= need) tag(str, q2, C.red, side ? (u.x > 0 ? 'left' : 'right') : 'center');
-            else if (side) { const q4 = { x: q.x - u.x * 10, y: q.y }; const a4 = u.x > 0 ? 'right' : 'left'; const tw = ctx.measureText(str).width; ctx.fillStyle = C.paper; ctx.fillRect(a4 === 'right' ? q4.x - tw - 2 : q4.x - 2, q4.y - 6, tw + 4, 12); text(str, q4.x, q4.y, 600, 9, C.red, a4); } // pas la place dans la pièce : de l'autre côté du numéro, sur fond papier
+            else if (side) { const q4 = { x: q.x - u.x * lw2, y: q.y }; const a4 = u.x > 0 ? 'right' : 'left'; const tw = ctx.measureText(str).width; ctx.fillStyle = C.paper; ctx.fillRect(a4 === 'right' ? q4.x - tw - 2 : q4.x - 2, q4.y - 6, tw + 4, 12); text(str, q4.x, q4.y, 600, 9, C.red, a4); } // pas la place dans la pièce : de l'autre côté du numéro, sur fond papier
           } else if (row.ripMin < P.W - 2 && z > 0.09 && swo) {
             // rang entier ici mais délignée ailleurs (le long d'un autre mur) : on l'indique là où il est délignée
             let spot = null;
@@ -352,7 +407,7 @@
     const q = [{ x: x0, y: row.ya }, { x: x1, y: row.ya }, { x: x1, y: row.yb }, { x: x0, y: row.yb }].map((p) => G.rot(p, res.ang));
     path(q); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke();
     // lames du rang numérotées
-    row.runs.forEach((ru) => ru.pieces.forEach((pc, k) => { const c = App.w2s(G.rot({ x: (pc.x0 + pc.x1) / 2, y: (row.ya + row.yb) / 2 }, res.ang)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); ctx.font = font(700, 11); const t = String(Math.round(pc.len)); const tw = ctx.measureText(t).width; ctx.fillStyle = pc.kind === 'cut' ? C.red : C.ink; ctx.fillRect(-tw / 2 - 4, -8, tw + 8, 16); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, 0, 0.5); ctx.restore(); }));
+    row.runs.forEach((ru) => ru.pieces.forEach((pc, k) => { const c = App.w2s(G.rot({ x: (pc.x0 + pc.x1) / 2, y: (row.ya + row.yb) / 2 }, res.ang)); const ang = upright(-res.ang); ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang); ctx.font = font(700, 11); const t = (pc.n ? pc.n + ' · ' : '') + Math.round(pc.len); const tw = ctx.measureText(t).width; ctx.fillStyle = pc.kind === 'cut' ? C.red : C.ink; ctx.fillRect(-tw / 2 - 4, -8, tw + 8, 16); ctx.fillStyle = C.paper; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, 0, 0.5); ctx.restore(); }));
   }
 
   function drawObstacle(s) {

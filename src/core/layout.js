@@ -112,22 +112,22 @@
   /* ---------- pose d'un rang ---------- */
   function takePool(pool, need) {
     let bi = -1; for (let i = 0; i < pool.length; i++) if (pool[i].v >= need - 0.5 && (bi < 0 || pool[i].v < pool[bi].v)) bi = i;
-    if (bi < 0) return null; const o = pool.splice(bi, 1)[0]; return { len: o.v, waste: o.v - need, from: o.row };
+    if (bi < 0) return null; const o = pool.splice(bi, 1)[0]; return { len: o.v, waste: o.v - need, from: o.row, fromN: o.n };
   }
 
-  function layRun(u0, u1, prevJ, prev2J, st, P, rowIdx, patt) {
+  function layRun(u0, u1, prevJ, prev2J, st, P, rowIdx, patt, rowNo, nextN = () => 0) {
     const L = P.L, S = u1 - u0, pieces = [], warn = [];
     const minP = P.minPiece, minS = P.minStagger;
     const keep = Math.max(minP, 100);
     const addWaste = (w) => { if (w > 0.5) st.wasteLen += w; };
     const newBoard = () => { st.boards++; };
-    const row = rowIdx + 1;
+    const row = rowNo || rowIdx + 1;
     if (S <= L + 0.5) {
-      let src = 'new', w, from = null, rest = 0;
+      let src = 'new', w, from = null, fromN = null, rest = 0; const n = nextN();
       const t = takePool(st.poolS, S) || takePool(st.poolE, S);
-      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; }
-      else { newBoard(); w = L - S; if (w >= keep) { st.poolS.push({ v: w, row }); rest = w; } else addWaste(w); }
-      pieces.push({ a: u0, b: u1, len: S, kind: S >= L - 0.5 ? 'full' : 'cut', src, from, rest });
+      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; fromN = t.fromN; }
+      else { newBoard(); w = L - S; if (w >= keep) { st.poolS.push({ v: w, row, n }); rest = w; } else addWaste(w); }
+      pieces.push({ a: u0, b: u1, len: S, kind: S >= L - 0.5 ? 'full' : 'cut', src, from, fromN, rest, n });
       return { pieces, joints: [], warn };
     }
     const jointsFor = (s) => { const js = []; let j = u0 + s; while (j < u1 - 0.5) { js.push(j); j += L; } return js; };
@@ -164,24 +164,25 @@
       if (choice.last < minP - 0.5) warn.push('chute de ' + fmt(choice.last));
     }
     // matérialiser
-    const s = choice.s; let src = 'new', from = null, rest = 0;
+    const s = choice.s; let src = 'new', from = null, fromN = null, rest = 0; const n1 = nextN();
     if (s >= L - 0.5) { newBoard(); }
     else {
       const t = choice.pool ? takePool(st.poolS, s) : null;
-      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; }
-      else { newBoard(); const r = L - s; if (r >= keep) { st.poolE.push({ v: r, row }); rest = r; } else addWaste(r); }
+      if (t) { src = 'chute'; addWaste(t.waste); st.reused++; from = t.from; fromN = t.fromN; }
+      else { newBoard(); const r = L - s; if (r >= keep) { st.poolE.push({ v: r, row, n: n1 }); rest = r; } else addWaste(r); }
     }
-    pieces.push({ a: u0, b: u0 + s, len: s, kind: s >= L - 0.5 ? 'full' : 'cut', src, from, rest });
+    pieces.push({ a: u0, b: u0 + s, len: s, kind: s >= L - 0.5 ? 'full' : 'cut', src, from, fromN, rest, n: n1 });
     const js = choice.js;
     for (let k = 0; k < js.length; k++) {
       const a = js[k], b = k + 1 < js.length ? js[k + 1] : u1, len = b - a;
-      if (k + 1 < js.length) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new' }); continue; }
-      let src2 = 'new', from2 = null, rest2 = 0;
-      if (len >= L - 0.5) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new' }); continue; }
+      const n = nextN();
+      if (k + 1 < js.length) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new', n }); continue; }
+      let src2 = 'new', from2 = null, fromN2 = null, rest2 = 0;
+      if (len >= L - 0.5) { newBoard(); pieces.push({ a, b, len, kind: 'full', src: 'new', n }); continue; }
       const t = takePool(st.poolE, len);
-      if (t) { src2 = 'chute'; addWaste(t.waste); st.reused++; from2 = t.from; }
-      else { newBoard(); const r = L - len; if (r >= keep) { st.poolS.push({ v: r, row }); rest2 = r; } else addWaste(r); }
-      pieces.push({ a, b, len, kind: 'cut', src: src2, from: from2, rest: rest2 });
+      if (t) { src2 = 'chute'; addWaste(t.waste); st.reused++; from2 = t.from; fromN2 = t.fromN; }
+      else { newBoard(); const r = L - len; if (r >= keep) { st.poolS.push({ v: r, row, n }); rest2 = r; } else addWaste(r); }
+      pieces.push({ a, b, len, kind: 'cut', src: src2, from: from2, fromN: fromN2, rest: rest2, n });
     }
     return { pieces, joints: js.slice(), warn, stagger: choice.stag };
   }
@@ -250,9 +251,15 @@
       st.X0 = best ? best.X0 : 0;
     }
     const out = R.map((x) => ({ room: x.room, rows: [], warn: [], boards: 0, outer: x.outer, holes: x.holes, obs: x.obs }));
-    let prevJ = [], prev2J = [];
-    for (let k = kmin; k < kmax; k++) {
+    // ordre de pose : le rang du mur de départ, puis on s'en éloigne ; les rangs situés derrière le mur de départ
+    // (niche, renfoncement) viennent ensuite, en repartant du 1er rang vers eux
+    const kStart = Math.min(kmax - 1, Math.max(kmin, Math.floor((startY + 0.5 - p) / W)));
+    const order = []; for (let k = kStart; k < kmax; k++) order.push({ k, back: false }); for (let k = kStart - 1; k >= kmin; k--) order.push({ k, back: true });
+    const J = new Map(); let seq = 0, rowNo = 0;
+    for (const { k, back } of order) {
       const ya = p + k * W, yb = ya + W, rowIdx = k - kmin; const rowJ = [];
+      const prevJ = J.get(back ? k + 1 : k - 1) || [], prev2J = J.get(back ? k + 2 : k - 2) || [];
+      const items = [];
       for (let ri = 0; ri < R.length; ri++) {
         const x = R[ri], ob = G.bbox(x.outer); if (yb <= ob.y0 + 0.01 || ya >= ob.y1 - 0.01) continue;
         const ys = [ya + 0.3, yb - 0.3, (ya + yb) / 2];
@@ -262,7 +269,7 @@
         if (!iv.length) continue;
         const sw = [swap(x.outer)], swh = x.holes.map(swap);
         const runs = iv.map((v) => ({ u0: Math.min(s * v[0], s * v[1]), u1: Math.max(s * v[0], s * v[1]), x0: v[0], x1: v[1] })).sort((a, b) => a.u0 - b.u0);
-        const row = { k, num: rowIdx + 1, ya, yb, runs: [], ripMax: 0, ripMin: Infinity, warn: [] };
+        const row = { k, num: 0, back, ya, yb, runs: [], ripMax: 0, ripMin: Infinity, warn: [] };
         for (const run of runs) {
           // largeur couverte (délignage)
           const xs = []; for (let t = 0; t <= 12; t++) xs.push(run.x0 + ((run.x1 - run.x0) * t) / 12);
@@ -276,19 +283,22 @@
         }
         if (row.ripMin === Infinity) row.ripMin = row.ripMax;
         if (row.ripMax < 3) continue; // pointe de moins de 3 mm : absorbée par le jeu au mur
-        for (const run of runs) {
-          const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern);
-          r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
-          row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
-          r.joints.forEach((j) => rowJ.push(j));
-          if (r.warn.length) row.warn.push(...r.warn);
-        }
-        out[ri].rows.push(row);
+        items.push({ ri, row, runs });
       }
-      prev2J = prevJ; prevJ = rowJ;
+      if (!items.length) continue;
+      rowNo++;
+      // un rang se pose d'un bout à l'autre, à travers les passages d'une pose continue
+      const all = items.flatMap((it) => it.runs.map((run) => ({ it, run }))).sort((a, b) => a.run.u0 - b.run.u0);
+      for (const { it, run } of all) {
+        const r = layRun(run.u0, run.u1, prevJ, prev2J, st, P, rowIdx, P.pattern, rowNo, () => ++seq);
+        r.pieces.forEach((pc) => { pc.x0 = Math.min(s * pc.a, s * pc.b); pc.x1 = Math.max(s * pc.a, s * pc.b); });
+        it.row.runs.push({ u0: run.u0, u1: run.u1, x0: run.x0, x1: run.x1, pieces: r.pieces, stagger: r.stagger });
+        r.joints.forEach((jj) => rowJ.push(jj));
+        if (r.warn.length) it.row.warn.push(...r.warn);
+      }
+      for (const it of items) { it.row.num = rowNo; it.row.n0 = Math.min(...it.row.runs.flatMap((ru) => ru.pieces.map((pc) => pc.n))); out[it.ri].rows.push(it.row); }
+      J.set(k, rowJ);
     }
-    // numérotation continue des rangs réellement posés
-    { const ks = [...new Set(out.flatMap((o) => o.rows.map((r) => r.k)))].sort((a, b) => a - b); const kn = new Map(ks.map((k, i) => [k, i + 1])); out.forEach((o) => o.rows.forEach((r) => { r.num = kn.get(r.k); })); }
     // comptages par pièce (les chutes circulent dans le groupe)
     out.forEach((o) => { let nb = 0, cuts = 0; o.rows.forEach((r) => r.runs.forEach((ru) => ru.pieces.forEach((pc) => { if (pc.src === 'new' && (pc.kind === 'full' || true)) nb++; if (pc.kind === 'cut') cuts++; }))); o.piecesNew = nb; o.cuts = cuts; });
     return { ang, side, rec, p, phase: ph, rooms: out, stats: st, startEdgeIdx, lead, startY, kmin, s };
@@ -298,7 +308,8 @@
   function adviceFor(gr, o, P, ctx) {
     const room = o.room, n = room.pts.length, A = [], W = P.W, L = P.L;
     const rows = o.rows; if (!rows.length) return { lines: ['Pièce trop petite pour être calepinée.'], first: null, last: null };
-    const first = rows[0], last = rows[rows.length - 1];
+    const fwd = rows.filter((r) => !r.back), backs = rows.filter((r) => r.back);
+    const first = rows[0], last = (fwd.length ? fwd : rows)[(fwd.length ? fwd : rows).length - 1];
     const angDeg = ((G.deg(gr.ang) % 180) + 180) % 180;
     // mur parallèle de référence
     let refWall = 0, bestd = 9; for (let i = 0; i < n; i++) { const a = room.pts[i], b = room.pts[(i + 1) % n]; const d = Math.abs(G.normAng(2 * (Math.atan2(b.y - a.y, b.x - a.x) - gr.ang))); if (d < bestd && G.dist(a, b) > 500) { bestd = d; refWall = i; } }
@@ -315,7 +326,9 @@
       A.push({ t: 'depart', s: `Calepinage commun avec ${gr.lead.name || 'la pièce principale'} : rangs alignés à travers les passages.` });
     }
     const rip = (r) => (r.ripMax >= W - 0.5 ? 'lames entières' : `lames délignées à ${Math.round(r.ripMax)} mm` + (r.ripMax - r.ripMin > 2 ? ` (en biais, de ${Math.round(r.ripMin)} à ${Math.round(r.ripMax)} mm)` : ''));
-    A.push({ t: 'rangs', s: `${rows.length} rangs. 1er rang : ${rip(first)}${first.ripMax >= W - 0.5 && P.lay === 'flottante' ? ', languette retirée côté mur' : ''}. Dernier rang : ${rip(last)}.` });
+    const nb = rows.reduce((t, r) => t + r.runs.reduce((u, ru) => u + ru.pieces.length, 0), 0);
+    A.push({ t: 'rangs', s: `${rows.length} rangs, ${nb} lames numérotées dans l'ordre de pose. 1er rang : ${rip(first)}${first.ripMax >= W - 0.5 && P.lay === 'flottante' ? ', languette retirée côté mur' : ''}. Dernier rang : ${rip(last)}.` });
+    if (backs.length) { const a = Math.min(...backs.map((r) => r.num)), b = Math.max(...backs.map((r) => r.num)); A.push({ t: 'rangs', s: `${a === b ? `Rang ${a}` : `Rangs ${a} à ${b}`} : de l'autre côté du mur de départ (renfoncement). ${a === b ? 'Il se pose' : 'Ils se posent'} à la fin, en repartant du 1er rang vers le fond : emboîtement à rebours, au tire-lame.` }); }
     const thin = rows.filter((r) => r.ripMax < Math.max(P.minRow, 0.5) && r.ripMax > 0.5);
     if (thin.length) A.push({ t: 'fin', s: `${thin.length} rang(s) très étroit(s) (< ${P.minRow} mm) : glisser sous la plinthe ou ajuster le calepinage.`, warn: true });
     const warns = rows.flatMap((r) => r.warn.map((w) => `rang ${r.num} : ${w}`));
@@ -398,7 +411,7 @@
           if (atStart && atEnd) { cutA = cutB = true; }
           else if (atStart || atEnd) { const wallSideIsX0 = Math.abs(pc.x0 - run.x0) < 0.6; if (wallSideIsX0) cutA = true; else cutB = true; void startIsX0; }
         }
-        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, cutA, cutB });
+        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB });
       });
     }
     return out;
