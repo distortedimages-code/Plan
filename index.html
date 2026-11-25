@@ -719,22 +719,24 @@ details[open] summary::after{content:"–"}
   }
 
   function phaseQuality(edges, p, W) {
-    let mn = W, sum = 0, sl = 0;
-    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200) mn = Math.min(mn, pc); sum += pc * e.len; sl += e.len; }
-    return { min: mn, avg: sl ? sum / sl : W };
+    let mn = W, sum = 0, sl = 0, at = null;
+    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
+    return { min: mn, avg: sl ? sum / sl : W, at };
   }
 
-  function bestPhase(edges, W, startY, P) {
+  /* décalage des rangs : départ en lame entière si aucune bande ne devient trop fine (< 1/3 de lame),
+     sinon on équilibre ; force = 'full' impose la lame entière au départ */
+  function bestPhase(edges, W, startY, P, force) {
     const good = Math.max(P.minRow, W / 3);
     const p0 = ((startY % W) + W) % W;
     const q0 = phaseQuality(edges, p0, W);
-    if (q0.min >= good - 0.5) return { p: p0, q: q0, aligned: true };
+    if (q0.min >= good - 0.5 || force === 'full') return { p: p0, q: q0, q0, aligned: true, forced: force === 'full' && q0.min < good - 0.5, good };
     let best = null;
     for (let p = 0; p < W; p += 0.5) {
       const q = phaseQuality(edges, p, W);
       if (!best || q.min > best.q.min + 0.25 || (Math.abs(q.min - best.q.min) <= 0.25 && q.avg > best.q.avg)) best = { p, q };
     }
-    return { p: best.p, q: best.q, aligned: false };
+    return { p: best.p, q: best.q, q0, aligned: false, good };
   }
 
   /* recommandation du sens de pose pour une pièce */
@@ -899,7 +901,7 @@ details[open] summary::after{content:"–"}
     const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? near.y : oy.y0; })() : G.bbox(leadR2.outer).y0;
     // phase
     const edges = R.flatMap((x) => horizEdges(x.outer, x.holes));
-    const ph = bestPhase(edges, W, startY, P);
+    const ph = bestPhase(edges, W, startY, P, (lead.cal && lead.cal.first) || P.firstRow);
     const p = ph.p;
     // rangs
     let gy0 = Infinity, gy1 = -Infinity; R.forEach((x) => { const b = G.bbox(x.outer); gy0 = Math.min(gy0, b.y0); gy1 = Math.max(gy1, b.y1); });
@@ -1037,7 +1039,9 @@ details[open] summary::after{content:"–"}
         totalArea += area;
         const adv = adviceFor(gr, o, Pg, ctx);
         if (gapInfo && gapInfo.gap > 14) { const half = Math.max(P.gapMin, Math.ceil((P.gapPerM * Math.max(Math.max(gapInfo.along, gapInfo.across) / 2, Math.min(gapInfo.along, gapInfo.across))) / 1000)); adv.lines.push({ t: 'jeu', s: `Jeu de ${gapInfo.gap} mm : plus large que ce que couvre une plinthe courante (10 à 15 mm). Plinthe plus épaisse ou quart-de-rond, ou bien un profil de dilatation au milieu de la plus grande longueur : le jeu redescend alors à ${half} mm.` }); }
-        results[o.room.id] = { gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
+        const ph = gr.phase, at = ph && ph.q0 && ph.q0.at ? G.rot({ x: (ph.q0.at.x0 + ph.q0.at.x1) / 2, y: ph.q0.at.y }, gr.ang) : null;
+        const phase = ph ? { aligned: ph.aligned, forced: !!ph.forced, fullMin: Math.round(ph.q0.min), chosenMin: Math.round(ph.q.min), good: Math.round(ph.good), at } : null;
+        results[o.room.id] = { phase, gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
       });
     }
     const boardArea = (P.L * P.W) / 1e6;
@@ -3572,7 +3576,12 @@ details[open] summary::after{content:"–"}
     const groups = ['', 'A', 'B', 'C', 'D'];
     const res = (App.calepinage().results || {})[s.id];
     const gi = res && res.gapInfo, gapLine = res ? `<div class="kv"><span>Jeu au mur</span><b>${res.gap} mm</b></div>${gi ? `<p class="hint2">${res.groupSize > 1 ? 'Zone posée d\'un tenant' : 'Pièce'} de ${App.fmtM ? App.fmtM(gi.along) : (gi.along / 1000).toFixed(2).replace('.', ',')} × ${App.fmtM ? App.fmtM(gi.across) : (gi.across / 1000).toFixed(2).replace('.', ',')} m : ${gi.gap > S.p.parquet.gapMin ? `${String(S.p.parquet.gapPerM).replace('.', ',')} mm × ${(Math.max(gi.along, gi.across) / 1000).toFixed(1).replace('.', ',')} m` : 'le minimum suffit'}.</p>` : ''}` : '';
-    return `<h3>Calepinage de cette pièce</h3>${gapLine}
+    const ph = res && res.phase, leadRoom = res && !res.lead ? App.rooms(s.floor).find((r) => { const x = App.calepinage().results[r.id]; return x && x.group === res.group && x.lead; }) || s : s, fr = ((leadRoom && leadRoom.cal) || {}).first;
+    const where = (w) => { if (!w) return ''; let best = null; for (const r of App.rooms(s.floor)) r.pts.forEach((p, i) => { const d = G.distPointSeg(w, p, r.pts[(i + 1) % r.pts.length]); if (!best || d < best.d) best = { d, r, i }; }); return best ? ` le long du mur ${wallName(best.i, best.r.pts.length)}${best.r.id !== s.id ? ' (' + esc(best.r.name || 'pièce voisine') + ')' : ''}` : ''; };
+    const firstRow = res && res.rows && res.rows[0], fw = firstRow ? Math.round(firstRow.ripMax || 0) : 0;
+    const phaseLine = ph ? `<div class="field"><label>Premier rang</label><div class="seg sm"><button data-a="firstrow" data-v="auto" aria-pressed="${fr !== 'full'}">Équilibré</button><button data-a="firstrow" data-v="full" aria-pressed="${fr === 'full'}">Lame entière</button></div></div>
+      <p class="hint2">${ph.aligned && !ph.forced ? 'Départ en lame entière : aucune bande trop fine ailleurs.' : ph.forced ? `Départ en lame entière imposé : il reste une bande de <b>${ph.fullMin} mm</b>${where(ph.at)}, fragile et difficile à clipser (moins d'un tiers de lame, ${ph.good} mm).` : `Premier rang délignée${fw && fw < S.p.parquet.W - 1 ? ' à ' + fw + ' mm' : ''} : en partant d'une lame entière, il resterait une bande de <b>${ph.fullMin} mm</b>${where(ph.at)}. Les rangs sont décalés pour que la plus fine fasse ${ph.chosenMin} mm.`}${res.groupSize > 1 && !res.lead ? ' Réglage commun à la zone posée d\'un tenant : il se fait sur la pièce de départ.' : ''}</p>` : '';
+    return `<h3>Calepinage de cette pièce</h3>${gapLine}${phaseLine}
       <div class="field"><label>Sens des lames</label><select data-c="cal.dir"><option value="auto" ${c.dir == null || c.dir === 'auto' ? 'selected' : ''}>Automatique${res ? ' (' + fmt(((G.deg(res.ang) % 180) + 180) % 180, 0) + '°)' : ''}</option>${s.pts.map((p, i) => { const q = s.pts[(i + 1) % n]; let a = ((G.deg(Math.atan2(q.y - p.y, q.x - p.x)) % 180) + 180) % 180; return `<option value="${a.toFixed(3)}" ${c.dir != null && c.dir !== 'auto' && Math.abs(+c.dir - a) < 0.01 ? 'selected' : ''}>Parallèle au mur ${wallName(i, n)}</option>`; }).join('')}</select></div>
       <div class="field"><label>Mur de départ</label><select data-c="cal.start"><option value="auto">Automatique</option>${s.pts.map((_, i) => `<option value="${i}" ${String(c.start) === String(i) ? 'selected' : ''}>${wallName(i, n)}</option>`).join('')}</select></div>
       <div class="field"><label>Pose continue avec</label><select data-c="cal.group">${groups.map((g) => `<option value="${g}" ${(c.group || '') === g ? 'selected' : ''}>${g ? 'Groupe ' + g : 'Pièce indépendante'}</option>`).join('')}</select></div>
@@ -3754,6 +3763,7 @@ details[open] summary::after{content:"–"}
       case 'prot': if (s.locked) break; App.mutate(() => { s.rot = (s.rot || 0) + Math.PI / 2; }); break;
       case 'stairdir': App.mutate(() => { s.stair = Object.assign({}, s.stair, { dir: v }); }); break;
       case 'shq': App.mutate(() => { if (+v > 0) s.h = +v; else delete s.h; }); break;
+      case 'firstrow': { const res = App.calepinage().results[s.id]; const tgt = res && !res.lead ? App.rooms(s.floor).find((r) => { const x = App.calepinage().results[r.id]; return x && x.group === res.group && x.lead; }) || s : s; App.mutate(() => { tgt.cal = Object.assign({}, tgt.cal, { first: v === 'full' ? 'full' : undefined }); }); break; }
       case 'gapmode': App.mutate((P) => { P.parquet.gapMode = v; }); break;
       case 'guard': App.mutate(() => { s.stair = Object.assign({}, s.stair, { guard: v }); }); break;
       case 'lockL': case 'lockA': { const i = +b.dataset.i, k = a === 'lockL' ? 'L' : 'A'; App.mutate(() => { s.locks[i][k] = !s.locks[i][k]; s.locks = PL.solver.syncLocks(s.pts, s.locks); }); break; }

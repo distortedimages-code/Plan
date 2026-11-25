@@ -40,22 +40,24 @@
   }
 
   function phaseQuality(edges, p, W) {
-    let mn = W, sum = 0, sl = 0;
-    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200) mn = Math.min(mn, pc); sum += pc * e.len; sl += e.len; }
-    return { min: mn, avg: sl ? sum / sl : W };
+    let mn = W, sum = 0, sl = 0, at = null;
+    for (const e of edges) { const pc = pieceAt(e, p, W); if (e.len >= 200 && pc < mn) { mn = pc; at = e; } sum += pc * e.len; sl += e.len; }
+    return { min: mn, avg: sl ? sum / sl : W, at };
   }
 
-  function bestPhase(edges, W, startY, P) {
+  /* décalage des rangs : départ en lame entière si aucune bande ne devient trop fine (< 1/3 de lame),
+     sinon on équilibre ; force = 'full' impose la lame entière au départ */
+  function bestPhase(edges, W, startY, P, force) {
     const good = Math.max(P.minRow, W / 3);
     const p0 = ((startY % W) + W) % W;
     const q0 = phaseQuality(edges, p0, W);
-    if (q0.min >= good - 0.5) return { p: p0, q: q0, aligned: true };
+    if (q0.min >= good - 0.5 || force === 'full') return { p: p0, q: q0, q0, aligned: true, forced: force === 'full' && q0.min < good - 0.5, good };
     let best = null;
     for (let p = 0; p < W; p += 0.5) {
       const q = phaseQuality(edges, p, W);
       if (!best || q.min > best.q.min + 0.25 || (Math.abs(q.min - best.q.min) <= 0.25 && q.avg > best.q.avg)) best = { p, q };
     }
-    return { p: best.p, q: best.q, aligned: false };
+    return { p: best.p, q: best.q, q0, aligned: false, good };
   }
 
   /* recommandation du sens de pose pour une pièce */
@@ -220,7 +222,7 @@
     const startY = startE ? (() => { const oy = G.bbox(leadR2.outer); const near = horizEdges(leadR2.outer, []).filter((e) => e.side === 'B').sort((p, q) => Math.abs(p.y - startE.y) - Math.abs(q.y - startE.y))[0]; return near ? near.y : oy.y0; })() : G.bbox(leadR2.outer).y0;
     // phase
     const edges = R.flatMap((x) => horizEdges(x.outer, x.holes));
-    const ph = bestPhase(edges, W, startY, P);
+    const ph = bestPhase(edges, W, startY, P, (lead.cal && lead.cal.first) || P.firstRow);
     const p = ph.p;
     // rangs
     let gy0 = Infinity, gy1 = -Infinity; R.forEach((x) => { const b = G.bbox(x.outer); gy0 = Math.min(gy0, b.y0); gy1 = Math.max(gy1, b.y1); });
@@ -358,7 +360,9 @@
         totalArea += area;
         const adv = adviceFor(gr, o, Pg, ctx);
         if (gapInfo && gapInfo.gap > 14) { const half = Math.max(P.gapMin, Math.ceil((P.gapPerM * Math.max(Math.max(gapInfo.along, gapInfo.across) / 2, Math.min(gapInfo.along, gapInfo.across))) / 1000)); adv.lines.push({ t: 'jeu', s: `Jeu de ${gapInfo.gap} mm : plus large que ce que couvre une plinthe courante (10 à 15 mm). Plinthe plus épaisse ou quart-de-rond, ou bien un profil de dilatation au milieu de la plus grande longueur : le jeu redescend alors à ${half} mm.` }); }
-        results[o.room.id] = { gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
+        const ph = gr.phase, at = ph && ph.q0 && ph.q0.at ? G.rot({ x: (ph.q0.at.x0 + ph.q0.at.x1) / 2, y: ph.q0.at.y }, gr.ang) : null;
+        const phase = ph ? { aligned: ph.aligned, forced: !!ph.forced, fullMin: Math.round(ph.q0.min), chosenMin: Math.round(ph.q.min), good: Math.round(ph.good), at } : null;
+        results[o.room.id] = { phase, gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
       });
     }
     const boardArea = (P.L * P.W) / 1e6;
