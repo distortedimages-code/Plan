@@ -36,6 +36,26 @@
     F('billy40', 'Étagères', 'Bibliothèque 40 (type Billy)', 40, 28, { m: 'billy', H: 202 }), F('billy', 'Étagères', 'Bibliothèque 80 (type Billy)', 80, 28, { m: 'billy', H: 202 }),
     F('ivar', 'Étagères', 'Étagère 89 × 30 (type Ivar)', 89, 30, { m: 'ivar', H: 179 }), F('ivar50', 'Étagères', 'Étagère 89 × 50 (type Ivar)', 89, 50, { m: 'ivar', H: 179 }),
     F('lack110', 'Étagères', 'Étagère murale 110 (type Lack)', 110, 26, { m: 'murale' }), F('lack30', 'Étagères', 'Étagère murale 30 (type Lack)', 30, 26, { m: 'murale' }),
+    // cuisine du bon de commande : caissons 56 cm + façade 2 cm, socle 10 cm, caisson bas 78 cm, plan 3,9 cm (dessus à 91,9 cm)
+    F('kfrigo60', 'Cuisine commandée', 'Colonne réfrigérateur intégré 60', 60, 58, { short: 'Frigo', m: 'kcol', k: 'frigo', ref: 'GR201178T1 · niche 178' }),
+    F('kfour60', 'Cuisine commandée', 'Colonne four + micro-ondes 60', 60, 58, { short: 'Four', m: 'kcol', k: 'four', ref: 'GR201OM · four 60 + niche 38' }),
+    F('kbas120', 'Cuisine commandée', 'Meuble bas 1 tiroir + 2 casseroliers 120', 120, 58, { short: 'Bas 120', m: 'kbas', k: 'tiroirs', ref: 'U12078SZ2 · ×2' }),
+    F('kbas90', 'Cuisine commandée', 'Meuble bas 1 tiroir + 2 casseroliers 90', 90, 58, { short: 'Bas 90', m: 'kbas', k: 'tiroirs', ref: 'U9078SZ2' }),
+    F('kbas80', 'Cuisine commandée', 'Meuble bas 1 tiroir + 2 casseroliers 80', 80, 58, { short: 'Bas 80', m: 'kbas', k: 'tiroirs', ref: 'U8078SZ2' }),
+    F('ksevier90', 'Cuisine commandée', 'Meuble sous-évier 90 (2 portes)', 90, 58, { short: 'Sous-évier 90', m: 'kbas', k: 'evier', ref: 'US9078' }),
+    F('kepicier30', 'Cuisine commandée', 'Meuble épicier 30', 30, 58, { short: 'Épicier', m: 'kbas', k: 'plein', ref: 'U3078Z-V' }),
+    F('klv60', 'Cuisine commandée', 'Lave-vaisselle intégré 60', 60, 58, { short: 'LV', m: 'kbas', k: 'lv', ref: 'UT6078GV86 + Whirlpool' }),
+    F('khaut120', 'Cuisine commandée', 'Meuble haut 120 (2 portes)', 120, 35, { short: 'Haut 120', m: 'khaut', ref: 'O12065 · h 65, posé à 146,5' }),
+    F('khotte90', 'Cuisine commandée', 'Hotte cheminée 90', 90, 50, { short: 'Hotte', m: 'khotte', ref: 'Ellux EFTF19X' }),
+    F('kplaque80', 'Cuisine commandée', 'Table induction 80', 80, 52, { short: 'Induction', m: 'kplaque', ref: 'Rosières RIF84DCS' }),
+    F('kevier100', 'Cuisine commandée', 'Évier 100 × 50 + mitigeur', 100, 50, { short: 'Évier', m: 'kevier', ref: 'Luisina Tam Tam' }),
+    F('kpdt205', 'Cuisine commandée', 'Plan de travail 205 × 60', 205, 60, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
+    F('kpdt220', 'Cuisine commandée', 'Plan de travail 220 × 64', 220, 64, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
+    F('kpdt313', 'Cuisine commandée', 'Plan de travail 312,6 × 94', 312.6, 94, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9 · avancée' }),
+    F('kjoue61', 'Cuisine commandée', 'Joue 61 × 88', 1.6, 61, { short: '', m: 'kpanneau', z: [0, 880], ref: 'panneau 1,6' }),
+    F('kjoue82', 'Cuisine commandée', 'Joue 82 × 88', 1.6, 82, { short: '', m: 'kpanneau', z: [0, 880], ref: 'panneau 1,6' }),
+    F('khab135', 'Cuisine commandée', 'Habillage arrière 135 × 78', 135, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
+    F('khab180', 'Cuisine commandée', 'Habillage arrière 180 × 78', 180, 1.6, { short: '', m: 'kpanneau', z: [100, 880], ref: 'panneau 1,6' }),
   ];
   const structure = [
     F('poteau20', 'Structure', 'Poteau 20 × 20', 20, 20, { kind: 'poteau' }), F('poteau30', 'Structure', 'Poteau 30 × 30', 30, 30, { kind: 'poteau' }),
@@ -90,6 +110,27 @@
     billy: (w, d, M, it) => shelf(w, d, M, (it.H || 202) * 10, [1, 6], 18, 18, true),
     ivar: (w, d, M, it) => shelf(w, d, M, (it.H || 179) * 10, [1, 5], 0, 20, false, true),
     murale: (w, d, M) => { M.dash = true; M.h = 1450; M.solids.push({ pts: rect(0, 0, w, d), z0: 1400, z1: 1450 }); },
+    // cuisine : meubles bas (socle en retrait de 5 cm), colonnes, haut, hotte, plan, plaque, évier
+    kbas: (w, d, M, it) => {
+      M.h = 880; M.solids.push({ pts: rect(0, 50, w, d), z0: 0, z1: 100 }, { pts: rect(0, 0, w, d), z0: 100, z1: 880 });
+      const fl = (z) => M.lines.push([[0, -1, z], [w, -1, z]]); M.plan.push({ pts: [[0, 20], [w, 20]], open: true });
+      if (it.k === 'tiroirs') { fl(730); fl(430); }
+      if (it.k === 'evier') { fl(730); M.lines.push([[w / 2, -1, 100], [w / 2, -1, 730]]); }
+      if (it.k === 'lv') { M.plan.push({ pts: [[0, 20], [w, d]], open: true }, { pts: [[w, 20], [0, d]], open: true }); fl(830); }
+    },
+    kcol: (w, d, M, it) => {
+      M.h = 2115; M.solids.push({ pts: rect(0, 50, w, d), z0: 0, z1: 100 }, { pts: rect(0, 0, w, d), z0: 100, z1: 2115 });
+      M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true });
+      const fl = (z) => M.lines.push([[0, -1, z], [w, -1, z]]), win = (z0, z1) => { const r = rect(70, z0, w - 70, z1); r.forEach((p, k) => { const q = r[(k + 1) % 4]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); };
+      if (it.k === 'frigo') { fl(820); fl(1890); }
+      else { fl(880); fl(1475); fl(1855); win(960, 1330); win(1540, 1800); }
+    },
+    khaut: (w, d, M) => { M.dash = true; M.h = 2115; M.solids.push({ pts: rect(0, 0, w, d), z0: 1465, z1: 2115 }); M.lines.push([[w / 2, -1, 1465], [w / 2, -1, 2115]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
+    khotte: (w, d, M) => { M.dash = true; M.h = 2453; const c = rect(w / 2 - 130, d - 220, w / 2 + 130, d); M.solids.push({ pts: rect(0, 0, w, d), z0: 1569, z1: 1650 }, { pts: c, z0: 1650, z1: 2453 }); M.plan.push({ pts: c, dash: true }); },
+    kpdt: (w, d, M) => { M.fill = false; M.h = 919; M.solids.push({ pts: rect(0, 0, w, d), z0: 880, z1: 919 }); },
+    kplaque: (w, d, M) => { M.h = 925; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 925 }); for (const [cu, cv, r] of [[w * 0.25, d * 0.3, 95], [w * 0.25, d * 0.72, 95], [w * 0.62, d * 0.5, 120], [w * 0.86, d * 0.5, 75]]) { const c = ell(cu, cv, r, r, 20); M.plan.push({ pts: c }); M.lines.push(...ring3(c, 926)); } },
+    kevier: (w, d, M) => { M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(50, 70, w * 0.52, d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[w * 0.58, v], [w - 50, v]], open: true }); M.lines.push([[w * 0.58, v, 922], [w - 50, v, 922]]); } tap(w * 0.29, d - 35, 921, M); },
+    kpanneau: (w, d, M, it) => { const [z0, z1] = it.z || [0, 880]; M.h = z1; M.solids.push({ pts: rect(0, 0, w, d), z0, z1 }); },
   };
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
   function vanity(w, d, M, centers, vessel) {
@@ -115,7 +156,7 @@
   }
   PL.furnModel = (id, w, d) => {
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, h: 0 }; MODELS[it.m](w, d, M, it); return M;
+    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0 }; MODELS[it.m](w, d, M, it); return M;
   };
 
   PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets };

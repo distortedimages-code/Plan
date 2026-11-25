@@ -475,7 +475,8 @@
     const md = !s.round && s.pts.length === 4 && PL.furnModel ? (() => { const P = s.pts, U = G.norm(G.sub(P[1], P[0])), V = G.norm(G.sub(P[3], P[0])), w = G.dist(P[0], P[1]), d = G.dist(P[0], P[3]); const M = PL.furnModel(s.lib, w, d); return M && { M, at: ([u, v]) => G.add(G.add(P[0], G.mul(U, u)), G.mul(V, v)) }; })() : null;
     if (md && md.M.outline) { ctx.beginPath(); path(md.M.outline.map(md.at)); }
     if (md && md.M.dash) ctx.setLineDash([6, 4]);
-    ctx.fillStyle = C.paper; ctx.globalAlpha = md && md.M.dash ? 0.55 : 0.92; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]);
+    if (!md || md.M.fill) { ctx.fillStyle = C.paper; ctx.globalAlpha = md && md.M.dash ? 0.55 : 0.92; ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = md && !md.M.fill ? C.ink2 : C.ink; ctx.lineWidth = md && !md.M.fill ? 1 : 1.2; ctx.stroke(); ctx.setLineDash([]);
     if (md && S.view.z > 0.025) { ctx.lineWidth = 0.8; for (const q of md.M.plan) { const W = q.pts.map(md.at).map(App.w2s); ctx.beginPath(); W.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); if (!q.open) ctx.closePath(); if (q.dash) ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]); } }
     // détail : oreillers pour les lits, dossier et accoudoirs pour les canapés
     const sp = App.sofaParts && App.sofaParts(s);
@@ -485,7 +486,7 @@
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();
     }
     ctx.restore();
-    if (S.view.z > 0.035 && s.name) { const c = App.w2s(G.centroid(s.pts)); const lbl = s.name.replace(/ \(type .*\)/, ''); text(lbl, c.x, c.y, 500, 10, C.ink2); }
+    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); text(lbl, c.x, c.y, 500, 10, C.ink2); } }
   }
 
   function drawOpenings(rooms, selOp) {
