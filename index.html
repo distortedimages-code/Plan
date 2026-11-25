@@ -6526,6 +6526,22 @@ details[open] summary::after{content:"–"}
   };
   /* demi-plan (Sutherland–Hodgman) : garde le côté dot(p − o, nr) ≥ 0 */
   const clip = (poly, o, nr) => { const out = []; const side = (p) => G.dot(G.sub(p, o), nr); for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], sa = side(a), sb = side(b); if (sa >= 0) out.push(a); if ((sa >= 0) !== (sb >= 0)) out.push(G.lerp(a, b, sa / (sa - sb))); } return out; };
+  /* intersection pièce ∩ zone (faux plafond à cheval sur plusieurs pièces ou débordant dans les murs) */
+  const inter = (pts, zp) => {
+    const Z = G.area(zp) < 0 ? zp.slice().reverse() : zp;
+    if (!Z.some((p) => G.pointInPoly(p, pts)) && !pts.some((p) => G.pointInPoly(p, Z)) && !G.pointInPoly(G.centroid(Z), pts)) return [];
+    const fr = OR.frame(OR.angleOf(pts)); const A = OR.square(pts.map(fr.to)), C = OR.square(Z.map(fr.to));
+    if (A && C) {
+      const xs = OR.coords(A.concat(C).map((p) => p.x)), ys = OR.coords(A.concat(C).map((p) => p.y));
+      return OR.trace(xs, ys, (x, y) => G.pointInPoly({ x, y }, A) && G.pointInPoly({ x, y }, C)).filter((l) => G.area(l) > 1e4).map((l) => l.map(fr.from));
+    }
+    const R = G.area(pts) < 0 ? pts.slice().reverse() : pts;
+    const convex = (P) => P.every((p, i) => G.cross(G.sub(P[(i + 1) % P.length], p), G.sub(P[(i + 2) % P.length], P[(i + 1) % P.length])) >= -1e-6);
+    const cut = (P, K) => { let o = P; for (let i = 0; i < K.length && o.length >= 3; i++) { const a = K[i], b = K[(i + 1) % K.length], d = G.sub(b, a); o = clip(o, a, { x: -d.y, y: d.x }); } return o.length >= 3 && Math.abs(G.area(o)) > 1e4 ? [o] : []; };
+    if (convex(R)) return cut(Z, R);
+    if (convex(Z)) return cut(R, Z);
+    return G.pointInPoly(G.centroid(Z), pts) ? [Z] : [];
+  };
   /* une pièce moins des trous (trémies) : par cases d'équerre si possible */
   const minus = (pts, cuts) => {
     cuts = cuts.filter((c) => c.some((p) => G.pointInPoly(p, pts)) || pts.some((p) => G.pointInPoly(p, c)) || G.pointInPoly(G.centroid(c), pts));
@@ -6774,6 +6790,7 @@ details[open] summary::after{content:"–"}
     const stairs = shapes.filter((s) => s.kind === 'escalier').map((s) => stairModel(s, Hf)).filter(Boolean); st.stairs = stairs;
     const ups = stairs.filter((m) => !m.down).map((m) => m.s.pts), downs = stairs.filter((m) => m.down).map((m) => m.s.pts);
     const uvf = (p) => [(p.x - bb.x0) / (bb.x1 - bb.x0), (p.y - bb.y0) / (bb.y1 - bb.y0)];
+    const fps0 = shapes.filter((z) => z.kind === 'plafond' && z.drop > 0);
     for (const r of rooms) {
       const Hc = App.feat.ceiling(r) * 10, n = r.pts.length;
       for (const part of minus(r.pts, downs)) fill(FL, part.outer, part.holes, () => 0, [0, 1, 0], null, uvf);
@@ -6781,9 +6798,9 @@ details[open] summary::after{content:"–"}
       const sl = slopesOf(r, Hc); st.slopes[r.id] = sl;
       for (const z of sl) { fill(B, z.poly, [], z.hAt, [0, -1, 0], st.col.ceil); for (let i = 0; i < z.poly.length; i++) { const a = z.poly[i], b = z.poly[(i + 1) % z.poly.length]; ln(P3(a, z.hAt(a)), P3(b, z.hAt(b))); } }
       // faux plafonds : plafond abaissé de l'épaisseur, avec les côtés du coffrage là où il ne touche pas un mur
-      for (const z of App.feat.zonesIn(r).filter((x) => x.drop > 0)) {
-        const h = Hc - z.drop * 10; if (h <= 300) continue; const Z = G.area(z.pts) < 0 ? z.pts.slice().reverse() : z.pts;
-        fill(B, Z, [], () => h, [0, -1, 0], st.col.ceil);
+      for (const z of fps0.filter((x) => x.drop > 0)) for (const Z of inter(r.pts, z.pts)) {
+        const h = Hc - z.drop * 10; if (h <= 300) continue;
+        fill(B, Z, [], () => h, [0, -1, 0], st.col.fp);
         for (let i = 0; i < Z.length; i++) { const a = Z[i], b = Z[(i + 1) % Z.length]; ln(P3(a, h), P3(b, h)); if (G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40) continue; const dd = G.norm(G.sub(b, a)), nout = { x: dd.y, y: -dd.x }; quad(B, P3(a, h), P3(b, h), P3(b, Hc), P3(a, Hc), H3(nout), st.col.wall); }
       }
       for (let i = 0; i < n; i++) {
@@ -6894,7 +6911,7 @@ details[open] summary::after{content:"–"}
     catch (e) { host.remove(); App.toast && App.toast('La 3D n\'est pas disponible sur cet appareil.'); return; }
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
-    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
+    st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
     st.scene = new T.Scene(); st.cam = new T.PerspectiveCamera(70, 1, 0.05, 300); st.cam.rotation.order = 'YXZ';
     st.scene.add(new T.AmbientLight(0xffffff, 0.62)); st.scene.add(new T.HemisphereLight(0xffffff, 0xbbbbbb, 0.22));
     const sun = new T.DirectionalLight(0xffffff, 1.0); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; st.scene.add(sun, sun.target); st.sun = sun;
