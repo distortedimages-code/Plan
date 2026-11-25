@@ -10,7 +10,7 @@
     F('commode3', 'Rangement', 'Commode 3 tiroirs (type Malm)', 80, 48), F('commode6', 'Rangement', 'Commode 6 tiroirs (type Malm)', 160, 48), F('hemnes8', 'Rangement', 'Commode 8 tiroirs (type Hemnes)', 160, 50),
     F('besta', 'Rangement', 'Meuble TV (type Bestå)', 180, 42),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
-    F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('chaise', 'Tables', 'Chaise', 45, 52),
+    F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('basseverre', 'Tables', 'Table basse chêne et verre 80 × 80', 80, 80, { short: 'Table basse', m: 'basseverre' }), F('chaise', 'Tables', 'Chaise', 45, 52),
     F('bureau140', 'Bureau', 'Bureau 140 × 65', 140, 65), F('bureau160', 'Bureau', 'Bureau 160 × 80', 160, 80), F('caisson', 'Bureau', 'Caisson', 36, 58), F('fauteuilbur', 'Bureau', 'Fauteuil de bureau', 65, 65, { round: true }),
     F('canape2', 'Salon', 'Canapé 2 places', 180, 90), F('canape3', 'Salon', 'Canapé 3 places', 228, 95), F('angle', 'Salon', 'Canapé d\'angle', 250, 160, { shape: 'L', t: 95 }), F('fauteuil', 'Salon', 'Fauteuil', 68, 82),
     F('piano', 'Salon', 'Piano droit (piano d\'étude)', 150, 60, { short: 'Piano droit', m: 'pianodroit' }), F('pianon', 'Salon', 'Piano numérique', 140, 40, { m: 'pianonum' }), F('banquette', 'Salon', 'Banquette de piano', 57, 33, { m: 'banquette' }),
@@ -134,6 +134,18 @@
       M.plan.push({ pts: [[sw, d - db], [w - sw, d - db]], open: true });
     },
     banquette: (w, d, M) => { M.h = 500; M.solids.push({ pts: rect(0, 0, w, d), z0: 440, z1: 500 }); for (const [u, v] of [[20, 20], [w - 60, 20], [w - 60, d - 60], [20, d - 60]]) M.solids.push({ pts: rect(u, v, u + 40, v + 40), z0: 0, z1: 440 }); M.plan.push({ pts: rect(25, 25, w - 25, d - 25) }); },
+    // table basse carrée : pieds carrés aux angles, ceinture large de 8 cm, plateau de verre encastré dans le cadre, tablette basse pleine entre les pieds
+    basseverre: (w, d, M) => {
+      const H = 430, lg = 60, fr = 115, zc = H - 80, zs0 = 45, zs1 = 95; M.h = H;
+      for (const [u, v] of [[0, 0], [w - lg, 0], [w - lg, d - lg], [0, d - lg]]) M.solids.push({ pts: rect(u, v, u + lg, v + lg), z0: 0, z1: zc });
+      M.solids.push({ pts: rect(0, 0, w, fr), z0: zc, z1: H }, { pts: rect(0, d - fr, w, d), z0: zc, z1: H }, { pts: rect(0, fr, fr, d - fr), z0: zc, z1: H }, { pts: rect(w - fr, fr, w, d - fr), z0: zc, z1: H }); // cadre
+      M.solids.push({ pts: rect(lg, lg, w - lg, d - lg), z0: zs0, z1: zs1 }); // tablette basse
+      const g = rect(fr - 12, fr - 12, w - fr + 12, d - fr + 12), zg = H - 14; M.lines.push(...ring3(g, zg)); // verre posé en feuillure
+      const rf = [[0.3, 0.12, 0.12, 0.3], [0.55, 0.12, 0.12, 0.55]].map(([a, b, c, e]) => [[fr + (w - 2 * fr) * a, fr + (d - 2 * fr) * b, zg], [fr + (w - 2 * fr) * c, fr + (d - 2 * fr) * e, zg]]);
+      M.lines.push(...rf);
+      M.plan.push({ pts: rect(fr, fr, w - fr, d - fr) }); for (const [a, b] of rf) M.plan.push({ pts: [[a[0], a[1]], [b[0], b[1]]], open: true });
+      M.plan.push({ pts: rect(lg, lg, w - lg, d - lg), dash: true }); // tablette sous le verre
+    },
     // cuisine : meubles bas (socle en retrait de 5 cm), colonnes, haut, hotte, plan, plaque, évier
     kbas: (w, d, M, it) => {
       M.h = 880; M.solids.push({ pts: rect(0, 50, w, d), z0: 0, z1: 100 }, { pts: rect(0, 0, w, d), z0: 100, z1: 880 });
