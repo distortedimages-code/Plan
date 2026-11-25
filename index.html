@@ -2256,6 +2256,31 @@ details[open] summary::after{content:"–"}
   };
   App.filePut = async (key, val) => { const db = await idb(); if (!db) return false; return new Promise((res) => { try { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(val, key); tx.oncomplete = () => res(true); tx.onerror = () => res(false); } catch (e) { res(false); } }); };
   App.fileGet = async (key) => { const db = await idb(); if (!db) return null; return new Promise((res) => { try { const r = db.transaction('files').objectStore('files').get(key); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); } catch (e) { res(null); } }); };
+  /* ---------- projet complet : le JSON + les fichiers des fonds de plan (PDF, images, DXF…) ---------- */
+  const toDataURL = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+  App.exportProject = async () => {
+    const p = JSON.parse(JSON.stringify(S.p)), files = {};
+    for (const f of p.floors || []) {
+      const key = f.bg && f.bg.key; if (!key || files[key]) continue; const v = await App.fileGet(key); if (v == null) continue;
+      if (typeof v === 'string') files[key] = { t: 'text', d: v };
+      else if (v instanceof ArrayBuffer) files[key] = { t: 'ab', d: await toDataURL(new Blob([v], { type: 'application/pdf' })) };
+      else if (v instanceof Blob) files[key] = { t: 'blob', d: await toDataURL(v), type: v.type };
+    }
+    if (Object.keys(files).length) p._files = files;
+    return { text: JSON.stringify(p), files: Object.keys(files).length };
+  };
+  /* charge un projet (texte JSON) : les fonds de plan embarqués sont remis sur l'appareil */
+  App.importProject = async (text) => {
+    const raw = JSON.parse(text), files = raw._files || {}; delete raw._files; let n = 0;
+    for (const [key, f] of Object.entries(files)) {
+      try {
+        let v; if (f.t === 'text') v = f.d; else { const b = await (await fetch(f.d)).blob(); v = f.t === 'ab' ? await b.arrayBuffer() : (f.type ? new Blob([b], { type: f.type }) : b); }
+        await App.filePut(key, v); n++;
+      } catch (e) { console.error(e); }
+    }
+    const p = App.migrate(raw); App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
+    App.toast(n ? `Projet chargé avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? 'Projet chargé — fonds de plan absents de ce fichier' : 'Projet chargé');
+  };
   App.fileDel = async (key) => { const db = await idb(); if (!db) return; try { db.transaction('files', 'readwrite').objectStore('files').delete(key); } catch (e) { /* */ } };
 
   /* ---------- synchronisation (capacité db de l'artefact, si disponible) ---------- */
@@ -3771,7 +3796,7 @@ details[open] summary::after{content:"–"}
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
       <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
-      <div class="row"><button class="btn sm" data-a="exp">Exporter (.json)</button><button class="btn sm" data-a="copyjson">Copier le projet</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
+      <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
       <h3>Affichage</h3>
       ${ui.bgSlider()}
       ${[['fond', 'Fond de plan importé'], ['cotes', 'Cotes des murs'], ['mobilier', 'Mobilier (vue Plan)'], ['elec', 'Électricité (vue Plan)'], ['calepinage', 'Lames (vue Plan)']].map(([k, v]) => `<div class="field"><label>${v}</label><input type="checkbox" data-c="layer.${k}" ${S.layers[k] ? 'checked' : ''}></div>`).join('')}
@@ -3834,7 +3859,7 @@ details[open] summary::after{content:"–"}
       case 'dlFiche': App.download(`calepinage-${App.floor().name}.txt`, ui.ficheText(), 'text/plain'); break;
       case 'dlPng': { const blob = await App.exportPNG(); if (blob) App.download(`plan-${App.floor().name}.png`, blob, 'image/png'); break; }
       case 'mtool': S.sel = null; ui.setTool('measure'); break;
-      case 'exp': App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, JSON.stringify(S.p), 'application/json'); break;
+      case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }
       case 'fadd': { const r = await ui.dialog('Nouvel étage', '<div class="field"><label>Nom</label><input name="n" value="Étage"></div>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Ajouter', cls: 'primary', def: true }]); if (r.i !== 1) break; const f = { id: App.uid(), name: r.vals.n || 'Étage', level: Math.max(...S.p.floors.map((x) => x.level)) + 1 }; App.mutate((P) => { P.floors.push(f); P.floorId = f.id; }); App.fitAll(); break; }
@@ -3844,7 +3869,7 @@ details[open] summary::after{content:"–"}
       case 'reset': if (await ui.confirm('Effacer le projet', 'Toutes les pièces, mesures et réglages de ce projet seront supprimés de cet appareil.', 'Effacer')) { App.mutate(() => {}); S.p = App.newProject(); S.sel = null; S.bgs = {}; App.changed(); App.fitAll(); } break;
     }
   }
-  function loadProjectText(t) { try { const p = App.migrate(JSON.parse(t)); App.mutate(() => {}); S.p = p; S.sel = null; App.changed(); App.fitAll(); App.toast('Projet chargé'); } catch (e) { App.toast('Fichier de projet illisible'); } }
+  function loadProjectText(t) { App.importProject(t).catch((e) => { console.error(e); App.toast('Fichier de projet illisible'); }); }
 
   function onPanelChange(e) {
     const t = e.target, c = t.dataset.c; if (!c) return; const s = App.selected();
@@ -3904,6 +3929,7 @@ details[open] summary::after{content:"–"}
   I.panel = () => {
     const f = App.floor(); const bg = S.bgs[f.id] || null; const meta = f.bg;
     let h = `<h2>Importer un plan</h2><p class="lead">PDF d'architecte, exports magicplan (DXF, SVG, PDF, JPG, PNG) ou photo d'un plan. Tout reste sur votre appareil.</p>
+      ${meta && !bg && S.bgMissing && S.bgMissing[f.id] ? `<div class="preview"><b>Fond de plan absent sur cet appareil.</b> « ${esc(meta.name || 'plan')} » a été importé ailleurs (autre appareil, autre navigateur, ou projet copié sans fonds). Les fonds restent sur l'appareil où ils ont été importés : réimportez le fichier ici, ou chargez un export .json fait depuis « Exporter (avec fonds de plan) ».</div>` : ''}
       <label class="drop"><b>Choisir un fichier</b><span>PDF · DXF · SVG · JPG · PNG · projet .json</span><input type="file" id="impFile" accept=".pdf,.dxf,.svg,.png,.jpg,.jpeg,.webp,.json,application/pdf,image/*"></label>`;
     if (st.phase === 'busy') h += `<div class="progress"><i id="impBar" style="width:${Math.round((st.frac || 0) * 100)}%"></i></div><p id="impMsg">${esc(st.msg || '')}</p>`;
     if (st.phase === 'pages') {
@@ -3949,7 +3975,7 @@ details[open] summary::after{content:"–"}
   I.handleFile = async (file) => {
     const name = file.name || 'fichier'; const ext = (name.split('.').pop() || '').toLowerCase();
     try {
-      if (ext === 'json') { const t = await file.text(); const p = App.migrate(JSON.parse(t)); App.mutate(() => {}); S.p = p; S.sel = null; App.changed(); App.fitAll(); App.toast('Projet chargé'); return; }
+      if (ext === 'json') { await App.importProject(await file.text()); App.ui.refresh(); return; }
       if (ext === 'pdf' || file.type === 'application/pdf') return await I.openPdf(file);
       if (ext === 'dxf') return await I.importDxf(file);
       if (ext === 'svg' || file.type === 'image/svg+xml') return await I.importSvg(file);
@@ -4066,7 +4092,7 @@ details[open] summary::after{content:"–"}
     try {
       if (meta.kind === 'pdf') {
         const lib = await I.pdfjs(); let page = opt.page;
-        if (!page) { const buf = await App.fileGet(meta.key); if (!buf) return; const doc = await lib.getDocument({ data: new Uint8Array(buf), disableFontFace: true, isEvalSupported: false }).promise; page = await doc.getPage(meta.page); }
+        if (!page) { const buf = await App.fileGet(meta.key); if (!buf) { missing(fid); return; } const doc = await lib.getDocument({ data: new Uint8Array(buf), disableFontFace: true, isEvalSupported: false }).promise; page = await doc.getPage(meta.page); }
         const vp1 = page.getViewport({ scale: 1 }); const scale = Math.min(4, 3000 / Math.max(vp1.width, vp1.height));
         const vp = page.getViewport({ scale }); const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
         const cx = c.getContext('2d', { willReadFrequently: true }); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
@@ -4075,13 +4101,13 @@ details[open] summary::after{content:"–"}
         let raw = opt.raw; if (!raw) raw = await PL.pdfvec.extractPage(lib, page);
         setVectors(bg, raw, meta);
       } else if (meta.kind === 'image' || meta.kind === 'svg') {
-        const blob = await App.fileGet(meta.key); if (!blob) return; const img = await loadImg(blob);
+        const blob = await App.fileGet(meta.key); if (!blob) { missing(fid); return; } const img = await loadImg(blob);
         const c = document.createElement('canvas'); const sc = Math.min(1, 3200 / Math.max(img.width, img.height)) * (meta.kind === 'svg' ? (meta.svgScale || 1) : 1);
         c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); const cx = c.getContext('2d', { willReadFrequently: true }); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(img, 0, 0, c.width, c.height);
         bg.img = c; bg.pxPerUnit = c.width / meta.wUnits;
         if (meta.kind === 'svg' && opt.raw) setVectors(bg, opt.raw, meta);
       } else if (meta.kind === 'dxf') {
-        let raw = opt.raw; if (!raw) { const t = await App.fileGet(meta.key); if (!t) return; raw = PL.dxf.toRaw(t).raw; }
+        let raw = opt.raw; if (!raw) { const t = await App.fileGet(meta.key); if (!t) { missing(fid); return; } raw = PL.dxf.toRaw(t).raw; }
         setVectors(bg, raw, meta);
         // rendu raster pour la baguette
         const bb = G.bbox(bg.segs.flatMap((s) => [s.a, s.b])); const mmpp = Math.max(8, Math.max(bb.w, bb.h) / 3000);
@@ -4104,6 +4130,8 @@ details[open] summary::after{content:"–"}
     Object.assign(bg, { segs, pts, grid, segGrid, texts: (PL.pdfvec.mergeTextLines(raw.texts) || []).map((t) => PL.vec.textToWorld(t, raw, k)).map((t) => ({ ...t, x: t.x + ox, y: t.y + oy })) });
     if (!bg.img) bg.bbox = G.bbox(pts);
   }
+  /* le fichier du fond n'est pas sur cet appareil (autre appareil, autre navigateur, projet copié sans fonds) */
+  const missing = (fid) => { S.bgMissing = S.bgMissing || {}; if (S.bgMissing[fid]) return; S.bgMissing[fid] = true; App.ui && App.ui.refresh && App.ui.refresh(); };
   const loadImg = (blob) => new Promise((res, rej) => { const u = URL.createObjectURL(blob); const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('Image illisible')); im.src = u; });
   const loading = {};
   I.ensureBg = (fid) => { const f = S.p.floors.find((x) => x.id === fid); if (!f || !f.bg || S.bgs[fid] || loading[fid]) return; loading[fid] = true; I.buildBg(fid).finally(() => { loading[fid] = false; }); };

@@ -21,6 +21,7 @@
   I.panel = () => {
     const f = App.floor(); const bg = S.bgs[f.id] || null; const meta = f.bg;
     let h = `<h2>Importer un plan</h2><p class="lead">PDF d'architecte, exports magicplan (DXF, SVG, PDF, JPG, PNG) ou photo d'un plan. Tout reste sur votre appareil.</p>
+      ${meta && !bg && S.bgMissing && S.bgMissing[f.id] ? `<div class="preview"><b>Fond de plan absent sur cet appareil.</b> « ${esc(meta.name || 'plan')} » a été importé ailleurs (autre appareil, autre navigateur, ou projet copié sans fonds). Les fonds restent sur l'appareil où ils ont été importés : réimportez le fichier ici, ou chargez un export .json fait depuis « Exporter (avec fonds de plan) ».</div>` : ''}
       <label class="drop"><b>Choisir un fichier</b><span>PDF · DXF · SVG · JPG · PNG · projet .json</span><input type="file" id="impFile" accept=".pdf,.dxf,.svg,.png,.jpg,.jpeg,.webp,.json,application/pdf,image/*"></label>`;
     if (st.phase === 'busy') h += `<div class="progress"><i id="impBar" style="width:${Math.round((st.frac || 0) * 100)}%"></i></div><p id="impMsg">${esc(st.msg || '')}</p>`;
     if (st.phase === 'pages') {
@@ -66,7 +67,7 @@
   I.handleFile = async (file) => {
     const name = file.name || 'fichier'; const ext = (name.split('.').pop() || '').toLowerCase();
     try {
-      if (ext === 'json') { const t = await file.text(); const p = App.migrate(JSON.parse(t)); App.mutate(() => {}); S.p = p; S.sel = null; App.changed(); App.fitAll(); App.toast('Projet chargé'); return; }
+      if (ext === 'json') { await App.importProject(await file.text()); App.ui.refresh(); return; }
       if (ext === 'pdf' || file.type === 'application/pdf') return await I.openPdf(file);
       if (ext === 'dxf') return await I.importDxf(file);
       if (ext === 'svg' || file.type === 'image/svg+xml') return await I.importSvg(file);
@@ -183,7 +184,7 @@
     try {
       if (meta.kind === 'pdf') {
         const lib = await I.pdfjs(); let page = opt.page;
-        if (!page) { const buf = await App.fileGet(meta.key); if (!buf) return; const doc = await lib.getDocument({ data: new Uint8Array(buf), disableFontFace: true, isEvalSupported: false }).promise; page = await doc.getPage(meta.page); }
+        if (!page) { const buf = await App.fileGet(meta.key); if (!buf) { missing(fid); return; } const doc = await lib.getDocument({ data: new Uint8Array(buf), disableFontFace: true, isEvalSupported: false }).promise; page = await doc.getPage(meta.page); }
         const vp1 = page.getViewport({ scale: 1 }); const scale = Math.min(4, 3000 / Math.max(vp1.width, vp1.height));
         const vp = page.getViewport({ scale }); const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
         const cx = c.getContext('2d', { willReadFrequently: true }); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
@@ -192,13 +193,13 @@
         let raw = opt.raw; if (!raw) raw = await PL.pdfvec.extractPage(lib, page);
         setVectors(bg, raw, meta);
       } else if (meta.kind === 'image' || meta.kind === 'svg') {
-        const blob = await App.fileGet(meta.key); if (!blob) return; const img = await loadImg(blob);
+        const blob = await App.fileGet(meta.key); if (!blob) { missing(fid); return; } const img = await loadImg(blob);
         const c = document.createElement('canvas'); const sc = Math.min(1, 3200 / Math.max(img.width, img.height)) * (meta.kind === 'svg' ? (meta.svgScale || 1) : 1);
         c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); const cx = c.getContext('2d', { willReadFrequently: true }); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(img, 0, 0, c.width, c.height);
         bg.img = c; bg.pxPerUnit = c.width / meta.wUnits;
         if (meta.kind === 'svg' && opt.raw) setVectors(bg, opt.raw, meta);
       } else if (meta.kind === 'dxf') {
-        let raw = opt.raw; if (!raw) { const t = await App.fileGet(meta.key); if (!t) return; raw = PL.dxf.toRaw(t).raw; }
+        let raw = opt.raw; if (!raw) { const t = await App.fileGet(meta.key); if (!t) { missing(fid); return; } raw = PL.dxf.toRaw(t).raw; }
         setVectors(bg, raw, meta);
         // rendu raster pour la baguette
         const bb = G.bbox(bg.segs.flatMap((s) => [s.a, s.b])); const mmpp = Math.max(8, Math.max(bb.w, bb.h) / 3000);
@@ -221,6 +222,8 @@
     Object.assign(bg, { segs, pts, grid, segGrid, texts: (PL.pdfvec.mergeTextLines(raw.texts) || []).map((t) => PL.vec.textToWorld(t, raw, k)).map((t) => ({ ...t, x: t.x + ox, y: t.y + oy })) });
     if (!bg.img) bg.bbox = G.bbox(pts);
   }
+  /* le fichier du fond n'est pas sur cet appareil (autre appareil, autre navigateur, projet copié sans fonds) */
+  const missing = (fid) => { S.bgMissing = S.bgMissing || {}; if (S.bgMissing[fid]) return; S.bgMissing[fid] = true; App.ui && App.ui.refresh && App.ui.refresh(); };
   const loadImg = (blob) => new Promise((res, rej) => { const u = URL.createObjectURL(blob); const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('Image illisible')); im.src = u; });
   const loading = {};
   I.ensureBg = (fid) => { const f = S.p.floors.find((x) => x.id === fid); if (!f || !f.bg || S.bgs[fid] || loading[fid]) return; loading[fid] = true; I.buildBg(fid).finally(() => { loading[fid] = false; }); };

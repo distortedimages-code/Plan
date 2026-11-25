@@ -535,7 +535,7 @@
       <h3>Étages</h3><div class="list">${fl.map((f, i) => `<div class="item"><span class="nm">${esc(f.name)}</span><span class="meta">${App.rooms(f.id).length} pièces</span><button class="btn sm ghost" data-a="fup" data-v="${f.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button><button class="btn sm ghost" data-a="fren" data-v="${f.id}">Renommer</button><button class="btn sm ghost" data-a="fdel" data-v="${f.id}" ${fl.length < 2 ? 'disabled' : ''}>Supprimer</button></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" data-a="fadd">+ Étage</button></div>
       <h3>Sauvegarde</h3><p>${cloud ? 'Enregistré automatiquement et synchronisé avec votre compte : le projet vous suit sur iPhone, tablette et ordinateur.' : 'Enregistré automatiquement dans ce navigateur. Exportez le projet pour le transférer sur un autre appareil.'} Les fonds de plan restent sur l'appareil où ils ont été importés.</p>
-      <div class="row"><button class="btn sm" data-a="exp">Exporter (.json)</button><button class="btn sm" data-a="copyjson">Copier le projet</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
+      <div class="row"><button class="btn sm" data-a="exp">Exporter (.json, avec fonds de plan)</button><button class="btn sm" data-a="copyjson">Copier le projet (sans fonds)</button><label class="btn sm" style="cursor:pointer">Importer un projet<input type="file" accept=".json,application/json" data-c="impjson" hidden></label><button class="btn sm" data-a="pastejson">Coller un projet</button></div>
       <h3>Affichage</h3>
       ${ui.bgSlider()}
       ${[['fond', 'Fond de plan importé'], ['cotes', 'Cotes des murs'], ['mobilier', 'Mobilier (vue Plan)'], ['elec', 'Électricité (vue Plan)'], ['calepinage', 'Lames (vue Plan)']].map(([k, v]) => `<div class="field"><label>${v}</label><input type="checkbox" data-c="layer.${k}" ${S.layers[k] ? 'checked' : ''}></div>`).join('')}
@@ -598,7 +598,7 @@
       case 'dlFiche': App.download(`calepinage-${App.floor().name}.txt`, ui.ficheText(), 'text/plain'); break;
       case 'dlPng': { const blob = await App.exportPNG(); if (blob) App.download(`plan-${App.floor().name}.png`, blob, 'image/png'); break; }
       case 'mtool': S.sel = null; ui.setTool('measure'); break;
-      case 'exp': App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, JSON.stringify(S.p), 'application/json'); break;
+      case 'exp': { App.toast('Préparation de l\'export…'); const ex = await App.exportProject(); App.download(`${(S.p.name || 'projet').replace(/[^\w\-]+/g, '_')}.calepin.json`, ex.text, 'application/json'); App.toast(ex.files ? `Exporté avec ${ex.files} fond${ex.files > 1 ? 's' : ''} de plan` : 'Projet exporté'); break; }
       case 'copyjson': try { await navigator.clipboard.writeText(JSON.stringify(S.p)); App.toast('Projet copié'); } catch (err) { App.toast('Copie refusée par le navigateur'); } break;
       case 'pastejson': { const r = await ui.dialog('Coller un projet', '<p>Collez ici le texte d\'un projet exporté.</p><textarea name="t"></textarea>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Charger', cls: 'primary' }]); if (r.i === 1) loadProjectText(r.vals.t); break; }
       case 'fadd': { const r = await ui.dialog('Nouvel étage', '<div class="field"><label>Nom</label><input name="n" value="Étage"></div>', [{ label: 'Annuler', cls: 'ghost' }, { label: 'Ajouter', cls: 'primary', def: true }]); if (r.i !== 1) break; const f = { id: App.uid(), name: r.vals.n || 'Étage', level: Math.max(...S.p.floors.map((x) => x.level)) + 1 }; App.mutate((P) => { P.floors.push(f); P.floorId = f.id; }); App.fitAll(); break; }
@@ -608,7 +608,7 @@
       case 'reset': if (await ui.confirm('Effacer le projet', 'Toutes les pièces, mesures et réglages de ce projet seront supprimés de cet appareil.', 'Effacer')) { App.mutate(() => {}); S.p = App.newProject(); S.sel = null; S.bgs = {}; App.changed(); App.fitAll(); } break;
     }
   }
-  function loadProjectText(t) { try { const p = App.migrate(JSON.parse(t)); App.mutate(() => {}); S.p = p; S.sel = null; App.changed(); App.fitAll(); App.toast('Projet chargé'); } catch (e) { App.toast('Fichier de projet illisible'); } }
+  function loadProjectText(t) { App.importProject(t).catch((e) => { console.error(e); App.toast('Fichier de projet illisible'); }); }
 
   function onPanelChange(e) {
     const t = e.target, c = t.dataset.c; if (!c) return; const s = App.selected();

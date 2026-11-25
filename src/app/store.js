@@ -115,6 +115,31 @@
   };
   App.filePut = async (key, val) => { const db = await idb(); if (!db) return false; return new Promise((res) => { try { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(val, key); tx.oncomplete = () => res(true); tx.onerror = () => res(false); } catch (e) { res(false); } }); };
   App.fileGet = async (key) => { const db = await idb(); if (!db) return null; return new Promise((res) => { try { const r = db.transaction('files').objectStore('files').get(key); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); } catch (e) { res(null); } }); };
+  /* ---------- projet complet : le JSON + les fichiers des fonds de plan (PDF, images, DXF…) ---------- */
+  const toDataURL = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+  App.exportProject = async () => {
+    const p = JSON.parse(JSON.stringify(S.p)), files = {};
+    for (const f of p.floors || []) {
+      const key = f.bg && f.bg.key; if (!key || files[key]) continue; const v = await App.fileGet(key); if (v == null) continue;
+      if (typeof v === 'string') files[key] = { t: 'text', d: v };
+      else if (v instanceof ArrayBuffer) files[key] = { t: 'ab', d: await toDataURL(new Blob([v], { type: 'application/pdf' })) };
+      else if (v instanceof Blob) files[key] = { t: 'blob', d: await toDataURL(v), type: v.type };
+    }
+    if (Object.keys(files).length) p._files = files;
+    return { text: JSON.stringify(p), files: Object.keys(files).length };
+  };
+  /* charge un projet (texte JSON) : les fonds de plan embarqués sont remis sur l'appareil */
+  App.importProject = async (text) => {
+    const raw = JSON.parse(text), files = raw._files || {}; delete raw._files; let n = 0;
+    for (const [key, f] of Object.entries(files)) {
+      try {
+        let v; if (f.t === 'text') v = f.d; else { const b = await (await fetch(f.d)).blob(); v = f.t === 'ab' ? await b.arrayBuffer() : (f.type ? new Blob([b], { type: f.type }) : b); }
+        await App.filePut(key, v); n++;
+      } catch (e) { console.error(e); }
+    }
+    const p = App.migrate(raw); App.mutate(() => {}); S.p = p; S.sel = null; S.bgs = {}; S.bgMissing = {}; App.changed(); App.fitAll && App.fitAll();
+    App.toast(n ? `Projet chargé avec ${n} fond${n > 1 ? 's' : ''} de plan` : (p.floors || []).some((f) => f.bg) ? 'Projet chargé — fonds de plan absents de ce fichier' : 'Projet chargé');
+  };
   App.fileDel = async (key) => { const db = await idb(); if (!db) return; try { db.transaction('files', 'readwrite').objectStore('files').delete(key); } catch (e) { /* */ } };
 
   /* ---------- synchronisation (capacité db de l'artefact, si disponible) ---------- */
