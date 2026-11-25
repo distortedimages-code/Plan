@@ -138,6 +138,7 @@
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
+    else if (t === 'kitcorner') html = `<b>Cuisine</b> Touchez l'angle intérieur entre le mur de la fenêtre (évier) et le mur des colonnes. <button data-h="done">Annuler</button>`;
     else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Trait en L depuis un mur : décrochement · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
@@ -170,6 +171,37 @@
 
   ui.bgSlider = () => { const v = Math.round(App.bgOpacity() * 100); return `<div class="field bgop"><label>Opacité du fond de plan</label><div class="range"><input type="range" min="5" max="100" step="1" value="${v}" data-live="bgop" aria-label="Opacité du fond de plan"><span data-bgop-v>${v} %</span></div></div>`; };
   /* ---------- placement ---------- */
+  /* cuisine du plan Darty posée dans un angle de pièce : x le long du mur des colonnes, y le long du mur de la fenêtre */
+  ui.kitchenAt = async (w, sp) => {
+    const K = PL.lib.kitchen; let best = null;
+    for (const r of App.rooms()) r.pts.forEach((p, i) => { const d = G.dist(App.w2s(p), sp); if (d < 60 && (!best || d < best.d)) best = { r, i, d }; });
+    if (!best) { App.toast('Touchez un angle de la pièce : le coin intérieur entre les deux murs'); return; }
+    const r = best.r, n = r.pts.length, i = best.i, C = r.pts[i], Pp = r.pts[(i - 1 + n) % n], Pn = r.pts[(i + 1) % n];
+    if (G.cross(G.sub(C, Pp), G.sub(Pn, C)) <= 0) { App.toast('Cet angle est rentrant : touchez un coin intérieur de la pièce'); return; }
+    const walls = [{ k: (i - 1 + n) % n, e: G.norm(G.sub(Pp, C)), L: G.dist(Pp, C) }, { k: i, e: G.norm(G.sub(Pn, C)), L: G.dist(Pn, C) }];
+    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre'].includes(o.type));
+    let wi = win(walls[0].k) && !win(walls[1].k) ? 0 : win(walls[1].k) && !win(walls[0].k) ? 1 : walls[0].L >= walls[1].L ? 0 : 1;
+    const old = App.shapesOn().filter((x) => x.grp === 'cuisine').length;
+    const res = await ui.dialog('Poser la cuisine', `<p>Cuisine en U du plan Darty dans l'angle ${String.fromCharCode(65 + i)} de ${esc(r.name || 'la pièce')} : évier et lave-vaisselle sous la fenêtre, colonnes, plaque et hotte sur l'autre mur, presqu'île à 2,21 m du mur des colonnes.</p>
+      <div class="field"><label>Mur de la fenêtre (évier)</label><select name="w">${walls.map((x, k) => `<option value="${k}" ${k === wi ? 'selected' : ''}>Mur ${wallName(x.k, n)} · ${App.fmtCm(x.L, 0)} cm${win(x.k) ? ' · fenêtre' : ''}</option>`).join('')}</select></div>
+      <div class="field"><label>Prises et arrivées d'eau du plan technique</label><input type="checkbox" name="el" checked></div>${old ? '<p class="hint2">La cuisine déjà posée sur cet étage sera remplacée.</p>' : ''}`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Poser', cls: 'primary', def: true }]);
+    ui.setTool('select'); if (res.i !== 1) return;
+    wi = +res.vals.w; const e4 = walls[wi].e, e3 = walls[1 - wi].e, L3 = walls[1 - wi].L, L4 = walls[wi].L;
+    const flip = G.cross(e3, e4) < 0; // pièce en miroir du plan Darty : on garde chaque meuble dans le bon sens
+    const at = (x, y) => G.add(C, G.add(G.mul(e3, x), G.mul(e4, y)));
+    const lib = (id) => PL.lib.furniture.find((x) => x.id === id);
+    const shapes = K.items.map(([id, x0, x1, y0, y1, back]) => {
+      const loc = back === 'S' ? [[x1, y1], [x0, y1], [x0, y0], [x1, y0]] : back === 'W' ? [[x1, y0], [x1, y1], [x0, y1], [x0, y0]] : [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+      let pts = loc.map(([x, y]) => at(x, y)); if (flip) pts = [pts[1], pts[0], pts[3], pts[2]];
+      const it = lib(id); return App.makeShape('meuble', pts, { name: it.name, lib: id, grp: 'cuisine', noParquet: !!it.noParquet });
+    });
+    const pts = res.vals.el ? K.points.map(([wall, d, h, type, note]) => { const q = App.placeOnWall(wall === 3 ? at(d, 30) : at(30, d), type); return { id: App.uid(), floor: S.p.floorId, kind: 'elec', type, x: q.x, y: q.y, rot: q.rot, h, note, grp: 'cuisine' }; }) : [];
+    App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.shapes.push(...shapes); P.points.push(...pts); });
+    S.sel = null; ui.setMode('mobilier');
+    const warn = L3 < 3900 - 20 ? ` · attention : le mur des colonnes fait ${App.fmtCm(L3, 0)} cm, il en faut 390` : L4 < 3146 - 20 ? ` · attention : le mur de la fenêtre fait ${App.fmtCm(L4, 0)} cm, la presqu'île en demande 315` : '';
+    App.toast(`Cuisine posée : ${shapes.length} éléments${pts.length ? ' et ' + pts.length + ' prises et arrivées d\'eau' : ''}${warn} — Annuler pour revenir`, 6000);
+    const all = shapes.flatMap((x) => x.pts), bb = G.bbox(all); if (App.animateView) App.animateView({ cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, z: Math.min(0.3, 0.8 * Math.min(App.viewSize().W / Math.max(1, bb.w), App.viewSize().H / Math.max(1, bb.h))) });
+  };
   ui.placeLib = (it) => {
     const c = App.s2w({ x: App.viewSize().W / 2, y: (App.viewSize().H - ui.obstruction().bottom) / 2 });
     const w = it.w * 10, d = it.d * 10; let pts;
@@ -573,7 +605,7 @@
     const cats = {}; PL.lib.furniture.concat(PL.lib.structure).forEach((it) => { (cats[it.cat] = cats[it.cat] || []).push(it); });
     const placed = App.shapesOn().filter((s) => s.kind === 'meuble');
     return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Dimensions indicatives, toutes modifiables : cotes des modèles IKEA courants (Godmorgon, Kallax, Billy, Ivar…) et du commerce pour les WC. « Dos au mur » le plaque contre le mur le plus proche ; « h » : hauteur du dessus.</p>
-      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3><div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div>`).join('')}
+      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3>${c === 'Cuisine commandée' ? `<p class="hint2">D'après le bon de commande et les plans Darty : cuisine en U avec presqu'île, plan de travail à 91,9 cm. « Poser toute la cuisine » place chaque élément à sa cote, avec les prises et arrivées d'eau du plan technique ; touchez ensuite l'angle de la pièce.</p><div class="row" style="margin-bottom:10px"><button class="btn sm primary" data-a="kitplace">Poser toute la cuisine</button>${App.shapesOn().some((x) => x.grp === 'cuisine') ? '<button class="btn sm ghost" data-a="kitdel">Retirer la cuisine posée</button>' : ''}</div>` : ''}<div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div>`).join('')}
       ${placed.length ? `<h3>Posés sur cet étage</h3><div class="list">${placed.map((s) => `<button class="item" data-a="sel" data-v="${s.id}"><span class="nm">${esc(s.name)}</span>${s.locked ? '<span class="tag">verrouillé</span>' : ''}<span class="meta">${App.fmtCm(G.dist(s.pts[0], s.pts[1]), 0)} × ${App.fmtCm(G.dist(s.pts[1], s.pts[2]), 0)}</span></button>`).join('')}</div>` : ''}`;
   }
 
@@ -631,6 +663,8 @@
       case 'stepGo': { const res = App.calepinage().results[S.step.id]; S.step.row = Math.max(1, Math.min(res.rows.length, S.step.row + (+v))); ui.refresh(); App.render(); break; }
       case 'stepEnd': S.step = null; ui.refresh(); App.render(); break;
       case 'addLib': ui.placeLib(PL.lib.structure.find((x) => x.id === v)); break;
+      case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
+      case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
       case 'etype': S.elecType = v; if (S.mode !== 'elec') { S.mode = 'elec'; } ui.setTool('elec'); if (innerWidth < 900) ui.sheet('min'); break;
       case 'lockpos': App.mutate(() => { s.locked = !s.locked; }); break;

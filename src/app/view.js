@@ -630,6 +630,8 @@
       case 'thermostat': c.strokeRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4); t('T'); break;
       case 'detecteur': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('DF', 0, 700, sz * 0.36); break;
       case 'vmc': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('V', 0, 700, sz * 0.45); break;
+      case 'eau': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('E', 0, 700, sz * 0.45); break;
+      case 'evac': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.arc(0, 0, r * 0.3, 0, Math.PI * 2); c.fill(); break;
       default: c.beginPath(); c.arc(0, 0, r * 0.5, 0, Math.PI * 2); c.stroke();
     }
     c.restore();

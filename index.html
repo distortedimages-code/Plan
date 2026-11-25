@@ -2173,7 +2173,7 @@ details[open] summary::after{content:"–"}
     F('khaut120', 'Cuisine commandée', 'Meuble haut 120 (2 portes)', 120, 35, { short: 'Haut 120', m: 'khaut', ref: 'O12065 · h 65, posé à 146,5' }),
     F('khotte90', 'Cuisine commandée', 'Hotte cheminée 90', 90, 50, { short: 'Hotte', m: 'khotte', ref: 'Ellux EFTF19X' }),
     F('kplaque80', 'Cuisine commandée', 'Table induction 80', 80, 52, { short: 'Induction', m: 'kplaque', ref: 'Rosières RIF84DCS' }),
-    F('kevier100', 'Cuisine commandée', 'Évier 100 × 50 + mitigeur', 100, 50, { short: 'Évier', m: 'kevier', ref: 'Luisina Tam Tam' }),
+    F('kevier100', 'Cuisine commandée', 'Évier 100 × 50, bac à gauche', 100, 50, { short: 'Évier', m: 'kevier', ref: 'Luisina Tam Tam + mitigeur' }), F('kevier100d', 'Cuisine commandée', 'Évier 100 × 50, bac à droite', 100, 50, { short: 'Évier', m: 'kevier', k: 'D', ref: 'Luisina Tam Tam + mitigeur' }),
     F('kpdt205', 'Cuisine commandée', 'Plan de travail 205 × 60', 205, 60, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
     F('kpdt220', 'Cuisine commandée', 'Plan de travail 220 × 64', 220, 64, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
     F('kpdt313', 'Cuisine commandée', 'Plan de travail 312,6 × 94', 312.6, 94, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9 · avancée' }),
@@ -2192,9 +2192,10 @@ details[open] summary::after{content:"–"}
     { id: 'prisecmd', name: 'Prise commandée', g: 'prisecmd' }, { id: 'rj45', name: 'Prise RJ45', g: 'rj45' }, { id: 'tv', name: 'Prise TV', g: 'tv' }, { id: 'usb', name: 'Prise USB', g: 'usb' },
     { id: 'inter', name: 'Interrupteur', g: 'inter' }, { id: 'vv', name: 'Va-et-vient', g: 'vv' }, { id: 'bp', name: 'Bouton poussoir', g: 'bp' }, { id: 'variateur', name: 'Variateur', g: 'variateur' },
     { id: 'dcl', name: 'Point lumineux plafond', g: 'dcl' }, { id: 'applique', name: 'Applique murale', g: 'applique' }, { id: 'spot', name: 'Spot encastré', g: 'spot' },
+    { id: 'eau', name: 'Arrivée d\'eau', g: 'eau' }, { id: 'evac', name: 'Évacuation', g: 'evac' },
     { id: 'tableau', name: 'Tableau électrique', g: 'tableau' }, { id: 'thermostat', name: 'Thermostat', g: 'thermostat' }, { id: 'detecteur', name: 'Détecteur de fumée', g: 'detecteur' }, { id: 'vmc', name: 'Bouche VMC', g: 'vmc' },
   ];
-  const elecDefaultH = { prise: 30, prise2: 30, prise32: 12, prisecmd: 30, rj45: 30, tv: 30, usb: 110, inter: 110, vv: 110, bp: 110, variateur: 110, applique: 180, thermostat: 150, tableau: 130 };
+  const elecDefaultH = { eau: 65, evac: 45, prise: 30, prise2: 30, prise32: 12, prisecmd: 30, rj45: 30, tv: 30, usb: 110, inter: 110, vv: 110, bp: 110, variateur: 110, applique: 180, thermostat: 150, tableau: 130 };
   const openings = [
     { id: 'porte', name: 'Porte', w: 830, h: 2040 }, { id: 'porte2', name: 'Porte double', w: 1400, h: 2040 }, { id: 'coulissante', name: 'Porte coulissante', w: 830, h: 2040 },
     { id: 'galandage', name: 'Porte à galandage', w: 830, h: 2040 }, { id: 'passage', name: 'Passage libre', w: 900, h: 2100 },
@@ -2251,10 +2252,10 @@ details[open] summary::after{content:"–"}
       else { fl(880); fl(1475); fl(1855); win(960, 1330); win(1540, 1800); }
     },
     khaut: (w, d, M) => { M.dash = true; M.h = 2115; M.solids.push({ pts: rect(0, 0, w, d), z0: 1465, z1: 2115 }); M.lines.push([[w / 2, -1, 1465], [w / 2, -1, 2115]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
-    khotte: (w, d, M) => { M.dash = true; M.h = 2453; const c = rect(w / 2 - 130, d - 220, w / 2 + 130, d); M.solids.push({ pts: rect(0, 0, w, d), z0: 1569, z1: 1650 }, { pts: c, z0: 1650, z1: 2453 }); M.plan.push({ pts: c, dash: true }); },
+    khotte: (w, d, M) => { M.dash = true; M.h = 2374; const c = rect(w / 2 - 130, d - 220, w / 2 + 130, d); M.solids.push({ pts: rect(0, 0, w, d), z0: 1490, z1: 1560 }, { pts: c, z0: 1560, z1: 2374 }); M.plan.push({ pts: c, dash: true }); },
     kpdt: (w, d, M) => { M.fill = false; M.h = 919; M.solids.push({ pts: rect(0, 0, w, d), z0: 880, z1: 919 }); },
     kplaque: (w, d, M) => { M.h = 925; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 925 }); for (const [cu, cv, r] of [[w * 0.25, d * 0.3, 95], [w * 0.25, d * 0.72, 95], [w * 0.62, d * 0.5, 120], [w * 0.86, d * 0.5, 75]]) { const c = ell(cu, cv, r, r, 20); M.plan.push({ pts: c }); M.lines.push(...ring3(c, 926)); } },
-    kevier: (w, d, M) => { M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(50, 70, w * 0.52, d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[w * 0.58, v], [w - 50, v]], open: true }); M.lines.push([[w * 0.58, v, 922], [w - 50, v, 922]]); } tap(w * 0.29, d - 35, 921, M); },
+    kevier: (w, d, M, it) => { const mu = it.k === 'D' ? (u) => w - u : (u) => u; M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(mu(50), 70, mu(w * 0.52), d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[mu(w * 0.58), v], [mu(w - 50), v]], open: true }); M.lines.push([[mu(w * 0.58), v, 922], [mu(w - 50), v, 922]]); } tap(mu(w * 0.29), d - 35, 921, M); },
     kpanneau: (w, d, M, it) => { const [z0, z1] = it.z || [0, 880]; M.h = z1; M.solids.push({ pts: rect(0, 0, w, d), z0, z1 }); },
   };
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
@@ -2284,7 +2285,25 @@ details[open] summary::after{content:"–"}
     const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0 }; MODELS[it.m](w, d, M, it); return M;
   };
 
-  PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets };
+  /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
+     back : côté du dos (S = mur 3, W = mur 4, N = côté bar de la presqu'île). Points : mur, distance à l'angle, hauteur (cm), symbole, note. */
+  const kitchen = {
+    items: [
+      ['kbas80', 700, 1500, 0, 580, 'S'], ['kbas120', 1500, 2700, 0, 580, 'S'], ['kfour60', 2700, 3300, 0, 580, 'S'], ['kfrigo60', 3300, 3900, 0, 580, 'S'],
+      ['khaut120', 373, 1573, 0, 350, 'S'], ['khotte90', 1680, 2580, 0, 500, 'S'], ['kpdt205', 640, 2690, 0, 600, 'S'], ['kplaque80', 1720, 2520, 40, 560, 'S'],
+      ['kjoue61', 0, 610, 634, 650, 'W'], ['klv60', 0, 580, 650, 1250, 'W'], ['ksevier90', 0, 580, 1250, 2150, 'W'], ['kevier100d', 70, 570, 965, 1965, 'W'], ['kpdt220', 0, 640, 0, 2200, 'W'],
+      ['kbas120', 693, 1893, 2226, 2806, 'N'], ['kepicier30', 1893, 2193, 2226, 2806, 'N'], ['kbas90', 2193, 3093, 2226, 2806, 'N'], ['kjoue82', 3093, 3109, 2216, 3036, 'N'],
+      ['khab135', 0, 1350, 2806, 2822, 'N'], ['khab180', 1293, 3093, 2806, 2822, 'N'], ['kpdt313', 0, 3126, 2206, 3146, 'N'],
+    ],
+    points: [
+      [3, 2130, 230, 'prise', '16 A · hotte'], [3, 3000, 150, 'prise', '16 A · micro-ondes'], [3, 400, 110, 'prise', 'plan de travail'], [3, 1500, 110, 'prise', 'plan de travail'],
+      [3, 2130, 65, 'prise32', '32 A · table induction'], [3, 3000, 30, 'prise', '20 A · four'], [3, 3200, 30, 'prise', '20 A · réfrigérateur'],
+      [4, 1390, 30, 'prise', '20 A · lave-vaisselle'], [4, 1500, 65, 'eau', 'eau chaude ou froide, avec vanne (mitigeur)'], [4, 1650, 65, 'eau', 'eau chaude ou froide, avec vanne (mitigeur)'],
+      [4, 1570, 45, 'evac', 'évacuation PVC Ø 40 (évier)'], [4, 2700, 45, 'prise', '16 A · sortie de fil pour la prise escamotable du plan (câble 4 m)'], [4, 2700, 110, 'prise', 'plan de travail'],
+    ],
+    window: { at: 600, w: 1900, sill: 1100, h: 1200 },
+  };
+  PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets, kitchen };
 })();
 
 /* Calepin — état, persistance, historique. */
@@ -3182,6 +3201,8 @@ details[open] summary::after{content:"–"}
       case 'thermostat': c.strokeRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4); t('T'); break;
       case 'detecteur': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('DF', 0, 700, sz * 0.36); break;
       case 'vmc': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('V', 0, 700, sz * 0.45); break;
+      case 'eau': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); t('E', 0, 700, sz * 0.45); break;
+      case 'evac': c.beginPath(); c.arc(0, 0, r * 0.75, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.arc(0, 0, r * 0.3, 0, Math.PI * 2); c.fill(); break;
       default: c.beginPath(); c.arc(0, 0, r * 0.5, 0, Math.PI * 2); c.stroke();
     }
     c.restore();
@@ -3532,6 +3553,7 @@ details[open] summary::after{content:"–"}
     }
     if (tool === 'wand') { App.importer.wandAt(App.s2w(p)); return; }
     if (tool === 'place') { App.ui.placeAt(App.s2w(p)); return; }
+    if (tool === 'kitcorner') { App.ui.kitchenAt(App.s2w(p), p); return; }
     if (tool === 'elec') { App.ui.placeElec(App.s2w(p)); return; }
     if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.exist) { S.sel = { id: r.exist.room.id, oid: r.exist.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast('Il y a déjà une ouverture ici : la voici'); return; } if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
   }
@@ -3710,6 +3732,7 @@ details[open] summary::after{content:"–"}
     else if (t === 'cut') html = `Tracez la cloison en travers de la pièce. Épaisseur <input id="cutThick" inputmode="decimal" value="${S.cutThick ?? 7}" aria-label="Épaisseur de la cloison en cm"> cm <button data-h="done">Annuler</button>`;
     else if (t === 'elec') { const e = PL.lib.elec.find((x) => x.id === S.elecType) || {}; html = `${esc(e.name || '')} : touchez un mur ou le plafond pour placer. <button data-h="done">Terminer</button>`; }
     else if (t === 'place') html = `Touchez le plan pour placer l'objet. <button data-h="done">Annuler</button>`;
+    else if (t === 'kitcorner') html = `<b>Cuisine</b> Touchez l'angle intérieur entre le mur de la fenêtre (évier) et le mur des colonnes. <button data-h="done">Annuler</button>`;
     else if (t === 'sketch') html = S.skPlan ? `<b>Aperçu</b> ${esc(App.sketch.summary())}` : `<b>Retoucher</b> Trait d'un mur à l'autre : cloison · depuis le bout d'une cloison : la prolonger · Trait en L depuis un mur : décrochement · Zone entourée : pièce <button data-h="done">Terminer</button>`;
     else if (t === 'opening') html = `<select data-h="optype" aria-label="Type d'ouverture">${PL.lib.openings.map((o) => `<option value="${o.id}" ${(S.opType || 'porte') === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select> Touchez un mur pour la poser. <button data-h="done">Terminer</button>`;
     else if (S.p && S.p.seedOffer && globalThis.CALEPIN_SEED) html = `<b>Nouvelle lecture du plan PDF</b> : portes orientées d'après les arcs, fenêtres et passages revus. <button data-h="seed">Appliquer</button> <button data-h="noseed">Ignorer</button>`;
@@ -3742,6 +3765,37 @@ details[open] summary::after{content:"–"}
 
   ui.bgSlider = () => { const v = Math.round(App.bgOpacity() * 100); return `<div class="field bgop"><label>Opacité du fond de plan</label><div class="range"><input type="range" min="5" max="100" step="1" value="${v}" data-live="bgop" aria-label="Opacité du fond de plan"><span data-bgop-v>${v} %</span></div></div>`; };
   /* ---------- placement ---------- */
+  /* cuisine du plan Darty posée dans un angle de pièce : x le long du mur des colonnes, y le long du mur de la fenêtre */
+  ui.kitchenAt = async (w, sp) => {
+    const K = PL.lib.kitchen; let best = null;
+    for (const r of App.rooms()) r.pts.forEach((p, i) => { const d = G.dist(App.w2s(p), sp); if (d < 60 && (!best || d < best.d)) best = { r, i, d }; });
+    if (!best) { App.toast('Touchez un angle de la pièce : le coin intérieur entre les deux murs'); return; }
+    const r = best.r, n = r.pts.length, i = best.i, C = r.pts[i], Pp = r.pts[(i - 1 + n) % n], Pn = r.pts[(i + 1) % n];
+    if (G.cross(G.sub(C, Pp), G.sub(Pn, C)) <= 0) { App.toast('Cet angle est rentrant : touchez un coin intérieur de la pièce'); return; }
+    const walls = [{ k: (i - 1 + n) % n, e: G.norm(G.sub(Pp, C)), L: G.dist(Pp, C) }, { k: i, e: G.norm(G.sub(Pn, C)), L: G.dist(Pn, C) }];
+    const win = (k) => (r.openings || []).some((o) => o.wall === k && ['fenetre', 'fixe', 'porte-fenetre'].includes(o.type));
+    let wi = win(walls[0].k) && !win(walls[1].k) ? 0 : win(walls[1].k) && !win(walls[0].k) ? 1 : walls[0].L >= walls[1].L ? 0 : 1;
+    const old = App.shapesOn().filter((x) => x.grp === 'cuisine').length;
+    const res = await ui.dialog('Poser la cuisine', `<p>Cuisine en U du plan Darty dans l'angle ${String.fromCharCode(65 + i)} de ${esc(r.name || 'la pièce')} : évier et lave-vaisselle sous la fenêtre, colonnes, plaque et hotte sur l'autre mur, presqu'île à 2,21 m du mur des colonnes.</p>
+      <div class="field"><label>Mur de la fenêtre (évier)</label><select name="w">${walls.map((x, k) => `<option value="${k}" ${k === wi ? 'selected' : ''}>Mur ${wallName(x.k, n)} · ${App.fmtCm(x.L, 0)} cm${win(x.k) ? ' · fenêtre' : ''}</option>`).join('')}</select></div>
+      <div class="field"><label>Prises et arrivées d'eau du plan technique</label><input type="checkbox" name="el" checked></div>${old ? '<p class="hint2">La cuisine déjà posée sur cet étage sera remplacée.</p>' : ''}`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Poser', cls: 'primary', def: true }]);
+    ui.setTool('select'); if (res.i !== 1) return;
+    wi = +res.vals.w; const e4 = walls[wi].e, e3 = walls[1 - wi].e, L3 = walls[1 - wi].L, L4 = walls[wi].L;
+    const flip = G.cross(e3, e4) < 0; // pièce en miroir du plan Darty : on garde chaque meuble dans le bon sens
+    const at = (x, y) => G.add(C, G.add(G.mul(e3, x), G.mul(e4, y)));
+    const lib = (id) => PL.lib.furniture.find((x) => x.id === id);
+    const shapes = K.items.map(([id, x0, x1, y0, y1, back]) => {
+      const loc = back === 'S' ? [[x1, y1], [x0, y1], [x0, y0], [x1, y0]] : back === 'W' ? [[x1, y0], [x1, y1], [x0, y1], [x0, y0]] : [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+      let pts = loc.map(([x, y]) => at(x, y)); if (flip) pts = [pts[1], pts[0], pts[3], pts[2]];
+      const it = lib(id); return App.makeShape('meuble', pts, { name: it.name, lib: id, grp: 'cuisine', noParquet: !!it.noParquet });
+    });
+    const pts = res.vals.el ? K.points.map(([wall, d, h, type, note]) => { const q = App.placeOnWall(wall === 3 ? at(d, 30) : at(30, d), type); return { id: App.uid(), floor: S.p.floorId, kind: 'elec', type, x: q.x, y: q.y, rot: q.rot, h, note, grp: 'cuisine' }; }) : [];
+    App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.shapes.push(...shapes); P.points.push(...pts); });
+    S.sel = null; ui.setMode('mobilier');
+    const warn = L3 < 3900 - 20 ? ` · attention : le mur des colonnes fait ${App.fmtCm(L3, 0)} cm, il en faut 390` : L4 < 3146 - 20 ? ` · attention : le mur de la fenêtre fait ${App.fmtCm(L4, 0)} cm, la presqu'île en demande 315` : '';
+    App.toast(`Cuisine posée : ${shapes.length} éléments${pts.length ? ' et ' + pts.length + ' prises et arrivées d\'eau' : ''}${warn} — Annuler pour revenir`, 6000);
+    const all = shapes.flatMap((x) => x.pts), bb = G.bbox(all); if (App.animateView) App.animateView({ cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, z: Math.min(0.3, 0.8 * Math.min(App.viewSize().W / Math.max(1, bb.w), App.viewSize().H / Math.max(1, bb.h))) });
+  };
   ui.placeLib = (it) => {
     const c = App.s2w({ x: App.viewSize().W / 2, y: (App.viewSize().H - ui.obstruction().bottom) / 2 });
     const w = it.w * 10, d = it.d * 10; let pts;
@@ -4145,7 +4199,7 @@ details[open] summary::after{content:"–"}
     const cats = {}; PL.lib.furniture.concat(PL.lib.structure).forEach((it) => { (cats[it.cat] = cats[it.cat] || []).push(it); });
     const placed = App.shapesOn().filter((s) => s.kind === 'meuble');
     return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Dimensions indicatives, toutes modifiables : cotes des modèles IKEA courants (Godmorgon, Kallax, Billy, Ivar…) et du commerce pour les WC. « Dos au mur » le plaque contre le mur le plus proche ; « h » : hauteur du dessus.</p>
-      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3><div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div>`).join('')}
+      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3>${c === 'Cuisine commandée' ? `<p class="hint2">D'après le bon de commande et les plans Darty : cuisine en U avec presqu'île, plan de travail à 91,9 cm. « Poser toute la cuisine » place chaque élément à sa cote, avec les prises et arrivées d'eau du plan technique ; touchez ensuite l'angle de la pièce.</p><div class="row" style="margin-bottom:10px"><button class="btn sm primary" data-a="kitplace">Poser toute la cuisine</button>${App.shapesOn().some((x) => x.grp === 'cuisine') ? '<button class="btn sm ghost" data-a="kitdel">Retirer la cuisine posée</button>' : ''}</div>` : ''}<div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div>`).join('')}
       ${placed.length ? `<h3>Posés sur cet étage</h3><div class="list">${placed.map((s) => `<button class="item" data-a="sel" data-v="${s.id}"><span class="nm">${esc(s.name)}</span>${s.locked ? '<span class="tag">verrouillé</span>' : ''}<span class="meta">${App.fmtCm(G.dist(s.pts[0], s.pts[1]), 0)} × ${App.fmtCm(G.dist(s.pts[1], s.pts[2]), 0)}</span></button>`).join('')}</div>` : ''}`;
   }
 
@@ -4203,6 +4257,8 @@ details[open] summary::after{content:"–"}
       case 'stepGo': { const res = App.calepinage().results[S.step.id]; S.step.row = Math.max(1, Math.min(res.rows.length, S.step.row + (+v))); ui.refresh(); App.render(); break; }
       case 'stepEnd': S.step = null; ui.refresh(); App.render(); break;
       case 'addLib': ui.placeLib(PL.lib.structure.find((x) => x.id === v)); break;
+      case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
+      case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
       case 'etype': S.elecType = v; if (S.mode !== 'elec') { S.mode = 'elec'; } ui.setTool('elec'); if (innerWidth < 900) ui.sheet('min'); break;
       case 'lockpos': App.mutate(() => { s.locked = !s.locked; }); break;

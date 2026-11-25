@@ -48,7 +48,7 @@
     F('khaut120', 'Cuisine commandée', 'Meuble haut 120 (2 portes)', 120, 35, { short: 'Haut 120', m: 'khaut', ref: 'O12065 · h 65, posé à 146,5' }),
     F('khotte90', 'Cuisine commandée', 'Hotte cheminée 90', 90, 50, { short: 'Hotte', m: 'khotte', ref: 'Ellux EFTF19X' }),
     F('kplaque80', 'Cuisine commandée', 'Table induction 80', 80, 52, { short: 'Induction', m: 'kplaque', ref: 'Rosières RIF84DCS' }),
-    F('kevier100', 'Cuisine commandée', 'Évier 100 × 50 + mitigeur', 100, 50, { short: 'Évier', m: 'kevier', ref: 'Luisina Tam Tam' }),
+    F('kevier100', 'Cuisine commandée', 'Évier 100 × 50, bac à gauche', 100, 50, { short: 'Évier', m: 'kevier', ref: 'Luisina Tam Tam + mitigeur' }), F('kevier100d', 'Cuisine commandée', 'Évier 100 × 50, bac à droite', 100, 50, { short: 'Évier', m: 'kevier', k: 'D', ref: 'Luisina Tam Tam + mitigeur' }),
     F('kpdt205', 'Cuisine commandée', 'Plan de travail 205 × 60', 205, 60, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
     F('kpdt220', 'Cuisine commandée', 'Plan de travail 220 × 64', 220, 64, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9' }),
     F('kpdt313', 'Cuisine commandée', 'Plan de travail 312,6 × 94', 312.6, 94, { short: '', m: 'kpdt', ref: 'chêne, ép. 3,9 · avancée' }),
@@ -67,9 +67,10 @@
     { id: 'prisecmd', name: 'Prise commandée', g: 'prisecmd' }, { id: 'rj45', name: 'Prise RJ45', g: 'rj45' }, { id: 'tv', name: 'Prise TV', g: 'tv' }, { id: 'usb', name: 'Prise USB', g: 'usb' },
     { id: 'inter', name: 'Interrupteur', g: 'inter' }, { id: 'vv', name: 'Va-et-vient', g: 'vv' }, { id: 'bp', name: 'Bouton poussoir', g: 'bp' }, { id: 'variateur', name: 'Variateur', g: 'variateur' },
     { id: 'dcl', name: 'Point lumineux plafond', g: 'dcl' }, { id: 'applique', name: 'Applique murale', g: 'applique' }, { id: 'spot', name: 'Spot encastré', g: 'spot' },
+    { id: 'eau', name: 'Arrivée d\'eau', g: 'eau' }, { id: 'evac', name: 'Évacuation', g: 'evac' },
     { id: 'tableau', name: 'Tableau électrique', g: 'tableau' }, { id: 'thermostat', name: 'Thermostat', g: 'thermostat' }, { id: 'detecteur', name: 'Détecteur de fumée', g: 'detecteur' }, { id: 'vmc', name: 'Bouche VMC', g: 'vmc' },
   ];
-  const elecDefaultH = { prise: 30, prise2: 30, prise32: 12, prisecmd: 30, rj45: 30, tv: 30, usb: 110, inter: 110, vv: 110, bp: 110, variateur: 110, applique: 180, thermostat: 150, tableau: 130 };
+  const elecDefaultH = { eau: 65, evac: 45, prise: 30, prise2: 30, prise32: 12, prisecmd: 30, rj45: 30, tv: 30, usb: 110, inter: 110, vv: 110, bp: 110, variateur: 110, applique: 180, thermostat: 150, tableau: 130 };
   const openings = [
     { id: 'porte', name: 'Porte', w: 830, h: 2040 }, { id: 'porte2', name: 'Porte double', w: 1400, h: 2040 }, { id: 'coulissante', name: 'Porte coulissante', w: 830, h: 2040 },
     { id: 'galandage', name: 'Porte à galandage', w: 830, h: 2040 }, { id: 'passage', name: 'Passage libre', w: 900, h: 2100 },
@@ -126,10 +127,10 @@
       else { fl(880); fl(1475); fl(1855); win(960, 1330); win(1540, 1800); }
     },
     khaut: (w, d, M) => { M.dash = true; M.h = 2115; M.solids.push({ pts: rect(0, 0, w, d), z0: 1465, z1: 2115 }); M.lines.push([[w / 2, -1, 1465], [w / 2, -1, 2115]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
-    khotte: (w, d, M) => { M.dash = true; M.h = 2453; const c = rect(w / 2 - 130, d - 220, w / 2 + 130, d); M.solids.push({ pts: rect(0, 0, w, d), z0: 1569, z1: 1650 }, { pts: c, z0: 1650, z1: 2453 }); M.plan.push({ pts: c, dash: true }); },
+    khotte: (w, d, M) => { M.dash = true; M.h = 2374; const c = rect(w / 2 - 130, d - 220, w / 2 + 130, d); M.solids.push({ pts: rect(0, 0, w, d), z0: 1490, z1: 1560 }, { pts: c, z0: 1560, z1: 2374 }); M.plan.push({ pts: c, dash: true }); },
     kpdt: (w, d, M) => { M.fill = false; M.h = 919; M.solids.push({ pts: rect(0, 0, w, d), z0: 880, z1: 919 }); },
     kplaque: (w, d, M) => { M.h = 925; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 925 }); for (const [cu, cv, r] of [[w * 0.25, d * 0.3, 95], [w * 0.25, d * 0.72, 95], [w * 0.62, d * 0.5, 120], [w * 0.86, d * 0.5, 75]]) { const c = ell(cu, cv, r, r, 20); M.plan.push({ pts: c }); M.lines.push(...ring3(c, 926)); } },
-    kevier: (w, d, M) => { M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(50, 70, w * 0.52, d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[w * 0.58, v], [w - 50, v]], open: true }); M.lines.push([[w * 0.58, v, 922], [w - 50, v, 922]]); } tap(w * 0.29, d - 35, 921, M); },
+    kevier: (w, d, M, it) => { const mu = it.k === 'D' ? (u) => w - u : (u) => u; M.h = 921; M.solids.push({ pts: rect(0, 0, w, d), z0: 919, z1: 921 }); const bac = rect(mu(50), 70, mu(w * 0.52), d - 70); M.plan.push({ pts: bac }); M.lines.push(...ring3(bac, 922)); for (let k = 1; k <= 5; k++) { const v = 90 + ((d - 180) * k) / 6; M.plan.push({ pts: [[mu(w * 0.58), v], [mu(w - 50), v]], open: true }); M.lines.push([[mu(w * 0.58), v, 922], [mu(w - 50), v, 922]]); } tap(mu(w * 0.29), d - 35, 921, M); },
     kpanneau: (w, d, M, it) => { const [z0, z1] = it.z || [0, 880]; M.h = z1; M.solids.push({ pts: rect(0, 0, w, d), z0, z1 }); },
   };
   // meuble vasque suspendu : caisson 58 cm accroché à 22 cm, plan 6 cm (vasque intégrée) ou plan 2 cm + vasque à poser
@@ -159,5 +160,23 @@
     const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0 }; MODELS[it.m](w, d, M, it); return M;
   };
 
-  PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets };
+  /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
+     back : côté du dos (S = mur 3, W = mur 4, N = côté bar de la presqu'île). Points : mur, distance à l'angle, hauteur (cm), symbole, note. */
+  const kitchen = {
+    items: [
+      ['kbas80', 700, 1500, 0, 580, 'S'], ['kbas120', 1500, 2700, 0, 580, 'S'], ['kfour60', 2700, 3300, 0, 580, 'S'], ['kfrigo60', 3300, 3900, 0, 580, 'S'],
+      ['khaut120', 373, 1573, 0, 350, 'S'], ['khotte90', 1680, 2580, 0, 500, 'S'], ['kpdt205', 640, 2690, 0, 600, 'S'], ['kplaque80', 1720, 2520, 40, 560, 'S'],
+      ['kjoue61', 0, 610, 634, 650, 'W'], ['klv60', 0, 580, 650, 1250, 'W'], ['ksevier90', 0, 580, 1250, 2150, 'W'], ['kevier100d', 70, 570, 965, 1965, 'W'], ['kpdt220', 0, 640, 0, 2200, 'W'],
+      ['kbas120', 693, 1893, 2226, 2806, 'N'], ['kepicier30', 1893, 2193, 2226, 2806, 'N'], ['kbas90', 2193, 3093, 2226, 2806, 'N'], ['kjoue82', 3093, 3109, 2216, 3036, 'N'],
+      ['khab135', 0, 1350, 2806, 2822, 'N'], ['khab180', 1293, 3093, 2806, 2822, 'N'], ['kpdt313', 0, 3126, 2206, 3146, 'N'],
+    ],
+    points: [
+      [3, 2130, 230, 'prise', '16 A · hotte'], [3, 3000, 150, 'prise', '16 A · micro-ondes'], [3, 400, 110, 'prise', 'plan de travail'], [3, 1500, 110, 'prise', 'plan de travail'],
+      [3, 2130, 65, 'prise32', '32 A · table induction'], [3, 3000, 30, 'prise', '20 A · four'], [3, 3200, 30, 'prise', '20 A · réfrigérateur'],
+      [4, 1390, 30, 'prise', '20 A · lave-vaisselle'], [4, 1500, 65, 'eau', 'eau chaude ou froide, avec vanne (mitigeur)'], [4, 1650, 65, 'eau', 'eau chaude ou froide, avec vanne (mitigeur)'],
+      [4, 1570, 45, 'evac', 'évacuation PVC Ø 40 (évier)'], [4, 2700, 45, 'prise', '16 A · sortie de fil pour la prise escamotable du plan (câble 4 m)'], [4, 2700, 110, 'prise', 'plan de travail'],
+    ],
+    window: { at: 600, w: 1900, sill: 1100, h: 1200 },
+  };
+  PL.lib = { furniture, structure, elec, elecDefaultH, openings, parquets, kitchen };
 })();

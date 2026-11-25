@@ -269,6 +269,7 @@
     }
     if (tool === 'wand') { App.importer.wandAt(App.s2w(p)); return; }
     if (tool === 'place') { App.ui.placeAt(App.s2w(p)); return; }
+    if (tool === 'kitcorner') { App.ui.kitchenAt(App.s2w(p), p); return; }
     if (tool === 'elec') { App.ui.placeElec(App.s2w(p)); return; }
     if (tool === 'opening') { const r = App.ops.addAt(App.s2w(p), S.opType || 'porte'); if (r.exist) { S.sel = { id: r.exist.room.id, oid: r.exist.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast('Il y a déjà une ouverture ici : la voici'); return; } if (r.err) { App.toast(r.err); return; } S.sel = { id: r.room.id, oid: r.o.oid }; App.ui.setTool('select'); App.ui.onSelect(); App.toast(`${App.ops.name(r.o.type)} ajoutée — orientez-la avec Inverser / Gonds`); return; }
   }
