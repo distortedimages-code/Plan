@@ -153,6 +153,11 @@
     for (const a of p.add) { if (a.isNew) continue; const c = App.w2s(G.centroid(a.pts)); pill(`${App.fmtM2(Math.abs(G.area(a.pts)))} m²`, c.x, c.y, false); }
     if (p.zone) { const c = App.w2s(G.centroid(p.zone)); pill(App.sketch.summary(), c.x, c.y, true); }
   }
+  /* petit cadenas (cote verrouillée) centré en x, y */
+  function padlock(x, y, k, col) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.4;
+    ctx.fillRect(-4, -1, 8, 6.5); ctx.beginPath(); ctx.moveTo(-2.6, -1); ctx.lineTo(-2.6, -3.2); ctx.arc(0, -3.2, 2.6, Math.PI, 0); ctx.lineTo(2.6, -1); ctx.stroke(); ctx.restore();
+  }
   function pill(t, x, y, strong) { ctx.font = font(700, 12); const tw = ctx.measureText(t).width; ctx.fillStyle = strong ? C.red : C.paper; ctx.fillRect(x - tw / 2 - 7, y - 10, tw + 14, 20); if (!strong) { ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.strokeRect(x - tw / 2 - 7, y - 10, tw + 14, 20); } ctx.fillStyle = strong ? '#fff' : C.red; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); }
   const segLine = (a, b) => { const p = App.w2s(a), q = App.w2s(b); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); };
 
@@ -482,8 +487,9 @@
       ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(ang); ctx.font = font(lk ? 700 : 300, selected ? 12 : 11);
       const tw = ctx.measureText(label).width;
       if (selected) { ctx.fillStyle = C.paper; ctx.fillRect(-tw / 2 - 4, -8, tw + 8, 16); }
+      if (selected && lk) { ctx.fillStyle = C.paper; ctx.fillRect(tw / 2 + 2, -8, 13, 16); }
       ctx.fillStyle = selected ? (lk ? C.red : C.ink) : C.ink2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, 0, 0);
-      if (lk && selected) { ctx.fillRect(-tw / 2, 7, tw, 1.2); }
+      if (lk) padlock(tw / 2 + 8, 0, selected ? 1 : 0.85, selected ? C.red : C.ink2);
       ctx.restore();
       if (selected) App.labelRects.push({ id: s.id, i, x: q.x, y: q.y, r: Math.max(18, tw / 2 + 6) });
     }
@@ -496,6 +502,7 @@
         const bis = G.norm(G.add(G.norm(G.sub(prev, p)), G.norm(G.sub(next, p))));
         const q = App.w2s(G.add(p, G.mul(bis, (deg > 180 ? -1 : 1) * 34 / z)));
         text(deg.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + '°', q.x, q.y, lk ? 700 : 300, 10, lk ? C.red : C.ink2);
+        if (lk) { ctx.save(); ctx.font = font(700, 10); const aw = ctx.measureText(deg.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + '°').width; padlock(q.x + aw / 2 + 7, q.y, 0.85, C.red); ctx.restore(); }
         App.labelRects.push({ id: s.id, i, ang: true, x: q.x, y: q.y, r: 16 });
       }
     }

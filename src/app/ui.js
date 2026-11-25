@@ -175,13 +175,38 @@
     const locks = s.locks.map((l) => Object.assign({}, l));
     if (t === 'L') { locks[i].L = false; } else { locks[i].A = false; }
     const r = PL.solver.solve(s.pts, locks, [{ t, i, v }]);
-    if (!r.ok) { App.toast(r.msg); return false; }
+    if (!r.ok) { if (/verrou/i.test(r.msg)) resolveLocks(s, i, t, v, lock, locks); else App.toast(r.msg); return false; }
     App.mutate(() => {
       s.pts = r.pts; if (t === 'L') { s.locks[i].L = lock; } else { s.locks[i].A = lock; }
       s.locks = PL.solver.syncLocks(s.pts, s.locks);
       if (t === 'L' && lock) s.locks[i].Lv = v; if (t === 'A' && lock) s.locks[i].Av = v;
     });
     return true;
+  }
+
+  /* cote incompatible avec les verrous : proposer ce qui peut bouger (une autre cote, ou les angles) */
+  async function resolveLocks(s, i, t, v, lock, locks) {
+    const n = s.pts.length, m = PL.solver.measure(s.pts), nm = (j) => App.walls.name(s, j), opts = [];
+    for (let j = 0; j < n; j++) {
+      if (j === i || !locks[j].L) continue; const lk = locks.map((l) => Object.assign({}, l)); lk[j].L = false;
+      const r = PL.solver.solve(s.pts, lk, [{ t, i, v }]); if (!r.ok) continue; const d = r.L[j] - m.L[j]; if (Math.abs(d) < 0.5) continue;
+      opts.push({ k: 'L', j, d, r, label: `Mur ${nm(j)} : ${App.fmtCm(m.L[j])} → ${App.fmtCm(r.L[j])} cm` });
+    }
+    opts.sort((a, b) => Math.abs(a.d) - Math.abs(b.d));
+    const lkA = locks.map((l) => Object.assign({}, l, { A: false })), rA = PL.solver.solve(s.pts, lkA, [{ t, i, v }]);
+    if (rA.ok) { const ch = rA.A.map((a, k) => ({ k, a0: G.deg(m.A[k]), a1: G.deg(a) })).filter((c) => Math.abs(c.a1 - c.a0) > 0.05); if (ch.length) opts.push({ k: 'A', r: rA, ch, label: `Laisser ${ch.length > 2 ? 'les murs' : 'un mur'} légèrement de biais (${ch.slice(0, 2).map((c) => `${String.fromCharCode(65 + (c.k % 26))} ${c.a0.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}° → ${c.a1.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`).join(', ')}${ch.length > 2 ? '…' : ''})` }); }
+    const val = t === 'L' ? `${App.fmtCm(v)} cm` : `${G.deg(v).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}°`;
+    if (!opts.length) { await ui.dialog('Cote incompatible', `<p>Avec toutes les autres cotes et tous les angles verrouillés, ${t === 'L' ? `le mur ${nm(i)}` : 'cet angle'} ne peut pas valoir ${val} : la pièce ne se refermerait pas. Déverrouillez au moins une cote ou un angle.</p>`, [{ label: 'Compris', cls: 'red', def: true }]); return; }
+    const gap = opts.find((o) => o.k === 'L'); const shown = opts.filter((o) => o.k === 'L').slice(0, 5).concat(opts.filter((o) => o.k === 'A'));
+    const pick = await ui.dialog('Cote incompatible avec les verrous', `<p>${t === 'L' ? `Le mur ${nm(i)} à ${val}` : `Cet angle à ${val}`} ne colle pas avec les autres cotes verrouillées${gap ? ` : il y a un écart d'environ ${App.fmtCm(Math.abs(gap.d))} cm pour refermer la pièce` : ''}. Choisissez ce qui s'ajuste pour le garder :</p><p class="hint2">La cote ajustée est déverrouillée, les autres restent telles que vous les avez mesurées.</p>`, shown.map((o) => ({ label: o.label, cls: 'ghost wrap' })).concat([{ label: 'Annuler', cls: '' }]));
+    const o = shown[pick.i]; if (!o) return;
+    App.mutate(() => {
+      s.pts = o.r.pts; const L = s.locks;
+      if (o.k === 'L') L[o.j].L = false; else o.ch.forEach((c) => { L[c.k].A = false; });
+      if (t === 'L') L[i].L = lock; else L[i].A = lock;
+      s.locks = PL.solver.syncLocks(s.pts, L); if (t === 'L' && lock) s.locks[i].Lv = v; if (t === 'A' && lock) s.locks[i].Av = v;
+    });
+    App.toast(o.k === 'L' ? `${nm(i)} = ${val} · ${o.label.replace('Mur ', '')} (déverrouillée)` : `${nm(i)} = ${val} · angles ajustés`);
   }
 
   /* ---------- sélection ---------- */

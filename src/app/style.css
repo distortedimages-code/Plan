@@ -277,3 +277,6 @@ details[open] summary::after{content:"–"}
 .field.bgop [data-bgop-v]{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .kv{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 12%,transparent);font-size:14px}
 .kv b{font-size:16px;font-variant-numeric:tabular-nums}
+
+#modalBox .row:last-child{flex-wrap:wrap}
+#modalBox .btn.wrap{white-space:normal;text-align:left;height:auto;min-height:40px;padding:8px 12px;flex:1 1 100%}
