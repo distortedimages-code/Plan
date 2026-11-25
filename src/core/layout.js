@@ -3,7 +3,7 @@
   const PL = (globalThis.PL = globalThis.PL || {});
   const G = PL.geom;
 
-  const DEFAULTS = { L: 1200, W: 190, T: 14, gap: 10, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
+  const DEFAULTS = { L: 1200, W: 190, T: 14, gap: 10, gapMode: 'auto', gapMin: 8, gapPerM: 1.5, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
 
   const rotAll = (pts, a) => pts.map((p) => G.rot(p, a));
   const swap = (pts) => pts.map((p) => ({ x: p.y, y: p.x }));
@@ -307,7 +307,7 @@
     const warns = rows.flatMap((r) => r.warn.map((w) => `rang ${r.num} : ${w}`));
     if (warns.length) A.push({ t: 'joints', s: `Contraintes non tenues : ${warns.slice(0, 4).join(' ; ')}${warns.length > 4 ? '…' : ''}`, warn: true });
     else A.push({ t: 'joints', s: `Décalage des joints ≥ ${fmt(P.minStagger)} et coupes ≥ ${fmt(P.minPiece)} partout.` });
-    A.push({ t: 'jeu', s: `Jeu périphérique ${P.gap} mm le long des murs${o.obs.length ? ' et autour des obstacles' : ''}, caché par les plinthes.` });
+    A.push({ t: 'jeu', s: `Jeu périphérique ${P.gap} mm le long des murs${o.obs.length ? ' et autour des obstacles' : ''}${P.gapMode === 'auto' ? ` (${String(P.gapPerM).replace('.', ',')} mm par mètre de la plus grande longueur posée d'un seul tenant, ${P.gapMin} mm au minimum)` : ''}, caché par les plinthes : cales de ${P.gap} mm contre les murs pendant la pose.` });
     // obstacles
     o.obs.forEach((ob) => {
       if (ob.kind === 'poteau') A.push({ t: 'obst', s: `${ob.name || 'Poteau'} : découpe ajustée avec ${P.gap} mm de jeu, finition par rosace ou joint souple.` });
@@ -341,14 +341,24 @@
     const ctx = { byId, groupOf };
     const results = {}; let totalBoards = 0, totalArea = 0, totalWaste = 0, totalReused = 0;
     for (const g of Object.keys(groups)) {
-      let gr;
-      try { gr = computeGroup(groups[g], obstacles, P); } catch (e) { console.error(e); continue; }
+      let gr, Pg = P, gapInfo = null;
+      try {
+        if (P.gapMode === 'auto') {
+          // jeu périphérique calculé : 1,5 mm par mètre de la plus grande dimension posée d'un seul tenant, avec un minimum
+          Pg = Object.assign({}, P, { gap: P.gapMin }); gr = computeGroup(groups[g], obstacles, Pg);
+          const ext = (ang) => { const pts = groups[g].flatMap((r) => r.pts.map((p) => G.rot(p, -ang))); const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y); return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)]; };
+          const [dl, dw] = ext(gr.ang), need = Math.max(P.gapMin, Math.ceil((P.gapPerM * Math.max(dl, dw)) / 1000));
+          gapInfo = { gap: need, along: dl, across: dw, byLen: Math.ceil((P.gapPerM * dl) / 1000), byWid: Math.ceil((P.gapPerM * dw) / 1000) };
+          if (need !== Pg.gap) { Pg = Object.assign({}, P, { gap: need }); gr = computeGroup(groups[g], obstacles, Pg); }
+        } else gr = computeGroup(groups[g], obstacles, P);
+      } catch (e) { console.error(e); continue; }
       totalBoards += gr.stats.boards; totalWaste += gr.stats.wasteLen; totalReused += gr.stats.reused;
       gr.rooms.forEach((o) => {
         let area = Math.abs(G.area(o.room.pts)); o.obs.forEach((ob) => { const inter = Math.min(Math.abs(G.area(ob.pts)), area); area -= G.pointInPoly(G.centroid(ob.pts), o.room.pts) ? inter : 0; });
         totalArea += area;
-        const adv = adviceFor(gr, o, P, ctx);
-        results[o.room.id] = { group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
+        const adv = adviceFor(gr, o, Pg, ctx);
+        if (gapInfo && gapInfo.gap > 14) { const half = Math.max(P.gapMin, Math.ceil((P.gapPerM * Math.max(Math.max(gapInfo.along, gapInfo.across) / 2, Math.min(gapInfo.along, gapInfo.across))) / 1000)); adv.lines.push({ t: 'jeu', s: `Jeu de ${gapInfo.gap} mm : plus large que ce que couvre une plinthe courante (10 à 15 mm). Plinthe plus épaisse ou quart-de-rond, ou bien un profil de dilatation au milieu de la plus grande longueur : le jeu redescend alors à ${half} mm.` }); }
+        results[o.room.id] = { gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
       });
     }
     const boardArea = (P.L * P.W) / 1e6;

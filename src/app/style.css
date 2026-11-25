@@ -275,3 +275,5 @@ details[open] summary::after{content:"–"}
 .field.bgop .range{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
 .field.bgop input[type=range]{flex:1;max-width:220px;accent-color:var(--red);height:28px}
 .field.bgop [data-bgop-v]{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 12%,transparent);font-size:14px}
+.kv b{font-size:16px;font-variant-numeric:tabular-nums}

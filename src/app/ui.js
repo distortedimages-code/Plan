@@ -349,7 +349,8 @@
     const n = s.pts.length; const c = s.cal || {};
     const groups = ['', 'A', 'B', 'C', 'D'];
     const res = (App.calepinage().results || {})[s.id];
-    return `<h3>Calepinage de cette pièce</h3>
+    const gi = res && res.gapInfo, gapLine = res ? `<div class="kv"><span>Jeu au mur</span><b>${res.gap} mm</b></div>${gi ? `<p class="hint2">${res.groupSize > 1 ? 'Zone posée d\'un tenant' : 'Pièce'} de ${App.fmtM ? App.fmtM(gi.along) : (gi.along / 1000).toFixed(2).replace('.', ',')} × ${App.fmtM ? App.fmtM(gi.across) : (gi.across / 1000).toFixed(2).replace('.', ',')} m : ${gi.gap > S.p.parquet.gapMin ? `${String(S.p.parquet.gapPerM).replace('.', ',')} mm × ${(Math.max(gi.along, gi.across) / 1000).toFixed(1).replace('.', ',')} m` : 'le minimum suffit'}.</p>` : ''}` : '';
+    return `<h3>Calepinage de cette pièce</h3>${gapLine}
       <div class="field"><label>Sens des lames</label><select data-c="cal.dir"><option value="auto" ${c.dir == null || c.dir === 'auto' ? 'selected' : ''}>Automatique${res ? ' (' + fmt(((G.deg(res.ang) % 180) + 180) % 180, 0) + '°)' : ''}</option>${s.pts.map((p, i) => { const q = s.pts[(i + 1) % n]; let a = ((G.deg(Math.atan2(q.y - p.y, q.x - p.x)) % 180) + 180) % 180; return `<option value="${a.toFixed(3)}" ${c.dir != null && c.dir !== 'auto' && Math.abs(+c.dir - a) < 0.01 ? 'selected' : ''}>Parallèle au mur ${wallName(i, n)}</option>`; }).join('')}</select></div>
       <div class="field"><label>Mur de départ</label><select data-c="cal.start"><option value="auto">Automatique</option>${s.pts.map((_, i) => `<option value="${i}" ${String(c.start) === String(i) ? 'selected' : ''}>${wallName(i, n)}</option>`).join('')}</select></div>
       <div class="field"><label>Pose continue avec</label><select data-c="cal.group">${groups.map((g) => `<option value="${g}" ${(c.group || '') === g ? 'selected' : ''}>${g ? 'Groupe ' + g : 'Pièce indépendante'}</option>`).join('')}</select></div>
@@ -407,7 +408,8 @@
         ${pr('L', 'Longueur de lame', 'mm')}${pr('W', 'Largeur utile', 'mm')}${pr('T', 'Épaisseur', 'mm')}
         <div class="field"><label>Motif</label><select data-c="pq.pattern"><option value="anglaise" ${P.pattern === 'anglaise' ? 'selected' : ''}>À l'anglaise (coupe perdue)</option><option value="pont12" ${P.pattern === 'pont12' ? 'selected' : ''}>Pont de bateau ½</option><option value="pont13" ${P.pattern === 'pont13' ? 'selected' : ''}>Pont de bateau ⅓</option></select></div>
         <div class="field"><label>Pose</label><select data-c="pq.lay"><option value="flottante" ${P.lay === 'flottante' ? 'selected' : ''}>Flottante (clipsée)</option><option value="collee" ${P.lay === 'collee' ? 'selected' : ''}>Collée</option><option value="clouee" ${P.lay === 'clouee' ? 'selected' : ''}>Clouée</option></select></div>
-        ${pr('gap', 'Jeu périphérique', 'mm')}${pr('minStagger', 'Décalage mini des joints', 'mm')}${pr('minPiece', 'Longueur mini d\'une coupe', 'mm')}${pr('minRow', 'Largeur mini d\'un rang', 'mm')}${pr('perBox', 'Lames par paquet', 'lames')}${pr('waste', 'Marge de chute', '%')}
+        <div class="field"><label>Jeu de dilatation</label><div class="seg sm"><button data-a="gapmode" data-v="auto" aria-pressed="${P.gapMode !== 'fixe'}">Calculé</button><button data-a="gapmode" data-v="fixe" aria-pressed="${P.gapMode === 'fixe'}">Fixe</button></div></div>
+        ${P.gapMode === 'fixe' ? pr('gap', 'Jeu périphérique', 'mm') : `${pr('gapMin', 'Jeu minimum', 'mm')}${pr('gapPerM', 'Par mètre de longueur posée', 'mm')}<p class="hint2">Règle courante des notices de pose flottante : 0,15 % de la plus grande dimension posée d'un seul tenant (1,5 mm par mètre), 8 mm au minimum. Le jeu est calculé pour chaque zone posée d'un tenant. Vérifiez la notice de votre parquet.</p>`}${pr('minStagger', 'Décalage mini des joints', 'mm')}${pr('minPiece', 'Longueur mini d\'une coupe', 'mm')}${pr('minRow', 'Largeur mini d\'un rang', 'mm')}${pr('perBox', 'Lames par paquet', 'lames')}${pr('waste', 'Marge de chute', '%')}
         <p>Valeurs par défaut courantes ; suivez la notice du fabricant si elle diffère.</p>
       </details>`;
     if (!rooms.length) return h + '<p class="note">Aucune pièce sur cet étage : importez un plan ou tracez les pièces.</p>';
@@ -530,6 +532,7 @@
       case 'prot': if (s.locked) break; App.mutate(() => { s.rot = (s.rot || 0) + Math.PI / 2; }); break;
       case 'stairdir': App.mutate(() => { s.stair = Object.assign({}, s.stair, { dir: v }); }); break;
       case 'shq': App.mutate(() => { if (+v > 0) s.h = +v; else delete s.h; }); break;
+      case 'gapmode': App.mutate((P) => { P.parquet.gapMode = v; }); break;
       case 'guard': App.mutate(() => { s.stair = Object.assign({}, s.stair, { guard: v }); }); break;
       case 'lockL': case 'lockA': { const i = +b.dataset.i, k = a === 'lockL' ? 'L' : 'A'; App.mutate(() => { s.locks[i][k] = !s.locks[i][k]; s.locks = PL.solver.syncLocks(s.pts, s.locks); }); break; }
       case 'lockAll': App.mutate(() => { s.locks = PL.solver.syncLocks(s.pts, s.pts.map(() => ({ L: true, A: true }))); s.locks[s.locks.length - 1].L = false; s.locks[0].A = false; s.locks[s.locks.length - 1].A = false; s.locks = PL.solver.syncLocks(s.pts, s.locks); }); App.toast('Cotes verrouillées (un mur et deux angles restent libres pour fermer la forme)'); break;
