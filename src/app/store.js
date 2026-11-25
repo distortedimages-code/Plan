@@ -36,7 +36,7 @@
   App.undo = () => { if (S.pending && App.walls) { App.walls.cancel(); App.toast('Déplacement annulé'); return; } if (!hist.length) return; fut.push(App.snapshot()); S.p = JSON.parse(hist.pop()); fixSel(); App.changed(true); App.toast('Annulé'); };
   App.redo = () => { if (S.pending && App.walls) App.walls.cancel(true); if (!fut.length) return; hist.push(App.snapshot()); S.p = JSON.parse(fut.pop()); fixSel(); App.changed(true); };
   App.canUndo = () => hist.length > 0 || !!S.pending; App.canRedo = () => fut.length > 0;
-  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; if (S.sel && S.sel.oid && !(App.ops && App.ops.find(S.sel.oid))) S.sel = { id: S.sel.id }; if (S.sel && S.sel.wall != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || S.sel.wall >= r.pts.length) S.sel = { id: S.sel.id }; } };
+  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; if (S.sel && S.sel.vtx != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || (S.sel.vtxs || [S.sel.vtx]).some((k) => k >= r.pts.length)) S.sel = r ? { id: r.id } : null; } if (S.sel && S.sel.oid && !(App.ops && App.ops.find(S.sel.oid))) S.sel = { id: S.sel.id }; if (S.sel && S.sel.wall != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || S.sel.wall >= r.pts.length) S.sel = { id: S.sel.id }; } };
 
   /* ---------- recalcul + rendu ---------- */
   let saveT = null;

@@ -62,7 +62,7 @@
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh }; // poignées de taille d'abord (le mur central d'un U est près du centre)
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      if (!App.resize.active(sel)) { let bi = -1, bd = 16; for (let i = 0; i < sel.pts.length; i++) { const d = G.dist(App.w2s(sel.pts[i]), sp); if (d < bd) { bd = d; bi = i; } } if (bi >= 0) return { t: 'vertex', id: sel.id, i: bi }; } // le point le plus proche (deux points peuvent être à quelques pixels)
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme', 'escalier'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
@@ -202,6 +202,11 @@
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
     if (a.kind === 'resize') { S.opInfo = null; S.resizeSnap = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
+    if (a.kind === 'vertex' && !a.moved) { // toucher un point : le sélectionner (pour le supprimer)
+      S.snapMark = null; App.end(false); const s = App.byId(a.h.id);
+      if (s && s.kind === 'piece') { const cur = S.sel && S.sel.id === s.id && S.sel.vtx != null ? (S.sel.vtxs || [S.sel.vtx]) : []; const set = cur.includes(a.h.i) ? cur.filter((k) => k !== a.h.i) : cur.concat([a.h.i]); S.sel = set.length ? { id: s.id, vtx: set[set.length - 1], vtxs: set } : { id: s.id }; App.ui.onSelect(true); }
+      App.render(); return;
+    }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }

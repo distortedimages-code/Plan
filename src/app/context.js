@@ -126,6 +126,8 @@
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && S.sel.vtx != null && App.selected() && App.selected().pts && S.sel.vtx < App.selected().pts.length) {
+      const vs = (S.sel.vtxs || [S.sel.vtx]).slice().sort((a, b) => a - b); h = `<span class="ob-v">${vs.length > 1 ? 'Points ' : 'Point '}${vs.map((k) => String.fromCharCode(65 + k)).join(', ')}</span>${vs.length === 1 ? '<span class="ob-n">+ touchez-en d\'autres</span>' : ''}<button data-ob="vx">Fermer</button><button data-ob="vdel" class="ok">Supprimer ${vs.length > 1 ? 'les ' + vs.length + ' points' : 'le point'}</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'piece' && !App.selected().locked) {
       const r = App.selected(); const on = S.resizeRoom === r.id;
       h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="tour">Visite 3D</button><button data-ob="more">Réglages</button>`;
@@ -148,6 +150,7 @@
     else if (S.simpFocus) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); if (x) { const sp = x.chain.concat([x.A, x.B]).map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); p = App.s2w({ x: sp.reduce((a, q) => a + q.x, 0) / sp.length, y: top - 14 }); } }
     else if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
+    else if (S.sel && S.sel.vtx != null) { const r = App.selected(); if (r && r.pts[S.sel.vtx]) p = r.pts[S.sel.vtx]; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
     else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
     if (!p) { bar.style.visibility = 'hidden'; return; }
@@ -227,6 +230,8 @@
       case 'tour': { const r = App.selected(); if (r && App.fps) App.fps.open({ floor: r.floor, room: r.id }); break; }
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
+      case 'vdel': { const r = App.selected(); if (r && S.sel.vtx != null && App.ui.deletePoint(r, S.sel.vtxs || [S.sel.vtx])) { S.sel = { id: r.id }; App.ui.onSelect(true); } break; }
+      case 'vx': { if (S.sel) S.sel = { id: S.sel.id }; App.ui.onSelect(true); break; }
       case 'skok': App.sketch.validate(); break;
       case 'skclose': App.sketch.closeStub(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;

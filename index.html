@@ -2213,7 +2213,7 @@ details[open] summary::after{content:"–"}
   App.undo = () => { if (S.pending && App.walls) { App.walls.cancel(); App.toast('Déplacement annulé'); return; } if (!hist.length) return; fut.push(App.snapshot()); S.p = JSON.parse(hist.pop()); fixSel(); App.changed(true); App.toast('Annulé'); };
   App.redo = () => { if (S.pending && App.walls) App.walls.cancel(true); if (!fut.length) return; hist.push(App.snapshot()); S.p = JSON.parse(fut.pop()); fixSel(); App.changed(true); };
   App.canUndo = () => hist.length > 0 || !!S.pending; App.canRedo = () => fut.length > 0;
-  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; if (S.sel && S.sel.oid && !(App.ops && App.ops.find(S.sel.oid))) S.sel = { id: S.sel.id }; if (S.sel && S.sel.wall != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || S.sel.wall >= r.pts.length) S.sel = { id: S.sel.id }; } };
+  const fixSel = () => { if (S.sel && !App.byId(S.sel.id)) S.sel = null; if (S.sel && S.sel.vtx != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || (S.sel.vtxs || [S.sel.vtx]).some((k) => k >= r.pts.length)) S.sel = r ? { id: r.id } : null; } if (S.sel && S.sel.oid && !(App.ops && App.ops.find(S.sel.oid))) S.sel = { id: S.sel.id }; if (S.sel && S.sel.wall != null) { const r = App.byId(S.sel.id); if (!r || !r.pts || S.sel.wall >= r.pts.length) S.sel = { id: S.sel.id }; } };
 
   /* ---------- recalcul + rendu ---------- */
   let saveT = null;
@@ -3084,7 +3084,7 @@ details[open] summary::after{content:"–"}
     if (s.locked) { const c = App.w2s(G.centroid(s.pts)); ctx.fillStyle = C.red; text('Verrouillé', c.x, c.y + 34, 700, 10, C.red); return; }
     App.edgeHandles = [];
     if (App.resize && App.resize.active(s)) drawResizeBox(s);
-    else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i; ctx.fillStyle = hot ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 6, q.y - 6, 12, 12); ctx.strokeRect(q.x - 6, q.y - 6, 12, 12); }
+    else for (let i = 0; i < s.pts.length; i++) { const q = App.w2s(s.pts[i]); const hot = S.dragV === i, picked = S.sel && S.sel.id === s.id && S.sel.vtx != null && (S.sel.vtxs || [S.sel.vtx]).includes(i); const k = picked ? 9 : 6; ctx.fillStyle = hot || picked ? C.red : C.paper; ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; ctx.fillRect(q.x - k, q.y - k, 2 * k, 2 * k); ctx.strokeRect(q.x - k, q.y - k, 2 * k, 2 * k); if (picked) text(String.fromCharCode(65 + i), q.x, q.y + 0.5, 700, 10, C.paper); }
     if (S.tool === 'select') { let cw = G.centroid(s.pts); if (s.kind === 'escalier' && App.stairs) { const lay = App.stairs.layout(s); if (lay && lay.segs.length > 1) { const g = lay.segs[0]; cw = lay.fr.from(G.lerp(g.a, g.b, 0.5)); } } const c = App.w2s(cw); const y = c.y + (s.kind === 'piece' ? 58 : 0); ctx.beginPath(); ctx.arc(c.x, y, 13, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); ctx.strokeStyle = C.paper; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(c.x - 6, y); ctx.lineTo(c.x + 6, y); ctx.moveTo(c.x, y - 6); ctx.lineTo(c.x, y + 6); ctx.stroke(); App.moveHandle = { x: c.x, y }; }
   }
 
@@ -3206,7 +3206,7 @@ details[open] summary::after{content:"–"}
     if (sel && sel.pts && !sel.locked && S.sel && !S.sel.oid && S.sel.wall == null) {
       const rh = S.tool === 'select' && App.resize.hit(sel, sp); if (rh) return { t: 'resize', id: sel.id, h: rh }; // poignées de taille d'abord (le mur central d'un U est près du centre)
       if (S.tool === 'select' && App.moveHandle && G.dist(sp, App.moveHandle) < 20) return { t: 'move', id: sel.id };
-      if (!App.resize.active(sel)) for (let i = 0; i < sel.pts.length; i++) if (G.dist(App.w2s(sel.pts[i]), sp) < 16) return { t: 'vertex', id: sel.id, i };
+      if (!App.resize.active(sel)) { let bi = -1, bd = 16; for (let i = 0; i < sel.pts.length; i++) { const d = G.dist(App.w2s(sel.pts[i]), sp); if (d < bd) { bd = d; bi = i; } } if (bi >= 0) return { t: 'vertex', id: sel.id, i: bi }; } // le point le plus proche (deux points peuvent être à quelques pixels)
       if (S.tool === 'select' && ['meuble', 'poteau', 'forme', 'escalier'].includes(sel.kind) && G.pointInPoly(w, sel.pts)) return { t: 'move', id: sel.id };
     }
     const ho = S.mode !== 'mobilier' && S.mode !== 'elec' ? hitOpening(sp, w) : null; if (ho && ho.d <= 7) return ho;
@@ -3346,6 +3346,11 @@ details[open] summary::after{content:"–"}
     if (a.kind === 'opmove' || a.kind === 'opend') { S.opInfo = null; S.loupe = null; App.end(!!a.moved); App.render(); return; }
     if (a.kind === 'resize') { S.opInfo = null; S.resizeSnap = null; const s = App.byId(a.h.id); if (a.moved) App.resize.finish(s, a.orig); App.end(!!a.moved); App.ui.refresh(); App.render(); return; }
     if (a.kind === 'wmove') { if (S.pending && Math.abs(S.pending.delta) < 0.5) App.walls.cancel(true); App.ui.refresh(); App.render(); return; }
+    if (a.kind === 'vertex' && !a.moved) { // toucher un point : le sélectionner (pour le supprimer)
+      S.snapMark = null; App.end(false); const s = App.byId(a.h.id);
+      if (s && s.kind === 'piece') { const cur = S.sel && S.sel.id === s.id && S.sel.vtx != null ? (S.sel.vtxs || [S.sel.vtx]) : []; const set = cur.includes(a.h.i) ? cur.filter((k) => k !== a.h.i) : cur.concat([a.h.i]); S.sel = set.length ? { id: s.id, vtx: set[set.length - 1], vtxs: set } : { id: s.id }; App.ui.onSelect(true); }
+      App.render(); return;
+    }
     if (a.kind === 'vertex' || a.kind === 'move' || a.kind === 'pmove' || a.kind === 'mend' || a.kind === 'edge') {
       S.snapMark = null; S.dragE = null; S.edgeInfo = null; S.guides = null; App.end(!!a.moved || a.kind !== 'move');
       if (a.kind === 'vertex' || a.kind === 'edge') { const s = App.byId(a.h.id); s.locks = PL.solver.syncLocks(s.pts, s.locks); (a.partners || []).forEach((q) => { q.s.locks = PL.solver.syncLocks(q.s.pts, q.s.locks); }); if (a.kind === 'edge' && a.partners && a.partners.length) App.toast('Cloison déplacée avec la pièce voisine'); }
@@ -3724,7 +3729,30 @@ details[open] summary::after{content:"–"}
     }
     ui.refresh();
   };
+  /* retirer des points d'une pièce : les cotes et angles qui ne bougent pas gardent leurs verrous, les ouvertures restent en place */
+  ui.deletePoint = (s, idx) => {
+    const del = new Set([].concat(idx)); const n = s.pts.length;
+    if (n - del.size < 3) { App.toast('Une pièce garde au moins 3 points'); return false; }
+    if (s.locked) { App.toast('Déverrouillez d\'abord cette pièce'); return false; }
+    let keep = s.pts.map((_, k) => k).filter((k) => !del.has(k));
+    // un point voisin d'un point retiré qui se retrouve aligné ne sert plus à rien : on le retire aussi
+    for (let g = 0; g < 4; g++) { let more = false; keep = keep.filter((k, t) => { const pv = keep[(t - 1 + keep.length) % keep.length], nx = keep[(t + 1) % keep.length]; const touched = pv !== (k - 1 + n) % n || nx !== (k + 1) % n; if (!touched || keep.length <= 3) return true; const a = s.pts[pv], b = s.pts[k], c = s.pts[nx], u = G.sub(b, a), v = G.sub(c, b), lu = G.len(u), lv = G.len(v); if (lu < 1 || lv < 1) { more = true; return false; } const straight = Math.abs(G.cross(u, v)) / (lu * lv) < Math.sin(G.rad(0.5)) && G.dot(u, v) > 0; if (straight) more = true; return !straight; }); if (!more) break; }
+    const np = keep.map((k) => s.pts[k]);
+    if (G.isSelfIntersecting(np)) { App.toast(del.size > 1 ? 'Impossible : la forme se croiserait — touchez aussi les autres points à retirer' : 'Impossible : la forme se croiserait — touchez aussi l\'autre point à retirer, puis Supprimer'); return false; }
+    const old = JSON.parse(JSON.stringify(s));
+    App.mutate(() => {
+      const L = s.locks || [];
+      // un côté qui relie deux points gardés non voisins avant : longueur libre ; angle libre aux points dont un côté change
+      const nl = keep.map((k, t) => { const l = Object.assign({}, L[k] || {}); const nx = keep[(t + 1) % keep.length], pv = keep[(t - 1 + keep.length) % keep.length]; if (nx !== (k + 1) % n) { l.L = false; l.A = false; } if (pv !== (k - 1 + n) % n) l.A = false; return l; });
+      s.pts = np; s.locks = PL.solver.syncLocks(s.pts, nl);
+      s.openings = (old.openings || []).flatMap((o) => { const r = App.feat.reattach(np, [{ pts: old.pts, openings: [o] }], [], 40)[0]; return r ? [Object.assign(r, { oid: o.oid })] : []; });
+    });
+    const lost = (old.openings || []).length - (s.openings || []).length, names = [...del].sort((a, b) => a - b).map((k) => String.fromCharCode(65 + k)).join(', ');
+    App.toast(`${del.size > 1 ? 'Points' : 'Point'} ${names} retiré${del.size > 1 ? 's' : ''}${lost > 0 ? ` · ${lost} ouverture${lost > 1 ? 's' : ''} retirée${lost > 1 ? 's' : ''} avec` : ''} — Annuler pour revenir`);
+    return true;
+  };
   ui.deleteSelected = async () => {
+    if (S.sel && S.sel.vtx != null) { const s = App.selected(); if (s && ui.deletePoint(s, S.sel.vtxs || [S.sel.vtx])) { S.sel = { id: s.id }; ui.onSelect(true); App.render(); } return; }
     if (S.sel && S.sel.oid) { App.ctx.act('del'); return; }
     if (S.sel && S.sel.wall != null) { App.toast('Pour supprimer une cloison : menu de la cloison › Supprimer la cloison'); return; }
     const s = App.selected(); if (!s) return; if (s.locked) { App.toast('Déverrouillez d\'abord cet objet'); return; }
@@ -3846,7 +3874,7 @@ details[open] summary::after{content:"–"}
     if (s.kind !== 'piece' && s.kind !== 'elec' && s.pts && s.pts.length >= 3) h += `<h3>Taille</h3><div class="row"><button class="btn sm" data-x="fitwalls">Caler aux murs</button></div><div class="field"><label>Aimanter aux murs en redimensionnant</label><input type="checkbox" data-x="snapwalls" ${S.p.snapWalls !== false ? 'checked' : ''}></div><p class="hint2">Avec le cadre, le bord qui bouge se colle à la cloison la plus proche. « Caler aux murs » met d'un coup chaque côté contre la cloison voisine (à moins de 40 cm).</p>`;
     if (s.kind !== 'piece' && s.kind !== 'escalier') h += `<h3>Rotation</h3><div class="row"><button class="btn sm" data-a="rot" data-v="-90">−90°</button><button class="btn sm" data-a="rot" data-v="-15">−15°</button><button class="btn sm" data-a="rot" data-v="15">+15°</button><button class="btn sm" data-a="rot" data-v="90">+90°</button><button class="btn sm" data-a="mirror">Miroir</button>${s.kind === 'meuble' && s.pts.length >= 4 ? '<button class="btn sm" data-x="backwall">Dos au mur</button>' : ''}</div>${s.kind === 'meuble' ? '<p class="hint2">Glissez le meuble : il se colle aux murs et aux autres meubles, et se centre sur la cloison, la fenêtre ou entre deux murs. Les distances libres s\'affichent autour.</p>' : ''}`;
     // cotes
-    h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme.</p>
+    h += `<h3>Cotes et angles</h3><p>Touchez une valeur pour la modifier. Verrouillez les cotes mesurées : les autres s'ajustent pour fermer la forme. Pour retirer un point, touchez-le sur le plan.</p>
       <table class="dims"><thead><tr><th>Mur</th><th>Longueur (cm)</th><th></th><th>Angle (°)</th><th></th><th></th></tr></thead><tbody>
       ${s.pts.map((_, i) => { const lk = s.locks[i] || {}; return `<tr><td>${s.kind === 'piece' ? `<button class="wname${lk.P ? ' lk' : ''}" data-x="wsel" data-v="${i}" title="Sélectionner ce mur">${wallName(i, n)}</button>` : wallName(i, n)}</td><td><input data-c="L" data-i="${i}" inputmode="decimal" value="${fmt(m.L[i] / 10)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockL" data-i="${i}" aria-pressed="${!!lk.L}" title="Verrouiller la longueur">${lk.L ? LOCK : UNLOCK}</button></td><td><input data-c="A" data-i="${i}" inputmode="decimal" value="${fmt(G.deg(m.A[i]), 2)}" ${s.locked ? 'disabled' : ''}></td><td><button class="lock" data-a="lockA" data-i="${i}" aria-pressed="${!!lk.A}" title="Verrouiller l'angle en ${String.fromCharCode(65 + i)}">${lk.A ? LOCK : UNLOCK}</button></td><td><button class="lock" data-a="split" data-i="${i}" title="Ajouter un point au milieu du mur">+</button></td></tr>`; }).join('')}
       </tbody></table>
@@ -4073,7 +4101,7 @@ details[open] summary::after{content:"–"}
       case 'unlockAll': App.mutate(() => { s.locks = s.pts.map(() => ({ L: false, A: false })); }); break;
       case 'square': { const r = PL.solver.squareUp(s.pts, s.locks); if (!r.ok) { App.toast(r.msg); break; } App.mutate(() => { s.pts = r.pts; s.locks = PL.solver.syncLocks(s.pts, s.locks.map((l, i) => { const d = G.deg(PL.solver.measure(r.pts).A[i]); return Object.assign({}, l, { A: l.A || Math.abs(d - 90) < 0.01 || Math.abs(d - 270) < 0.01 }); })); }); App.toast('Angles droits appliqués et verrouillés'); break; }
       case 'split': { const i = +b.dataset.i; App.mutate(() => { const n = s.pts.length; const m = G.lerp(s.pts[i], s.pts[(i + 1) % n], 0.5); s.pts.splice(i + 1, 0, m); s.locks.splice(i + 1, 0, { L: false, A: false }); s.locks[i] = Object.assign({}, s.locks[i], { L: false }); (s.openings || []).forEach((o) => { if (o.wall > i) o.wall++; }); s.locks = PL.solver.syncLocks(s.pts, s.locks); }); break; }
-      case 'delv': { const n = s.pts.length; const r = await ui.dialog('Retirer un point', `<div class="field"><label>Point</label><select name="v">${s.pts.map((_, i) => `<option value="${i}">${String.fromCharCode(65 + i)}</option>`).join('')}</select></div>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Retirer', cls: 'red', def: true }]); if (r.i !== 1) break; const i = +r.vals.v; const np = s.pts.filter((_, k) => k !== i); if (G.isSelfIntersecting(np)) { App.toast('Impossible : la forme se croiserait'); break; } App.mutate(() => { s.pts = np; s.locks.splice(i, 1); s.locks = s.locks.map((l) => ({ L: false, A: l.A })); s.locks = PL.solver.syncLocks(s.pts, s.locks); s.openings = (s.openings || []).filter((o) => o.wall !== i && o.wall !== (i - 1 + n) % n).map((o) => Object.assign(o, { wall: o.wall > i ? o.wall - 1 : o.wall })); }); break; }
+      case 'delv': { const r = await ui.dialog('Retirer un point', `<p class="hint2">Plus simple : sur le plan, touchez le point puis « Supprimer le point ».</p><div class="field"><label>Point</label><select name="v">${s.pts.map((_, i) => `<option value="${i}">${String.fromCharCode(65 + i)}</option>`).join('')}</select></div>`, [{ label: 'Annuler', cls: 'ghost' }, { label: 'Retirer', cls: 'red', def: true }]); if (r.i !== 1) break; ui.deletePoint(s, +r.vals.v); break; }
       case 'cut': ui.setTool('cut'); if (innerWidth < 900) ui.sheet('min'); break;
       case 'seeCal': ui.setMode('calepinage'); S.sel = { id: s.id }; App.fitShape(s); ui.refresh(); break;
       case 'o.add': { const t = $('newOpType').value, w = +$('newOpWall').value; const def = PL.lib.openings.find((x) => x.id === t); const n = s.pts.length; const el = G.dist(s.pts[w], s.pts[(w + 1) % n]); const width = Math.min(def.w, el - 100); App.mutate(() => { s.openings.push({ type: t, wall: w, pos: Math.max(0, (el - width) / 2), width, h: def.h, sill: def.sill, sw: 1 }); }); S.openOpen = s.openings.length - 1; ui.refresh(); break; }
@@ -5214,6 +5242,8 @@ details[open] summary::after{content:"–"}
       else if (t === 'porte2') h = '<button data-ob="flip">Inverser</button>';
       else if (t === 'coulissante' || t === 'galandage') h = '<button data-ob="flip">Côté</button><button data-ob="hinge">Glisse</button>';
       h += '<button data-ob="del">Supprimer</button><button data-ob="more">Réglages</button>';
+    } else if (S.sel && S.sel.vtx != null && App.selected() && App.selected().pts && S.sel.vtx < App.selected().pts.length) {
+      const vs = (S.sel.vtxs || [S.sel.vtx]).slice().sort((a, b) => a - b); h = `<span class="ob-v">${vs.length > 1 ? 'Points ' : 'Point '}${vs.map((k) => String.fromCharCode(65 + k)).join(', ')}</span>${vs.length === 1 ? '<span class="ob-n">+ touchez-en d\'autres</span>' : ''}<button data-ob="vx">Fermer</button><button data-ob="vdel" class="ok">Supprimer ${vs.length > 1 ? 'les ' + vs.length + ' points' : 'le point'}</button>`;
     } else if (S.sel && !S.sel.oid && S.sel.wall == null && App.selected() && App.selected().kind === 'piece' && !App.selected().locked) {
       const r = App.selected(); const on = S.resizeRoom === r.id;
       h = on ? `<span class="ob-n">Bords : étirer · coins : les deux</span><button data-ob="rsz" class="ok">Terminé</button>` : `<button data-ob="rsz">Redimensionner</button><button data-ob="tour">Visite 3D</button><button data-ob="more">Réglages</button>`;
@@ -5236,6 +5266,7 @@ details[open] summary::after{content:"–"}
     else if (S.simpFocus) { const x = App.walls.spots().find((q) => q.key === S.simpFocus); if (x) { const sp = x.chain.concat([x.A, x.B]).map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); p = App.s2w({ x: sp.reduce((a, q) => a + q.x, 0) / sp.length, y: top - 14 }); } }
     else if (P) { const m = P.moving[0]; const r = App.byId(m.id); if (r) p = G.lerp(r.pts[m.i], r.pts[(m.i + 1) % r.pts.length], 0.5); }
     else if (f) { const g = App.ops.geo(f.room, f.o); if (g) p = g.mid; }
+    else if (S.sel && S.sel.vtx != null) { const r = App.selected(); if (r && r.pts[S.sel.vtx]) p = r.pts[S.sel.vtx]; }
     else if (S.sel && S.sel.wall != null) { const r = App.selected(); if (r) p = G.lerp(r.pts[S.sel.wall], r.pts[(S.sel.wall + 1) % r.pts.length], 0.5); }
     else if (App.selected() && App.selected().pts) { const sp = App.selected().pts.map(App.w2s); const top = Math.min(...sp.map((q) => q.y)); const cx = sp.reduce((a, q) => a + q.x, 0) / sp.length; p = App.s2w({ x: cx, y: top - 8 }); }
     if (!p) { bar.style.visibility = 'hidden'; return; }
@@ -5315,6 +5346,8 @@ details[open] summary::after{content:"–"}
       case 'tour': { const r = App.selected(); if (r && App.fps) App.fps.open({ floor: r.floor, room: r.id }); break; }
       case 'rsz': { const r = App.selected(); if (!r) return; S.resizeRoom = S.resizeRoom === r.id ? null : r.id; if (S.resizeRoom) { S.editPts = false; App.toast('Seule cette pièce change. Pour pousser une cloison commune, touchez la cloison'); } App.ui.refresh(); App.render(); break; }
       case 'theme': App.setTheme(v); App.ui.refresh(true); break;
+      case 'vdel': { const r = App.selected(); if (r && S.sel.vtx != null && App.ui.deletePoint(r, S.sel.vtxs || [S.sel.vtx])) { S.sel = { id: r.id }; App.ui.onSelect(true); } break; }
+      case 'vx': { if (S.sel) S.sel = { id: S.sel.id }; App.ui.onSelect(true); break; }
       case 'skok': App.sketch.validate(); break;
       case 'skclose': App.sketch.closeStub(); break;
       case 'skcancel': App.sketch.cancel(); App.ui.refreshHint(); break;
