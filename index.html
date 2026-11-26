@@ -317,7 +317,7 @@ details[open] summary::after{content:"–"}
 .ph-stage{display:contents}.ph-stage[hidden]{display:none}
 .ph-img canvas,.ph-img img{max-width:100%;max-height:100%;object-fit:contain;display:block;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .ph-img [hidden]{display:none}
-.ph-bar{width:min(480px,80%);height:3px;background:rgba(255,255,255,.18)}.ph-bar i{display:block;height:100%;width:0;background:#fff;transition:width .2s}
+.ph-bar{width:min(480px,80%);height:3px;overflow:hidden;background:rgba(255,255,255,.18)}.ph-bar i{display:block;height:100%;width:0;background:#fff;transition:width .2s}
 .ph.done .ph-bar{visibility:hidden}
 .ph-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;color:#f4f1ea;font:500 13px/1.3 var(--sans)}
 .ph-tools button,.ph-tools .ph-save{height:36px;padding:0 14px;border:1px solid #f4f1ea;background:transparent;color:#f4f1ea;font:600 13px/34px var(--sans);text-decoration:none;cursor:pointer}
@@ -338,6 +338,13 @@ details[open] summary::after{content:"–"}
 .ph-gpt textarea{width:100%;font:inherit;font-size:14px;padding:8px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);resize:vertical}
 .ph-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .ph-row button,.ph-row a{height:36px;padding:0 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font:600 13px/34px var(--sans);text-decoration:none;cursor:pointer}
+
+.ph-key input{width:100%;height:40px;font:inherit;font-size:16px;padding:0 10px;border:1px solid var(--rule);background:var(--paper);color:var(--ink)}
+.ph-ab{display:flex}.ph-ab[hidden]{display:none}.ph-ab button+button{border-left:0}
+.ph-tools .ph-ab button[aria-pressed=true]{background:#f4f1ea;color:#1b1a18}
+.ph.busy .ph-bar{visibility:visible}.ph.busy .ph-bar i{width:100%!important;animation:phb 1.4s linear infinite;opacity:.6}
+@keyframes phb{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.ph.busy .ph-bar i{animation:none}}
 </style></head><body>
 <div class="app" id="app">
   <header class="top">
@@ -7748,13 +7755,14 @@ details[open] summary::after{content:"–"}
   const photoUI = (d) => {
     const ov = document.createElement('div'); ov.className = 'ph';
     ov.innerHTML = `<div class="ph-img"><div class="ph-stage"></div><img alt="Rendu réaliste de la vue" hidden></div><div class="ph-bar"><i></i></div>
-      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="close">Fermer</button></div>
+      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><span class="ph-ab" hidden><button data-ph="vcap" aria-pressed="false">Capture</button><button data-ph="vai" aria-pressed="true">Rendu IA</button></span><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="ai" hidden>Rendu IA</button><button data-ph="close">Fermer</button></div>
+      <div class="ph-gpt ph-key" hidden><p><b>Rendu IA avec votre clé OpenAI.</b> La clé reste sur cet appareil (jamais dans le projet ni sur GitHub) ; chaque rendu est facturé sur votre compte OpenAI. Ne marche que depuis la version GitHub Pages de Calepin.</p><input type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" aria-label="Clé API OpenAI"><div class="ph-row"><button data-ph="keysave">Enregistrer sur cet appareil</button><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Créer une clé</a><button data-ph="keydel">Oublier la clé</button><button data-ph="keyx">Annuler</button></div></div>
       <div class="ph-gpt" hidden><p>Le prompt est copié. Gardez l'image (appui long dessus, ou « Enregistrer »), ouvrez ChatGPT, joignez-la et collez le prompt :</p><textarea readonly rows="6"></textarea><div class="ph-row"><button data-ph="copy">Copier le prompt</button><a href="https://chatgpt.com/" target="_blank" rel="noopener">Ouvrir ChatGPT</a><button data-ph="gptx">OK</button></div></div>`;
     st.el.appendChild(ov); const q = (x) => ov.querySelector(x);
     const ui = { ov, stage: q('.ph-stage'), img: q('img'), bar: q('.ph-bar i'), stx: q('.ph-st'), stop: q('[data-ph=stop]'), ex: q('.ph-ex'), rng: q('.ph-ex input'), save: q('.ph-save'), gpt: q('[data-ph=gpt]'), gp: q('.ph-gpt'), blob: null };
     ui.progress = (f, txt) => { ui.bar.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; ui.stx.textContent = txt; };
     ui.capture = (cv) => { const url = cv.toDataURL('image/jpeg', 0.92); ui.img.src = url; ui.save.href = url; if (cv.toBlob) cv.toBlob((b) => { ui.blob = b; }, 'image/jpeg', 0.92); };
-    ui.done = (cv, txt) => { ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
+    ui.done = (cv, txt) => { ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ov.querySelector('[data-ph=ai]').hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
     const txt = () => gptPrompt(d), fallback = () => { ui.gp.hidden = false; ui.gp.querySelector('textarea').value = txt(); };
     ui.gpt.addEventListener('click', () => {
       const t = txt(); try { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); } catch (e) { /* presse-papiers refusé */ }
@@ -7764,6 +7772,29 @@ details[open] summary::after{content:"–"}
     });
     q('[data-ph=copy]').addEventListener('click', () => { const ta = ui.gp.querySelector('textarea'); try { navigator.clipboard.writeText(ta.value).then(() => App.toast && App.toast('Prompt copié'), () => { ta.select(); }); } catch (e) { ta.select(); } });
     q('[data-ph=gptx]').addEventListener('click', () => { ui.gp.hidden = true; });
+    // rendu IA direct par l'API OpenAI (édition d'image) : la capture + le même prompt de fidélité
+    const KEY = 'calepin:openai-key', kp = q('.ph-key'), kin = kp.querySelector('input'), ab = q('.ph-ab'), aiB = q('[data-ph=ai]');
+    const getKey = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
+    let capUrl = '', aiUrl = '';
+    const view = (which) => { const u = which === 'ai' ? aiUrl : capUrl; if (!u) return; ui.img.src = u; ui.save.href = u; ui.save.download = which === 'ai' ? 'calepin-rendu-ia.jpg' : 'calepin-photo.jpg'; q('[data-ph=vai]').setAttribute('aria-pressed', which === 'ai'); q('[data-ph=vcap]').setAttribute('aria-pressed', which !== 'ai'); };
+    q('[data-ph=vai]').addEventListener('click', () => view('ai')); q('[data-ph=vcap]').addEventListener('click', () => view('cap'));
+    q('[data-ph=keyx]').addEventListener('click', () => { kp.hidden = true; });
+    q('[data-ph=keydel]').addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } kin.value = ''; App.toast && App.toast('Clé oubliée sur cet appareil'); });
+    q('[data-ph=keysave]').addEventListener('click', () => { const k = kin.value.trim(); if (!/^sk-[\w-]{20,}$/.test(k)) { App.toast && App.toast('Ce ne ressemble pas à une clé OpenAI (sk-…)'); return; } try { localStorage.setItem(KEY, k); } catch (e) { App.toast && App.toast('Impossible d\'enregistrer la clé ici'); return; } kin.value = ''; kp.hidden = true; aiB.click(); });
+    aiB.addEventListener('click', async () => {
+      const key = getKey(); if (!key) { kp.hidden = false; kin.focus(); return; }
+      if (!ui.blob) { App.toast && App.toast('Image pas encore prête'); return; }
+      capUrl = capUrl || ui.img.src; aiB.disabled = true; const prev = ui.stx.textContent; ui.stx.textContent = 'Rendu IA en cours… (jusqu\'à 1 ou 2 minutes)'; ui.ov.classList.add('busy');
+      try {
+        const fd = new FormData(); fd.append('image[]', new File([ui.blob], 'capture.jpg', { type: 'image/jpeg' })); fd.append('prompt', txt()); fd.append('quality', 'high'); fd.append('size', 'auto'); fd.append('output_format', 'jpeg');
+        let model = ''; try { model = localStorage.getItem('calepin:openai-model') || ''; } catch (e) { /* rien */ } if (model) fd.append('model', model);
+        let r; try { r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd }); } catch (e) { throw new Error('net'); }
+        const j = await r.json().catch(() => ({})); if (!r.ok) { const m = (j.error && j.error.message) || ''; throw new Error(r.status === 401 ? 'Clé refusée par OpenAI : vérifiez-la (« Oublier la clé » puis recollez-la).' : r.status === 403 ? 'Accès refusé : vérifiez votre organisation OpenAI (vérification d\'identité requise pour les modèles d\'image). ' + m : r.status === 429 ? 'Crédit épuisé ou limite de dépense atteinte sur votre compte OpenAI.' : 'OpenAI a refusé le rendu : ' + (m || r.status)); }
+        const b = j.data && j.data[0] && j.data[0].b64_json; if (!b) throw new Error('Réponse sans image.');
+        aiUrl = 'data:image/jpeg;base64,' + b; ab.hidden = false; view('ai'); ui.stx.textContent = 'Rendu IA prêt';
+      } catch (e) { ui.stx.textContent = prev; const m = e.message === 'net' ? 'Envoi impossible : le rendu IA ne marche que depuis la version GitHub Pages (distortedimages-code.github.io/Plan), avec une connexion.' : e.message; App.toast && App.toast(m); }
+      finally { aiB.disabled = false; ui.ov.classList.remove('busy'); }
+    });
     return ui;
   };
 
