@@ -7798,10 +7798,21 @@ details[open] summary::after{content:"–"}
       ui.msg('');
       capUrl = capUrl || ui.img.src; aiB.disabled = true; const prev = ui.stx.textContent; ui.stx.textContent = 'Rendu IA en cours… (jusqu\'à 1 ou 2 minutes)'; ui.ov.classList.add('busy');
       try {
-        const fd = new FormData(); fd.append('image[]', new File([ui.blob], 'capture.jpg', { type: 'image/jpeg' })); fd.append('prompt', txt()); fd.append('quality', 'high'); fd.append('size', 'auto'); fd.append('output_format', 'jpeg');
-        let model = ''; try { model = localStorage.getItem('calepin:openai-model') || ''; } catch (e) { /* rien */ } if (model) fd.append('model', model);
-        let r; try { r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd }); } catch (e) { throw new Error('net'); }
-        const j = await r.json().catch(() => ({})); if (!r.ok) { const m = (j.error && j.error.message) || ''; throw new Error(r.status === 401 ? 'Clé refusée par OpenAI : vérifiez-la (« Oublier la clé » puis recollez-la).' : r.status === 403 ? 'Accès refusé : vérifiez votre organisation OpenAI (vérification d\'identité requise pour les modèles d\'image). ' + m : r.status === 429 ? 'Crédit épuisé ou limite de dépense atteinte sur votre compte OpenAI.' : 'OpenAI a refusé le rendu : ' + (m || r.status)); }
+        // modèle d'édition d'image : le plus précis d'abord, puis les précédents si le compte n'y a pas accès
+        let pref = ''; try { pref = localStorage.getItem('calepin:openai-model') || ''; } catch (e) { /* rien */ }
+        const models = [...new Set([pref, 'gpt-image-2.5-sunburst', 'gpt-image-2', 'gpt-image-1.5'].filter(Boolean))];
+        let r, j = {};
+        for (let mi = 0; mi < models.length; mi++) {
+          const fd = new FormData(); fd.append('model', models[mi]); fd.append('image[]', new File([ui.blob], 'capture.jpg', { type: 'image/jpeg' })); fd.append('prompt', txt()); fd.append('quality', 'high'); fd.append('size', 'auto'); fd.append('output_format', 'jpeg');
+          ui.stx.textContent = `Rendu IA en cours (${models[mi]})… jusqu'à 1 ou 2 minutes`;
+          try { r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd }); } catch (e) { throw new Error('net'); }
+          j = await r.json().catch(() => ({}));
+          const em = (j.error && j.error.message) || '';
+          if (!r.ok && mi < models.length - 1 && (r.status === 404 || (r.status === 400 || r.status === 403) && /model|does not exist|not found|access|available/i.test(em) && !/verif/i.test(em))) continue; // modèle inconnu ou pas ouvert : on essaie le suivant
+          if (r.ok) { try { localStorage.setItem('calepin:openai-model', models[mi]); } catch (e) { /* rien */ } }
+          break;
+        }
+        if (!r.ok) { const m = (j.error && j.error.message) || ''; throw new Error(r.status === 401 ? 'Clé refusée par OpenAI : vérifiez-la (« Oublier la clé » puis recollez-la).' : r.status === 403 ? 'Accès refusé : vérifiez votre organisation OpenAI (vérification d\'identité requise pour les modèles d\'image). ' + m : r.status === 429 ? 'Crédit épuisé ou limite de dépense atteinte sur votre compte OpenAI.' : 'OpenAI a refusé le rendu : ' + (m || r.status)); }
         const b = j.data && j.data[0] && j.data[0].b64_json; if (!b) throw new Error('Réponse sans image.');
         aiUrl = 'data:image/jpeg;base64,' + b; ab.hidden = false; view('ai'); ui.stx.textContent = 'Rendu IA prêt';
       } catch (e) { ui.stx.textContent = prev; if (/Clé refusée/.test(e.message)) kp.hidden = false; ui.msg(e.message === 'net' ? 'Envoi impossible vers OpenAI : vérifiez la connexion. Si ça persiste, dites-le-moi (le navigateur a peut-être bloqué la requête).' : e.message); }
@@ -7827,7 +7838,7 @@ details[open] summary::after{content:"–"}
       try {
         ui.progress(0.01, 'Chargement du moteur de lancer de rayons…'); const mods = await loadPT(); if (closed) return;
         const [W, H] = size(coarse ? 900 : 1600); eng = ptEngine(mods, d, ui, W, H, cfg, coarse); await eng.start(); return;
-      } catch (e) { console.warn('lancer de rayons indisponible', e); if (closed) return; try { if (eng) eng.close(); } catch (e2) { /* rien */ } eng = null; ui.stage.innerHTML = ''; ui.progress(0, 'Lancer de rayons indisponible ici : rendu rapide…'); }
+      } catch (e) { console.warn('lancer de rayons indisponible', e); if (closed) return; try { if (eng) eng.close(); } catch (e2) { /* rien */ } eng = null; ui.stage.innerHTML = ''; ui.progress(0, 'Lancer de rayons indisponible ici : rendu rapide…'); ui.msg('Le lancer de rayons n\'a pas pu démarrer sur cet appareil (' + String((e && e.message) || e).slice(0, 160).replace(/[<>&]/g, '') + ') : rendu rapide à la place. Rechargez la page pour réessayer.'); }
     }
     const [W, H] = size(coarse ? 1400 : 1920); eng = quickEngine(d, ui, W, H, cfg, coarse); eng.start();
   };
