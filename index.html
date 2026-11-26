@@ -4,6 +4,7 @@
 <meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Calepin — plan et parquet</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js","three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.10.0/build/index.module.js","three-gpu-pathtracer":"https://cdn.jsdelivr.net/npm/three-gpu-pathtracer@0.0.28/build/index.module.js"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
 <style>/*
@@ -313,6 +314,7 @@ details[open] summary::after{content:"–"}
 .fps .fps-photo{margin-top:6px;background:var(--ink);color:var(--paper);font-weight:700}
 .ph{position:absolute;inset:0;z-index:20;background:rgba(20,18,16,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
 .ph-img{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.ph-stage{display:contents}.ph-stage[hidden]{display:none}
 .ph-img canvas,.ph-img img{max-width:100%;max-height:100%;object-fit:contain;display:block;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .ph-img [hidden]{display:none}
 .ph-bar{width:min(480px,80%);height:3px;background:rgba(255,255,255,.18)}.ph-bar i{display:block;height:100%;width:0;background:#fff;transition:width .2s}
@@ -328,6 +330,14 @@ details[open] summary::after{content:"–"}
 .swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:6px 0}
 .swatches button{height:34px;border:1px solid var(--rule)}
 .swatches button[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}
+
+.ph-tools button[hidden],.ph-tools label[hidden]{display:none}
+.ph-gpt{position:absolute;left:50%;bottom:max(70px,calc(env(safe-area-inset-bottom) + 64px));transform:translateX(-50%);width:min(560px,92%);background:var(--paper);color:var(--ink);padding:14px;border:1px solid var(--ink);font:400 14px/1.45 var(--sans)}
+.ph-gpt[hidden]{display:none}
+.ph-gpt p{margin:0 0 8px}
+.ph-gpt textarea{width:100%;font:inherit;font-size:14px;padding:8px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);resize:vertical}
+.ph-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ph-row button,.ph-row a{height:36px;padding:0 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);font:600 13px/34px var(--sans);text-decoration:none;cursor:pointer}
 </style></head><body>
 <div class="app" id="app">
   <header class="top">
@@ -2546,7 +2556,7 @@ details[open] summary::after{content:"–"}
         if (mi.shape === 'round') return ell(w / 2, cz, W / 2, Hh / 2, 40);
         if (mi.shape === 'pill' || mi.shape === 'rrect') return rrect(u0, v0, u0 + W, v0 + Hh, mi.shape === 'pill' ? Math.min(W, Hh) / 2 : Math.max(2, (mi.r || 80) - ins)).map(([a, b]) => [a, b]);
         return rect(u0, v0, u0 + W, v0 + Hh); };
-      const out = face(0), inn = face(fr); M.slabs = [{ face: out, v0: 0, v1: d, round: mi.shape !== 'rect' }];
+      const out = face(0), inn = face(fr); M.slabs = [{ face: out, v0: 0, v1: d, round: mi.shape !== 'rect' }]; if (inn) M.slabs.push({ face: inn, v0: -3, v1: 0, round: mi.shape !== 'rect', mat: 'mirror' });
       if (inn) { M.lines.push(...inn.map((p, k2) => { const q = inn[(k2 + 1) % inn.length]; return [[p[0], -1, p[1]], [q[0], -1, q[1]]]; }));
         const iw = w - 2 * fr, ih = Hm - 2 * fr; for (const [a0, b0, a1, b1] of [[0.18, 0.55, 0.42, 0.78], [0.3, 0.42, 0.62, 0.72]]) M.lines.push([[fr + iw * a0, -1, z0 + fr + ih * b0], [fr + iw * a1, -1, z0 + fr + ih * b1]]); }
       M.plan.push({ pts: [[0, d / 2], [w, d / 2]], open: true });
@@ -7261,7 +7271,7 @@ details[open] summary::after{content:"–"}
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
     const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
-    if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const q of M.slabs || []) slab(B, f, q.face, q.v0, q.v1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
+    if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const q of M.slabs || []) slab(q.mat === 'mirror' && BM ? BM : B, f, q.face, q.v0, q.v1, q.mat === 'mirror' && BM ? [0.9, 0.9, 0.9] : col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
     if (id === 'tableronde') { prism(B, ellipse(f), 720, 750, col, true); prism(B, sub(f, w / 2 - 45, w / 2 + 45, d / 2 - 45, d / 2 + 45), 0, 720, col); return; }
@@ -7458,7 +7468,7 @@ details[open] summary::after{content:"–"}
   };
 
   /* ---------- photo réaliste : couleurs (linéaires), parquet planche par planche ---------- */
-  let PH = false;
+  let PH = false, BM = null; // BM : verre des miroirs, à part en mode photo
   const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
   const hexLin = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return [0.85, 0.85, 0.85]; const n = parseInt(m[1], 16); return [lin(((n >> 16) & 255) / 255), lin(((n >> 8) & 255) / 255), lin((n & 255) / 255)]; };
   V.PAINT0 = '#f1eee8';
@@ -7472,7 +7482,7 @@ details[open] summary::after{content:"–"}
     if (/^lit|canape|lindakra|fauteuil|angle/.test(id)) return hexLin('#d8d2c8');
     return hexLin('#ecebe7');
   };
-  const photoFloorTexture = (fid, rooms, bb, cal) => {
+  const photoFloorCanvas = (fid, rooms, bb, cal) => {
     const MX = matchMedia('(pointer:coarse)').matches ? 2048 : 4096;
     const W = bb.x1 - bb.x0, H = bb.y1 - bb.y0, k = Math.min(MX / W, MX / H, 0.8); const cw = Math.max(16, Math.ceil(W * k)), ch = Math.max(16, Math.ceil(H * k));
     const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
@@ -7510,14 +7520,13 @@ details[open] summary::after{content:"–"}
     x.save(); x.shadowColor = 'rgba(0,0,0,0.2)'; x.shadowBlur = 110 * k; x.shadowOffsetX = 20000; x.translate(-20000, 0); x.fillStyle = '#000';
     for (const s of App.shapesOn(fid)) if (['meuble', 'poteau', 'forme'].includes(s.kind) && !(App.stack && App.stack.under(s)) && !(s.lib && /^mir|nissedal|lindbyn|larbro/.test(s.lib))) { path(s.pts); x.fill(); }
     x.restore();
-    const tex = new T.CanvasTexture(c); tex.flipY = false; tex.encoding = T.sRGBEncoding; tex.anisotropy = st.R.capabilities.getMaxAnisotropy ? st.R.capabilities.getMaxAnisotropy() : 1; tex.minFilter = T.LinearMipmapLinearFilter;
-    return tex;
+    return c;
   };
 
   const build = () => {
     const fid = st.fid, f = S.p.floors.find((x) => x.id === fid) || App.floor(); const rooms = App.rooms(fid), shapes = App.shapesOn(fid);
     const Hf = (f.ceiling || 250) * 10 + SLAB, Hc0 = (f.ceiling || 250) * 10;
-    const B = mk(), FL = mk(), BF = PH ? mk() : B, OC = PH ? mk() : null; st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
+    const B = mk(), FL = mk(), BF = PH ? mk() : B, OC = PH ? mk() : null; BM = PH ? mk() : null; st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
     const all = shapes.flatMap((s) => s.pts || []); if (!all.length) return false;
     const bb = { x0: Math.min(...all.map((p) => p.x)) - 200, y0: Math.min(...all.map((p) => p.y)) - 200, x1: Math.max(...all.map((p) => p.x)) + 200, y1: Math.max(...all.map((p) => p.y)) + 200 };
     st.bb = bb; st.rooms = rooms; st.Hf = Hf;
@@ -7577,14 +7586,7 @@ details[open] summary::after{content:"–"}
     // maillages
     const geo = (A, withUv) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3)); if (withUv) g.setAttribute('uv', new T.Float32BufferAttribute(A.uv, 2)); return g; };
     const matOpts = { specular: 0x000000, shininess: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: T.FrontSide, shadowSide: T.DoubleSide };
-    if (PH) { // photo réaliste : matériaux physiques, parquet dessiné planche par planche, pas de traits
-      const main = new T.Mesh(geo(B), new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide }));
-      const floor = new T.Mesh(geo(FL, true), new T.MeshStandardMaterial({ map: photoFloorTexture(fid, rooms, bb, App.calepinage(fid)), roughness: 0.62, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide }));
-      const furn = new T.Mesh(geo(BF), main.material), occ = new T.Mesh(geo(OC), main.material);
-      main.name = 'shell'; floor.name = 'floor'; furn.name = 'furn'; occ.name = 'occ';
-      for (const o of [main, floor, furn, occ]) { o.castShadow = true; o.receiveShadow = true; }
-      const grp = new T.Group(); grp.add(main, floor, furn, occ); st.scene.add(grp); st.grp = grp; return true;
-    }
+    if (PH) { st.phData = { shell: B, floor: FL, furn: BF, occ: OC, mirror: BM, fid, rooms, bb }; return true; } // photo : tampons bruts, chaque moteur fait ses maillages
     const main = new T.Mesh(geo(B), new T.MeshPhongMaterial(Object.assign({ vertexColors: true }, matOpts)));
     const tex = floorTexture(fid, rooms, bb, App.calepinage(fid));
     const floor = new T.Mesh(geo(FL, true), new T.MeshPhongMaterial(Object.assign({ map: tex }, matOpts)));
@@ -7677,71 +7679,210 @@ details[open] summary::after{content:"–"}
   V.active = () => !!st;
   V.debug = () => st;
 
-  /* ---------- photo réaliste : on garde la vue simple pour se déplacer, et on « prend une photo » rendue à part :
-     même géométrie, matériaux physiques, murs à leur peinture, parquet planche par planche ; lumière naturelle =
-     soleil (pénombre douce) + ciel échantillonné direction par direction avec ses ombres, de sorte qu'il n'entre que
-     par les fenêtres ; les passes s'accumulent en flottant (lissage, ombres douces), puis exposition et ACES. ---------- */
+  /* ---------- photo réaliste ----------
+     La visite reste en rendu simple pour se déplacer ; « Photo réaliste » reconstruit la vue en mode photo et la calcule à part.
+     Moteur principal : lancer de rayons (three-gpu-pathtracer sur un three.js récent, chargés à la demande) : la lumière du
+     soleil et du ciel entre par les fenêtres et rebondit, reflets dans les miroirs, ombres justes. Repli : rendu rapide par
+     passes accumulées (soleil, ciel et rebonds approchés avec des ombres portées). */
   const QV = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
-  V.photo = () => {
-    if (!st || st.ph) return; const R = st.R, coarse = matchMedia('(pointer:coarse)').matches;
-    const cfg = V.photoCfg || {}, vw = st.el.clientWidth, vh = st.el.clientHeight, LS = cfg.LS || (coarse ? 1400 : 1920), asp = vw / vh;
-    const Wp = Math.round(asp >= 1 ? LS : LS * asp), Hp = Math.round(asp >= 1 ? LS / asp : LS);
-    // scène photo : on reconstruit l'étage en mode photo, puis on rend la main à la visite
+  let PTM = null; // modules du lancer de rayons
+  const loadPT = () => PTM || (PTM = Promise.all([import('three'), import('three-gpu-pathtracer')]).then(([THREE, P]) => ({ THREE, P })).catch((e) => { PTM = null; throw e; }));
+
+  // la vue courante reconstruite en mode photo : tampons bruts (sommets, normales, couleurs linéaires), caméra, soleil
+  const photoData = () => {
     const keep = { grp: st.grp, L: st.L, segs: st.segs, leaves: st.leaves, rail: st.rail, doors: st.doors, slopes: st.slopes, stairs: st.stairs, rooms: st.rooms, bb: st.bb, Hf: st.Hf };
-    let ok = false; PH = true; try { ok = build(); } catch (e) { ok = false; } finally { PH = false; }
-    const pg = ok ? st.grp : null; Object.assign(st, keep); if (!pg) { App.toast && App.toast('Rendu impossible sur cet étage.'); return; }
-    st.scene.remove(pg); placeSun();
-    const scene = new T.Scene(); scene.add(pg); scene.background = new T.Color(1.35, 1.55, 1.9);
-    scene.add(new T.AmbientLight(0xfff4e8, 0.035));
-    const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 1;
+    let ok = false; st.phData = null; PH = true; try { ok = build(); } catch (e) { ok = false; console.warn(e); } finally { PH = false; BM = null; }
+    const d = ok ? st.phData : null; st.phData = null; Object.assign(st, keep); placeSun(); if (!d) return null;
+    const c = st.cam; d.cam = { fov: c.fov, pos: [c.position.x, c.position.y, c.position.z], rot: [c.rotation.x, c.rotation.y, c.rotation.z] };
+    const sd = st.sun.position.clone().sub(st.sun.target.position).normalize(); d.sun = [sd.x, sd.y, sd.z];
+    d.here = d.rooms.find((r) => G.pointInPoly(st.pos, r.pts)) || null; return d;
+  };
+
+  // lames de parquet : une plaque par lame posée 1 mm au-dessus d'un fond sombre (le joint), teinte propre, veinage d'une des 6 bandes de la texture
+  const plankData = (d) => {
+    const A = mk(), FLAT = mk(), cal = App.calepinage(d.fid), PQ = S.p.parquet || {}, Lp = PQ.L || 1286, Wp = PQ.W || 214, NV = 6;
+    let seed = 4242; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const oak = (l, wm) => [lin((196 * l) / 255), lin(((160 - wm * 60) * l) / 255), lin(((118 - wm * 80) * l) / 255)];
+    for (const r of d.rooms) {
+      if (r.parquet === false) { fill(FLAT, r.pts, [], () => 1, [0, 1, 0], hexLin('#d3cfc6')); continue; }
+      const res = cal && cal.results[r.id], polys = res ? (cal.polys = cal.polys || {}, cal.polys[r.id] = cal.polys[r.id] || PL.layout.boardPolys(res)) : null;
+      if (!polys || !polys.length) { fill(FLAT, r.pts, [], () => 1, [0, 1, 0], oak(0.98, 0.03)); continue; }
+      for (const b of polys) {
+        const P0 = b.poly; if (!P0 || P0.length < 3) continue; const P = G.offset(P0, G.area(P0) > 0 ? 0.8 : -0.8); if (!P || P.length < 3 || Math.abs(G.area(P)) < 100) continue;
+        let a0 = 0, best = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length], L = G.dist(p, q); if (L > best) { best = L; a0 = Math.atan2(q.y - p.y, q.x - p.x); } }
+        const u = { x: Math.cos(a0), y: Math.sin(a0) }, v = { x: -u.y, y: u.x }, s0 = Math.min(...P.map((p) => G.dot(p, u))), t0 = Math.min(...P.map((p) => G.dot(p, v)));
+        const k = Math.floor(rnd() * NV), off = rnd() * 0.35, col = oak(0.86 + rnd() * 0.26, rnd() * 0.08);
+        fill(A, P, [], () => 1, [0, 1, 0], col, (p) => [Math.min(1, off + ((G.dot(p, u) - s0) / Lp) * (1 - off)), (k + Math.max(0.02, Math.min(0.98, (G.dot(p, v) - t0) / Wp))) / NV]);
+      }
+    }
+    return { planks: A, flat: FLAT };
+  };
+  // texture de veinage du chêne : 6 bandes (une par variante de lame), à multiplier par la teinte de chaque lame
+  const grainCanvas = (size) => {
+    const c = document.createElement('canvas'); c.width = size; c.height = size; const x = c.getContext('2d'), sh = size / 6, sc = size / 2048;
+    let seed = 777; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let k = 0; k < 6; k++) {
+      const y0 = k * sh; x.fillStyle = '#efe6da'; x.fillRect(0, y0, size, sh); x.save(); x.beginPath(); x.rect(0, y0, size, sh); x.clip();
+      for (let j = 0; j < 50; j++) { const yy = y0 + rnd() * sh, amp = (1 + rnd() * 6) * sc, fq = (0.0015 + rnd() * 0.008) / sc, ph = rnd() * 6.3; x.beginPath(); for (let t = 0; t <= size; t += 6) { const y = yy + Math.sin(t * fq + ph) * amp + Math.sin(t * fq * 3.1 + ph) * amp * 0.3; t ? x.lineTo(t, y) : x.moveTo(t, y); } x.strokeStyle = `rgba(${105 + Math.round(rnd() * 25)},${74 + Math.round(rnd() * 16)},46,${0.05 + rnd() * 0.2})`; x.lineWidth = (0.6 + rnd() * 2.4) * sc; x.stroke(); }
+      for (let m = 0; m < 3; m++) if (rnd() < 0.5) { x.beginPath(); x.ellipse(rnd() * size, y0 + sh * (0.2 + rnd() * 0.6), (8 + rnd() * 14) * sc, (3 + rnd() * 4) * sc, 0, 0, Math.PI * 2); x.fillStyle = 'rgba(92,60,32,0.4)'; x.fill(); }
+      const g = x.createLinearGradient(0, y0, 0, y0 + sh); g.addColorStop(0, 'rgba(90,60,30,0.10)'); g.addColorStop(0.08, 'rgba(0,0,0,0)'); g.addColorStop(0.92, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(90,60,30,0.10)'); x.fillStyle = g; x.fillRect(0, y0, size, sh);
+      x.restore();
+    }
+    return c;
+  };
+
+  // prompt pour ChatGPT : rendre la capture photographique sans rien changer à la scène
+  const gptPrompt = (d) => {
+    const r = d && d.here, pt = r && r.paint, PQ = S.p.parquet || {};
+    const murs = pt && (pt.ref || pt.hex) ? `murs peints${pt.ref ? ' « ' + pt.ref + ' »' : ''}${pt.hex ? ' (teinte ' + pt.hex + ')' : ''}` : 'murs blancs';
+    return [
+      "Transforme cette image en une vraie photographie d'intérieur, comme prise par un photographe d'architecture, à la lumière naturelle du jour qui entre par les fenêtres.",
+      "Reste le plus fidèle possible à l'image fournie : même cadrage et même point de vue, même pièce, mêmes meubles exactement aux mêmes places, aux mêmes dimensions et dans les mêmes couleurs, mêmes fenêtres et portes, mêmes couleurs de murs et de sol.",
+      "N'ajoute ni ne retire aucun meuble et ne change pas la disposition. Tu peux seulement rendre les matières réalistes (bois, mélaminé, tissu, peinture mate), les ombres douces et les reflets, et ajouter de tout petits détails discrets (plinthes, poignées, prises).",
+      `Pièce : ${r && r.name ? r.name : 'chambre'} ; ${murs} ; sol : ${PQ.name || 'parquet en chêne'}.`,
+      "Pas de personnes, pas de texte, pas de déformation grand-angle.",
+    ].join('\n');
+  };
+
+  // fenêtre de résultat, commune aux deux moteurs
+  const photoUI = (d) => {
+    const ov = document.createElement('div'); ov.className = 'ph';
+    ov.innerHTML = `<div class="ph-img"><div class="ph-stage"></div><img alt="Rendu réaliste de la vue" hidden></div><div class="ph-bar"><i></i></div>
+      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="close">Fermer</button></div>
+      <div class="ph-gpt" hidden><p>Le prompt est copié. Gardez l'image (appui long dessus, ou « Enregistrer »), ouvrez ChatGPT, joignez-la et collez le prompt :</p><textarea readonly rows="6"></textarea><div class="ph-row"><button data-ph="copy">Copier le prompt</button><a href="https://chatgpt.com/" target="_blank" rel="noopener">Ouvrir ChatGPT</a><button data-ph="gptx">OK</button></div></div>`;
+    st.el.appendChild(ov); const q = (x) => ov.querySelector(x);
+    const ui = { ov, stage: q('.ph-stage'), img: q('img'), bar: q('.ph-bar i'), stx: q('.ph-st'), stop: q('[data-ph=stop]'), ex: q('.ph-ex'), rng: q('.ph-ex input'), save: q('.ph-save'), gpt: q('[data-ph=gpt]'), gp: q('.ph-gpt'), blob: null };
+    ui.progress = (f, txt) => { ui.bar.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; ui.stx.textContent = txt; };
+    ui.capture = (cv) => { const url = cv.toDataURL('image/jpeg', 0.92); ui.img.src = url; ui.save.href = url; if (cv.toBlob) cv.toBlob((b) => { ui.blob = b; }, 'image/jpeg', 0.92); };
+    ui.done = (cv, txt) => { ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
+    const txt = () => gptPrompt(d), fallback = () => { ui.gp.hidden = false; ui.gp.querySelector('textarea').value = txt(); };
+    ui.gpt.addEventListener('click', () => {
+      const t = txt(); try { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); } catch (e) { /* presse-papiers refusé */ }
+      const f = ui.blob && typeof File === 'function' ? new File([ui.blob], 'calepin-photo.jpg', { type: 'image/jpeg' }) : null;
+      if (f && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], text: t }).then(() => {}, (e) => { if (!e || e.name !== 'AbortError') fallback(); }); App.toast && App.toast('Prompt copié : choisissez ChatGPT dans le partage'); return; }
+      fallback();
+    });
+    q('[data-ph=copy]').addEventListener('click', () => { const ta = ui.gp.querySelector('textarea'); try { navigator.clipboard.writeText(ta.value).then(() => App.toast && App.toast('Prompt copié'), () => { ta.select(); }); } catch (e) { ta.select(); } });
+    q('[data-ph=gptx]').addEventListener('click', () => { ui.gp.hidden = true; });
+    return ui;
+  };
+
+  V.photo = async () => {
+    if (!st || st.ph) return;
+    const cfg = V.photoCfg || {}, coarse = matchMedia('(pointer:coarse)').matches, asp = st.el.clientWidth / st.el.clientHeight;
+    const d = photoData(); if (!d) { App.toast && App.toast('Rendu impossible sur cet étage.'); return; }
+    const ui = photoUI(d); let eng = null, closed = false;
+    const close = () => { closed = true; try { if (eng) eng.close(); } catch (e) { /* déjà libéré */ } ui.ov.remove(); if (st) { st.ph = null; st.dirty = true; } };
+    st.ph = { ui, close }; ui.ov.querySelector('[data-ph=close]').addEventListener('click', close);
+    ui.rng.addEventListener('input', () => { if (eng && eng.exposure) eng.exposure(+ui.rng.value); });
+    ui.stop.addEventListener('click', () => { if (eng && eng.stop) eng.stop(); });
+    const size = (LS) => { LS = cfg.LS || LS; return asp >= 1 ? [LS, Math.round(LS / asp)] : [Math.round(LS * asp), LS]; };
+    if (!cfg.quick) {
+      try {
+        ui.progress(0.01, 'Chargement du moteur de lancer de rayons…'); const mods = await loadPT(); if (closed) return;
+        const [W, H] = size(coarse ? 1100 : 1600); eng = ptEngine(mods, d, ui, W, H, cfg, coarse); await eng.start(); return;
+      } catch (e) { console.warn('lancer de rayons indisponible', e); if (closed) return; try { if (eng) eng.close(); } catch (e2) { /* rien */ } eng = null; ui.stage.innerHTML = ''; ui.progress(0, 'Lancer de rayons indisponible ici : rendu rapide…'); }
+    }
+    const [W, H] = size(coarse ? 1400 : 1920); eng = quickEngine(d, ui, W, H, cfg, coarse); eng.start();
+  };
+
+  /* lancer de rayons : progressif, exposition automatique, arrêt possible à tout moment */
+  const ptEngine = ({ THREE: M, P }, d, ui, Wp, Hp, cfg, coarse) => {
+    const cv = document.createElement('canvas'); cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv);
+    const R2 = new M.WebGLRenderer({ canvas: cv, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    R2.setPixelRatio(1); R2.setSize(Wp, Hp, false); R2.toneMapping = M.ACESFilmicToneMapping; R2.outputColorSpace = M.SRGBColorSpace;
+    const sc = new M.Scene(), owned = [];
+    const geo = (A, uv) => { const g = new M.BufferGeometry(); g.setAttribute('position', new M.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new M.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new M.Float32BufferAttribute(A.c, 3)); if (uv && A.uv.length) g.setAttribute('uv', new M.Float32BufferAttribute(A.uv, 2)); return g; };
+    const add = (A, mat) => { owned.push(mat); if (!A || !A.p.length) return; const g = geo(A, !!mat.map); owned.push(g); sc.add(new M.Mesh(g, mat)); };
+    const walls = new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.93 });
+    add(d.shell, walls); add(d.occ, walls);
+    add(d.furn, new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }));
+    add(d.mirror, new M.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.02 }));
+    add(d.floor, new M.MeshStandardMaterial({ color: 0x3a2b1f, roughness: 1 }));
+    const pk = plankData(d), TS = cfg.ts || (coarse ? 1024 : 2048), tex = new M.CanvasTexture(grainCanvas(TS)); tex.colorSpace = M.SRGBColorSpace; tex.flipY = false; owned.push(tex);
+    add(pk.planks, new M.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.4 }));
+    add(pk.flat, new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.45 }));
+    // ciel : horizon clair, zénith bleu, sol vert-gris (en HDR) ; soleil dans la direction choisie avec « Soleil »
+    const sky = new P.ProceduralEquirectTexture(512, 256), dir = new M.Vector3();
+    sky.generationCallback = (polar, uv, coord, color) => { dir.setFromSpherical(polar); const y = dir.y; if (y >= 0) { const t = Math.pow(y, 0.5); color.setRGB(1.5 + (0.45 - 1.5) * t, 1.55 + (0.7 - 1.55) * t, 1.6 + (1.35 - 1.6) * t); } else { const t = Math.min(1, -y * 3); color.setRGB(0.5 - 0.22 * t, 0.52 - 0.2 * t, 0.45 - 0.22 * t); } };
+    sky.update(); owned.push(sky); sc.background = sky; sc.environment = sky;
+    const bb = d.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, sd = new M.Vector3(...d.sun).normalize();
+    const sun = new M.DirectionalLight(0xfff0d8, cfg.sun || 9); sun.position.set(cx + sd.x * 60, sd.y * 60, cz + sd.z * 60); sun.target.position.set(cx, 0, cz); sc.add(sun, sun.target); sun.target.updateMatrixWorld();
+    const cam = new M.PerspectiveCamera(d.cam.fov, Wp / Hp, 0.05, 300); cam.position.set(...d.cam.pos); cam.rotation.set(d.cam.rot[0], d.cam.rot[1], d.cam.rot[2], 'YXZ'); cam.updateMatrixWorld();
+    const pt = new P.WebGLPathTracer(R2); pt.tiles.set(cfg.tiles || 2, cfg.tiles || 2); pt.bounces = cfg.bounces || 6; pt.filterGlossyFactor = 0.5; pt.minSamples = 1; pt.renderDelay = 0; pt.fadeDuration = 0; pt.dynamicLowRes = false; pt.textureSize.set(TS, TS);
+    const TARGET = cfg.samples || (coarse ? 180 : 360); let raf = 0, dead = false, stopped = false, expo = 1, user = 0, metered = 0;
+    const mc = document.createElement('canvas'), mw = 160, mh = Math.max(20, Math.round((160 * Hp) / Wp)); mc.width = mw; mc.height = mh; const mx = mc.getContext('2d', { willReadFrequently: true });
+    const meter = () => { // exposition auto : médiane des luminances vers 0,42
+      mx.drawImage(cv, 0, 0, mw, mh); const px = mx.getImageData(0, 0, mw, mh).data, L = []; for (let i = 0; i < px.length; i += 4) L.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]); L.sort((a, b) => a - b);
+      const m = Math.max(3, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.15, Math.min(12, expo * Math.pow(0.42 / m, 1.8))); R2.toneMappingExposure = expo * Math.pow(2, user); };
+    const finish = (txt) => { cancelAnimationFrame(raf); pt.pausePathTracing = true; pt.renderSample(); ui.done(cv, txt); };
+    const frame = () => {
+      if (dead) return; pt.renderSample(); const n = Math.floor(pt.samples);
+      ui.progress(n / TARGET, pt.isCompiling ? 'Préparation des matériaux…' : `Lancer de rayons… ${n} / ${TARGET} passes`);
+      if (n >= 3 && metered === 0) { meter(); metered = 1; } else if (n >= 24 && metered === 1) { meter(); metered = 2; } else if (n >= TARGET * 0.6 && metered === 2) { meter(); metered = 3; }
+      if (n >= TARGET || stopped) { if (metered < 3) meter(); finish(stopped ? `Photo prête (${n} passes)` : 'Photo prête'); return; }
+      raf = requestAnimationFrame(frame);
+    };
+    return {
+      start: async () => {
+        ui.progress(0.02, 'Préparation de la scène…');
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); pt.setScene(sc, cam); // arbre de volumes englobants construit d'un coup
+        if (dead) return; ui.stop.hidden = false; raf = requestAnimationFrame(frame);
+      },
+      stop: () => { stopped = true; },
+      exposure: (v) => { user = v; R2.toneMappingExposure = expo * Math.pow(2, user); if (pt.pausePathTracing) { pt.renderSample(); ui.capture(cv); } },
+      close: () => { dead = true; cancelAnimationFrame(raf); try { pt.dispose(); } catch (e) { /* rien */ } for (const o of owned) if (o && o.dispose) o.dispose(); R2.dispose(); if (R2.forceContextLoss) R2.forceContextLoss(); cv.remove(); },
+    };
+  };
+
+  /* rendu rapide (repli) : passes accumulées en flottant — soleil légèrement décalé (pénombre), ciel échantillonné
+     direction par direction avec ses ombres (il n'entre que par les fenêtres), rebonds approchés où seuls les meubles font ombre */
+  const quickEngine = (d, ui, Wp, Hp, cfg, coarse) => {
+    const R = st.R, owned = [];
+    const geo = (A, uv) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3)); if (uv) g.setAttribute('uv', new T.Float32BufferAttribute(A.uv, 2)); owned.push(g); return g; };
+    const base = { roughness: 0.9, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide };
+    const mat = new T.MeshStandardMaterial(Object.assign({ vertexColors: true }, base)); owned.push(mat);
+    const ftex = new T.CanvasTexture(photoFloorCanvas(d.fid, d.rooms, d.bb, App.calepinage(d.fid))); ftex.flipY = false; ftex.encoding = T.sRGBEncoding; ftex.anisotropy = R.capabilities.getMaxAnisotropy ? R.capabilities.getMaxAnisotropy() : 1; ftex.minFilter = T.LinearMipmapLinearFilter; owned.push(ftex);
+    const fmat = new T.MeshStandardMaterial(Object.assign({ map: ftex }, base, { roughness: 0.62 })), mmat = new T.MeshStandardMaterial(Object.assign({}, base, { color: 0xd9dee2, roughness: 0.12, metalness: 0.25 })); owned.push(fmat, mmat);
+    const pg = new T.Group(), meshes = {};
+    for (const [k, A, m, uv] of [['shell', d.shell, mat], ['floor', d.floor, fmat, true], ['furn', d.furn, mat], ['occ', d.occ, mat], ['mirror', d.mirror, mmat]]) { if (!A || !A.p.length) continue; const o = new T.Mesh(geo(A, uv), m); o.castShadow = o.receiveShadow = true; meshes[k] = o; pg.add(o); }
+    const scene = new T.Scene(); scene.add(pg); scene.background = new T.Color(1.35, 1.55, 1.9); scene.add(new T.AmbientLight(0xfff4e8, 0.035));
+    const bb = d.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 1;
     const mkL = (size, col) => { const L = new T.DirectionalLight(col, 1); L.castShadow = true; L.shadow.mapSize.set(size, size); L.shadow.bias = -0.0004; L.shadow.normalBias = 0.006; const c = L.shadow.camera; c.left = -R0; c.right = R0; c.top = R0; c.bottom = -R0; c.near = 1; c.far = 140; c.updateProjectionMatrix(); scene.add(L, L.target); return L; };
     const sun = mkL(cfg.sh || (coarse ? 2048 : 4096), 0xfff0dc), sky = mkL(cfg.sh ? cfg.sh / 2 : coarse ? 1024 : 2048, 0xd6e4ff), amb = mkL(cfg.sh ? cfg.sh / 2 : 1024, 0xffffff);
-    // les rebonds prennent un peu la teinte des murs de la pièce où l'on se tient
-    { const here = st.rooms.find((r) => G.pointInPoly(st.pos, r.pts)), pc = here ? paintCol(here) : [0.85, 0.85, 0.85], m = Math.max(...pc, 0.01); amb.color.setRGB(0.65 + 0.35 * pc[0] / m, 0.65 + 0.35 * pc[1] / m, 0.65 + 0.35 * pc[2] / m); }
-    const meshes = {}; pg.traverse((o) => { if (o.isMesh) meshes[o.name] = o; });
+    { const pc = d.here ? paintCol(d.here) : [0.85, 0.85, 0.85], m = Math.max(...pc, 0.01); amb.color.setRGB(0.65 + (0.35 * pc[0]) / m, 0.65 + (0.35 * pc[1]) / m, 0.65 + (0.35 * pc[2]) / m); }
     const setPass = (bounce, below) => { sun.castShadow = sky.castShadow = !bounce; amb.castShadow = bounce && !below; for (const k of ['shell', 'floor', 'occ']) if (meshes[k]) meshes[k].castShadow = !bounce; };
-    const sunDir = st.sun.position.clone().sub(st.sun.target.position).normalize();
-    const cam = st.cam.clone(); cam.aspect = Wp / Hp; cam.updateProjectionMatrix();
-    const ht = (R.capabilities.isWebGL2 || R.extensions.has('OES_texture_half_float')) ? T.HalfFloatType : T.FloatType;
-    const rtP = new T.WebGLRenderTarget(Wp, Hp, { type: ht, depthBuffer: true, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
-    const rtA = new T.WebGLRenderTarget(Wp, Hp, { type: ht, depthBuffer: false, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
-    const rtO = new T.WebGLRenderTarget(Wp, Hp, { depthBuffer: false, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
+    const sunDir = new T.Vector3(...d.sun).normalize();
+    const cam = new T.PerspectiveCamera(d.cam.fov, Wp / Hp, 0.05, 300); cam.position.set(...d.cam.pos); cam.rotation.order = 'YXZ'; cam.rotation.set(...d.cam.rot); cam.updateMatrixWorld();
+    const ht = R.capabilities.isWebGL2 || R.extensions.has('OES_texture_half_float') ? T.HalfFloatType : T.FloatType, rto = { minFilter: T.NearestFilter, magFilter: T.NearestFilter };
+    const rtP = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ type: ht, depthBuffer: true }, rto)), rtA = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ type: ht, depthBuffer: false }, rto)), rtO = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ depthBuffer: false }, rto));
     const qc = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), plane = new T.PlaneGeometry(2, 2);
     const accM = new T.ShaderMaterial({ uniforms: { t: { value: rtP.texture }, k: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float k; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb * k, 1.); }', blending: T.AdditiveBlending, transparent: true, depthTest: false, depthWrite: false });
     const outM = new T.ShaderMaterial({ uniforms: { t: { value: rtA.texture }, e: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float e; varying vec2 vUv; vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0., 1.); } void main(){ vec3 c = aces(max(texture2D(t, vUv).rgb, 0.) * e); gl_FragColor = vec4(pow(c, vec3(1./2.2)), 1.); }', depthTest: false, depthWrite: false });
     const accS = new T.Scene(), outS = new T.Scene(); accS.add(new T.Mesh(plane, accM)); outS.add(new T.Mesh(plane, outM));
-    // fenêtre de résultat
-    const ov = document.createElement('div'); ov.className = 'ph';
-    ov.innerHTML = `<div class="ph-img"><canvas width="${Wp}" height="${Hp}"></canvas><img alt="Rendu réaliste de la vue" hidden></div>
-      <div class="ph-bar"><i></i></div>
-      <div class="ph-tools"><span class="ph-st">Rendu en cours…</span><label class="ph-ex">Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0" disabled></label><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="close">Fermer</button></div>`;
-    st.el.appendChild(ov); st.ph = { ov };
-    const cv = ov.querySelector('canvas'), cx2 = cv.getContext('2d'), img = ov.querySelector('img'), bar = ov.querySelector('.ph-bar i'), stx = ov.querySelector('.ph-st'), rng = ov.querySelector('input'), sv = ov.querySelector('.ph-save');
-    const N = cfg.N || (coarse ? 48 : 96), SUN = 2.8, SKY = 1.25, AMB = 1.15; let i = 0, expo = 1, user = 0, dead = false; const buf = new Uint8Array(Wp * Hp * 4), id = cx2.createImageData(Wp, Hp);
+    const cv = document.createElement('canvas'); cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv); const cx2 = cv.getContext('2d');
+    const N = cfg.N || (coarse ? 48 : 96), SUN = 2.8, SKY = 1.25, AMB = 1.15; let i = 0, expo = 1, user = 0, dead = false, raf = 0, metered = false; const buf = new Uint8Array(Wp * Hp * 4), id = cx2.createImageData(Wp, Hp);
     let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const withState = (fn) => { const tm = R.toneMapping, enc = R.outputEncoding, ty = R.shadowMap.type, ac = R.autoClear, cc = R.getClearColor(new T.Color()).clone(), ca = R.getClearAlpha();
       R.toneMapping = T.NoToneMapping; R.outputEncoding = T.LinearEncoding; R.shadowMap.type = T.PCFSoftShadowMap;
-      try { fn(); } finally { R.setRenderTarget(null); R.toneMapping = tm; R.outputEncoding = enc; R.shadowMap.type = ty; R.autoClear = ac; R.setClearColor(cc, ca); R.shadowMap.needsUpdate = true; st.dirty = true; } };
-    const show = () => { // ton final → image (lignes inversées)
-      outM.uniforms.e.value = expo * Math.pow(2, user) * (N / Math.max(1, i)); R.setRenderTarget(rtO); R.autoClear = true; R.render(outS, qc); R.readRenderTargetPixels(rtO, 0, 0, Wp, Hp, buf);
-      const d = id.data, row = Wp * 4; for (let y = 0; y < Hp; y++) d.set(buf.subarray((Hp - 1 - y) * row, (Hp - y) * row), y * row); cx2.putImageData(id, 0, 0); };
-    const meter = () => { // exposition auto : la médiane des luminances vers 0,46
-      const L = []; for (let p = 0; p < buf.length; p += 4 * 37) L.push(0.2126 * buf[p] + 0.7152 * buf[p + 1] + 0.0722 * buf[p + 2]); L.sort((a, b) => a - b);
-      const m = Math.max(4, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.25, Math.min(8, expo * Math.pow(0.42 / m, 2.0))); };
+      try { fn(); } finally { R.setRenderTarget(null); R.toneMapping = tm; R.outputEncoding = enc; R.shadowMap.type = ty; R.autoClear = ac; R.setClearColor(cc, ca); R.shadowMap.needsUpdate = true; if (st) st.dirty = true; } };
+    const show = () => { outM.uniforms.e.value = expo * Math.pow(2, user) * (N / Math.max(1, i)); R.setRenderTarget(rtO); R.autoClear = true; R.render(outS, qc); R.readRenderTargetPixels(rtO, 0, 0, Wp, Hp, buf);
+      const dd = id.data, row = Wp * 4; for (let y = 0; y < Hp; y++) dd.set(buf.subarray((Hp - 1 - y) * row, (Hp - y) * row), y * row); cx2.putImageData(id, 0, 0); };
+    const meter = () => { const L = []; for (let p = 0; p < buf.length; p += 4 * 37) L.push(0.2126 * buf[p] + 0.7152 * buf[p + 1] + 0.0722 * buf[p + 2]); L.sort((a, b) => a - b); const m = Math.max(4, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.25, Math.min(8, expo * Math.pow(0.42 / m, 2.0))); };
     const pass = () => {
       if (dead || !st) return;
       withState(() => {
         const t0 = performance.now();
         while (i < N && performance.now() - t0 < 45) {
           const sd = sunDir.clone().add(new T.Vector3((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04)).normalize();
-          sun.position.set(cx + sd.x * 70, sd.y * 70, cz + sd.z * 70); sun.target.position.set(cx, 0, cz); sun.target.updateMatrixWorld(); 
+          sun.position.set(cx + sd.x * 70, sd.y * 70, cz + sd.z * 70); sun.target.position.set(cx, 0, cz); sun.target.updateMatrixWorld();
           const ix = Math.floor(((i * 0.6180339887) % 1) * N), ce = 0.04 + 0.96 * ((ix + rnd()) / N), ph = ix * 2.39996 + rnd() * 0.4, se = Math.sqrt(1 - ce * ce);
-          sky.position.set(cx + se * Math.cos(ph) * 70, ce * 70, cz + se * Math.sin(ph) * 70); sky.target.position.set(cx, 0, cz); sky.target.updateMatrixWorld(); sky.intensity = SKY;
+          sky.position.set(cx + se * Math.cos(ph) * 70, ce * 70, cz + se * Math.sin(ph) * 70); sky.target.position.set(cx, 0, cz); sky.target.updateMatrixWorld();
           const ay = 2 * ((((i * 0.7548776662) % 1) + rnd() / N) % 1) - 1, aph = i * 2.39996 + rnd(), ar = Math.sqrt(Math.max(0, 1 - ay * ay));
-          amb.position.set(cx + ar * Math.cos(aph) * 70, ay * 70, cz + ar * Math.sin(aph) * 70); amb.target.position.set(cx, ay < 0 ? -1 : 0, cz); amb.target.updateMatrixWorld();
+          amb.position.set(cx + ar * Math.cos(aph) * 70, ay * 70, cz + ar * Math.sin(aph) * 70); amb.target.position.set(cx, 0, cz); amb.target.updateMatrixWorld();
           cam.setViewOffset(Wp, Hp, rnd() - 0.5, rnd() - 0.5, Wp, Hp);
           R.setRenderTarget(rtA); if (i === 0) { R.setClearColor(0x000000, 1); R.clear(); }
-          for (const bounce of [false, true]) { // passe directe (soleil + ciel), puis passe de rebonds
+          for (const bounce of [false, true]) {
             setPass(bounce, ay < 0); sun.intensity = bounce || sd.y <= 0.02 ? 0 : SUN; sky.intensity = bounce ? 0 : SKY; amb.intensity = bounce ? AMB : 0;
             R.shadowMap.needsUpdate = true; R.autoClear = true; R.setRenderTarget(rtP); R.setClearColor(0x000000, 1);
             if (bounce) { const bg = scene.background; scene.background = null; R.render(scene, cam); scene.background = bg; } else R.render(scene, cam);
@@ -7749,20 +7890,17 @@ details[open] summary::after{content:"–"}
           }
           i++;
         }
-        show(); if (i >= 6 && !st.ph.metered) { meter(); st.ph.metered = 1; show(); }
+        show(); if (i >= 6 && !metered) { meter(); metered = true; show(); }
       });
-      bar.style.width = Math.round((100 * i) / N) + '%'; stx.textContent = `Rendu en cours… ${Math.round((100 * i) / N)} %`;
-      if (i < N) { st.ph.raf = requestAnimationFrame(pass); return; }
-      withState(() => { meter(); show(); });
-      finish();
+      ui.progress(i / N, `Rendu rapide… ${Math.round((100 * i) / N)} %`);
+      if (i < N) { raf = requestAnimationFrame(pass); return; }
+      withState(() => { meter(); show(); }); ui.done(cv);
     };
-    const finish = () => { stx.textContent = 'Photo prête'; ov.classList.add('done'); rng.disabled = false; const url = cv.toDataURL('image/jpeg', 0.92); img.src = url; img.hidden = false; cv.hidden = true; sv.href = url; sv.hidden = false; };
-    rng.addEventListener('input', () => { user = +rng.value; withState(show); const url = cv.toDataURL('image/jpeg', 0.92); img.src = url; sv.href = url; });
-    const close = () => { dead = true; if (st && st.ph && st.ph.raf) cancelAnimationFrame(st.ph.raf);
-      pg.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
-      for (const L of [sun, sky, amb]) if (L.shadow.map) L.shadow.map.dispose(); rtP.dispose(); rtA.dispose(); rtO.dispose(); accM.dispose(); outM.dispose(); plane.dispose(); ov.remove(); if (st) { st.ph = null; st.dirty = true; } };
-    ov.querySelector('[data-ph=close]').addEventListener('click', close); st.ph.close = close;
-    st.ph.raf = requestAnimationFrame(pass);
+    return {
+      start: () => { raf = requestAnimationFrame(pass); },
+      exposure: (v) => { user = v; withState(show); ui.capture(cv); },
+      close: () => { dead = true; cancelAnimationFrame(raf); for (const o of owned) o.dispose(); for (const L of [sun, sky, amb]) if (L.shadow.map) L.shadow.map.dispose(); rtP.dispose(); rtA.dispose(); rtO.dispose(); accM.dispose(); outM.dispose(); plane.dispose(); cv.remove(); },
+    };
   };
   const dispose = () => { if (!st.grp) return; st.grp.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); st.scene.remove(st.grp); st.grp = null; };
   const setFloor = (fid, roomId) => {

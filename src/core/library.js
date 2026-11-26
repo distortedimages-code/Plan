@@ -391,7 +391,7 @@
         if (mi.shape === 'round') return ell(w / 2, cz, W / 2, Hh / 2, 40);
         if (mi.shape === 'pill' || mi.shape === 'rrect') return rrect(u0, v0, u0 + W, v0 + Hh, mi.shape === 'pill' ? Math.min(W, Hh) / 2 : Math.max(2, (mi.r || 80) - ins)).map(([a, b]) => [a, b]);
         return rect(u0, v0, u0 + W, v0 + Hh); };
-      const out = face(0), inn = face(fr); M.slabs = [{ face: out, v0: 0, v1: d, round: mi.shape !== 'rect' }];
+      const out = face(0), inn = face(fr); M.slabs = [{ face: out, v0: 0, v1: d, round: mi.shape !== 'rect' }]; if (inn) M.slabs.push({ face: inn, v0: -3, v1: 0, round: mi.shape !== 'rect', mat: 'mirror' });
       if (inn) { M.lines.push(...inn.map((p, k2) => { const q = inn[(k2 + 1) % inn.length]; return [[p[0], -1, p[1]], [q[0], -1, q[1]]]; }));
         const iw = w - 2 * fr, ih = Hm - 2 * fr; for (const [a0, b0, a1, b1] of [[0.18, 0.55, 0.42, 0.78], [0.3, 0.42, 0.62, 0.72]]) M.lines.push([[fr + iw * a0, -1, z0 + fr + ih * b0], [fr + iw * a1, -1, z0 + fr + ih * b1]]); }
       M.plan.push({ pts: [[0, d / 2], [w, d / 2]], open: true });
