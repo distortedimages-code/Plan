@@ -7660,7 +7660,8 @@ details[open] summary::after{content:"–"}
     try { T = await load(); }
     catch (e) { host.remove(); App.toast && App.toast('Impossible de charger le moteur 3D. Vérifiez la connexion.'); return; }
     let R; try { R = new T.WebGLRenderer({ canvas: host.querySelector('canvas'), antialias: false, powerPreference: 'high-performance' }); }
-    catch (e) { host.remove(); App.toast && App.toast('La 3D n\'est pas disponible sur cet appareil.'); return; }
+    catch (e) { host.remove(); App.toast && App.toast(PTR || V.lostOnce ? 'La 3D est bloquée après une saturation de la mémoire graphique : rechargez la page pour la réactiver.' : 'La 3D n\'est pas disponible sur cet appareil.'); return; }
+    host.querySelector('canvas').addEventListener('webglcontextlost', (e) => { e.preventDefault(); V.lostOnce = true; if (st) { App.toast && App.toast('La 3D a perdu la main (mémoire graphique saturée). Fermez la visite ; si elle ne revient pas, rechargez la page.'); } });
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
     st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], well: [0.8, 0.8, 0.8], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
@@ -7693,7 +7694,7 @@ details[open] summary::after{content:"–"}
      passes accumulées (soleil, ciel et rebonds approchés avec des ombres portées). */
   const QV = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
   let PTM = null; // modules du lancer de rayons
-  const loadPT = () => PTM || (PTM = Promise.all([import('three'), import('three-gpu-pathtracer')]).then(([THREE, P]) => ({ THREE, P })).catch((e) => { PTM = null; throw e; }));
+  const loadPT = () => PTM || (PTM = Promise.all([import('three'), import('three-gpu-pathtracer'), import('three/examples/jsm/postprocessing/Pass.js').catch(() => ({}))]).then(([THREE, P, X]) => ({ THREE, P, FSQ: X.FullScreenQuad })).catch((e) => { PTM = null; throw e; }));
 
   // la vue courante reconstruite en mode photo : tampons bruts (sommets, normales, couleurs linéaires), caméra, soleil
   const photoData = () => {
@@ -7755,14 +7756,14 @@ details[open] summary::after{content:"–"}
   const photoUI = (d) => {
     const ov = document.createElement('div'); ov.className = 'ph';
     ov.innerHTML = `<div class="ph-img"><div class="ph-stage"></div><img alt="Rendu réaliste de la vue" hidden></div><div class="ph-bar"><i></i></div>
-      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><span class="ph-ab" hidden><button data-ph="vcap" aria-pressed="false">Capture</button><button data-ph="vai" aria-pressed="true">Rendu IA</button></span><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="ai" hidden>Rendu IA</button><button data-ph="close">Fermer</button></div>
+      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><button data-ph="sm" aria-pressed="true" hidden>Lissage</button><span class="ph-ab" hidden><button data-ph="vcap" aria-pressed="false">Capture</button><button data-ph="vai" aria-pressed="true">Rendu IA</button></span><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="ai" hidden>Rendu IA</button><button data-ph="close">Fermer</button></div>
       <div class="ph-gpt ph-key" hidden><p><b>Rendu IA avec votre clé OpenAI.</b> La clé reste sur cet appareil (jamais dans le projet ni sur GitHub) ; chaque rendu est facturé sur votre compte OpenAI. Ne marche que depuis la version GitHub Pages de Calepin.</p><input type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" aria-label="Clé API OpenAI"><div class="ph-row"><button data-ph="keysave">Enregistrer sur cet appareil</button><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Créer une clé</a><button data-ph="keydel">Oublier la clé</button><button data-ph="keyx">Annuler</button></div></div>
       <div class="ph-gpt" hidden><p>Le prompt est copié. Gardez l'image (appui long dessus, ou « Enregistrer »), ouvrez ChatGPT, joignez-la et collez le prompt :</p><textarea readonly rows="6"></textarea><div class="ph-row"><button data-ph="copy">Copier le prompt</button><a href="https://chatgpt.com/" target="_blank" rel="noopener">Ouvrir ChatGPT</a><button data-ph="gptx">OK</button></div></div>`;
     st.el.appendChild(ov); const q = (x) => ov.querySelector(x);
-    const ui = { ov, stage: q('.ph-stage'), img: q('img'), bar: q('.ph-bar i'), stx: q('.ph-st'), stop: q('[data-ph=stop]'), ex: q('.ph-ex'), rng: q('.ph-ex input'), save: q('.ph-save'), gpt: q('[data-ph=gpt]'), gp: q('.ph-gpt'), blob: null };
+    const ui = { ov, stage: q('.ph-stage'), img: q('img'), bar: q('.ph-bar i'), stx: q('.ph-st'), stop: q('[data-ph=stop]'), ex: q('.ph-ex'), rng: q('.ph-ex input'), sm: q('[data-ph=sm]'), save: q('.ph-save'), gpt: q('[data-ph=gpt]'), gp: q('.ph-gpt'), blob: null };
     ui.progress = (f, txt) => { ui.bar.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; ui.stx.textContent = txt; };
-    ui.capture = (cv) => { const url = cv.toDataURL('image/jpeg', 0.92); ui.img.src = url; ui.save.href = url; if (cv.toBlob) cv.toBlob((b) => { ui.blob = b; }, 'image/jpeg', 0.92); };
-    ui.done = (cv, txt) => { ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ov.querySelector('[data-ph=ai]').hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
+    ui.capture = (cv) => { ui.img.removeAttribute('src'); ui.blob = null; const url = cv.toDataURL('image/jpeg', 0.9); ui.img.src = url; ui.save.href = url; if (cv.toBlob) cv.toBlob((b) => { ui.blob = b; }, 'image/jpeg', 0.9); };
+    ui.done = (cv, txt, pt) => { if (pt) ui.sm.hidden = false; ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ov.querySelector('[data-ph=ai]').hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
     const txt = () => gptPrompt(d), fallback = () => { ui.gp.hidden = false; ui.gp.querySelector('textarea').value = txt(); };
     ui.gpt.addEventListener('click', () => {
       const t = txt(); try { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); } catch (e) { /* presse-papiers refusé */ }
@@ -7805,23 +7806,28 @@ details[open] summary::after{content:"–"}
     const ui = photoUI(d); let eng = null, closed = false;
     const close = () => { closed = true; try { if (eng) eng.close(); } catch (e) { /* déjà libéré */ } ui.ov.remove(); if (st) { st.ph = null; st.dirty = true; } };
     st.ph = { ui, close }; ui.ov.querySelector('[data-ph=close]').addEventListener('click', close);
-    ui.rng.addEventListener('input', () => { if (eng && eng.exposure) eng.exposure(+ui.rng.value); });
+    let live = 0; // pendant qu'on glisse : on montre la toile, on ne fabrique pas d'image à chaque cran (mémoire)
+    ui.rng.addEventListener('input', () => { if (!eng || !eng.exposure) return; if (!ui.stage.hidden || !ui.img.hidden) { ui.stage.hidden = false; ui.img.hidden = true; } cancelAnimationFrame(live); live = requestAnimationFrame(() => eng && eng.exposure(+ui.rng.value, false)); });
+    ui.rng.addEventListener('change', () => { if (!eng || !eng.exposure) return; cancelAnimationFrame(live); eng.exposure(+ui.rng.value, true); ui.stage.hidden = true; ui.img.hidden = false; });
+    ui.sm.addEventListener('click', () => { if (!eng || !eng.smooth) return; const on = ui.sm.getAttribute('aria-pressed') !== 'true'; ui.sm.setAttribute('aria-pressed', on); eng.smooth(on); });
     ui.stop.addEventListener('click', () => { if (eng && eng.stop) eng.stop(); });
     const size = (LS) => { LS = cfg.LS || LS; return asp >= 1 ? [LS, Math.round(LS / asp)] : [Math.round(LS * asp), LS]; };
     if (!cfg.quick) {
       try {
         ui.progress(0.01, 'Chargement du moteur de lancer de rayons…'); const mods = await loadPT(); if (closed) return;
-        const [W, H] = size(coarse ? 1100 : 1600); eng = ptEngine(mods, d, ui, W, H, cfg, coarse); await eng.start(); return;
+        const [W, H] = size(coarse ? 900 : 1600); eng = ptEngine(mods, d, ui, W, H, cfg, coarse); await eng.start(); return;
       } catch (e) { console.warn('lancer de rayons indisponible', e); if (closed) return; try { if (eng) eng.close(); } catch (e2) { /* rien */ } eng = null; ui.stage.innerHTML = ''; ui.progress(0, 'Lancer de rayons indisponible ici : rendu rapide…'); }
     }
     const [W, H] = size(coarse ? 1400 : 1920); eng = quickEngine(d, ui, W, H, cfg, coarse); eng.start();
   };
 
   /* lancer de rayons : progressif, exposition automatique, arrêt possible à tout moment */
-  const ptEngine = ({ THREE: M, P }, d, ui, Wp, Hp, cfg, coarse) => {
-    const cv = document.createElement('canvas'); cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv);
-    const R2 = new M.WebGLRenderer({ canvas: cv, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
-    R2.setPixelRatio(1); R2.setSize(Wp, Hp, false); R2.toneMapping = M.ACESFilmicToneMapping; R2.outputColorSpace = M.SRGBColorSpace;
+  let PTR = null; // un seul contexte graphique pour toutes les photos (iOS supporte mal qu'on en crée et détruise beaucoup)
+  const ptEngine = ({ THREE: M, P, FSQ }, d, ui, Wp, Hp, cfg, coarse) => {
+    if (PTR && (PTR.lost || (PTR.R2.getContext && PTR.R2.getContext().isContextLost()))) PTR = null;
+    if (!PTR) { const c0 = document.createElement('canvas'); const R0 = new M.WebGLRenderer({ canvas: c0, alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); PTR = { R2: R0, cv: c0, lost: false }; c0.addEventListener('webglcontextlost', (e) => { e.preventDefault(); PTR.lost = true; if (PTR.onLost) PTR.onLost(); }); }
+    const R2 = PTR.R2, cv = PTR.cv; cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv);
+    R2.setPixelRatio(1); R2.setSize(Wp, Hp, false); R2.toneMapping = M.ACESFilmicToneMapping; R2.toneMappingExposure = 1; R2.outputColorSpace = M.SRGBColorSpace;
     const sc = new M.Scene(), owned = [];
     const geo = (A, uv) => { const g = new M.BufferGeometry(); g.setAttribute('position', new M.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new M.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new M.Float32BufferAttribute(A.c, 3)); if (uv && A.uv.length) g.setAttribute('uv', new M.Float32BufferAttribute(A.uv, 2)); return g; };
     const add = (A, mat) => { owned.push(mat); if (!A || !A.p.length) return; const g = geo(A, !!mat.map); owned.push(g); sc.add(new M.Mesh(g, mat)); };
@@ -7840,15 +7846,19 @@ details[open] summary::after{content:"–"}
     const bb = d.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, sd = new M.Vector3(...d.sun).normalize();
     const sun = new M.DirectionalLight(0xfff0d8, cfg.sun || 9); sun.position.set(cx + sd.x * 60, sd.y * 60, cz + sd.z * 60); sun.target.position.set(cx, 0, cz); sc.add(sun, sun.target); sun.target.updateMatrixWorld();
     const cam = new M.PerspectiveCamera(d.cam.fov, Wp / Hp, 0.05, 300); cam.position.set(...d.cam.pos); cam.rotation.set(d.cam.rot[0], d.cam.rot[1], d.cam.rot[2], 'YXZ'); cam.updateMatrixWorld();
-    const pt = new P.WebGLPathTracer(R2); pt.tiles.set(cfg.tiles || 2, cfg.tiles || 2); pt.bounces = cfg.bounces || 6; pt.filterGlossyFactor = 0.5; pt.minSamples = 1; pt.renderDelay = 0; pt.fadeDuration = 0; pt.dynamicLowRes = false; pt.textureSize.set(TS, TS);
-    const TARGET = cfg.samples || (coarse ? 180 : 360); let raf = 0, dead = false, stopped = false, expo = 1, user = 0, metered = 0;
+    const tl = cfg.tiles || (coarse ? 4 : 2), pt = new P.WebGLPathTracer(R2); pt.tiles.set(tl, tl); pt.bounces = cfg.bounces || (coarse ? 4 : 7); pt.filterGlossyFactor = 1; pt.minSamples = 1; pt.renderDelay = 0; pt.fadeDuration = 0; pt.dynamicLowRes = false; pt.textureSize.set(TS, TS);
+    // débruitage à l'affichage : lissage qui respecte les arêtes, d'autant plus fort qu'il y a peu de passes
+    const dn = FSQ && P.DenoiseMaterial ? new FSQ(new P.DenoiseMaterial()) : null; let smooth = true;
+    if (dn) { owned.push(dn.material); pt.renderToCanvasCallback = (target, renderer, quad) => { const ac = renderer.autoClear; renderer.autoClear = false; if (smooth) { const n = Math.max(1, pt.samples); dn.material.map = target.texture; dn.material.sigma = n < 40 ? 6 : 4.5; dn.material.kSigma = 1; dn.material.threshold = Math.min(0.35, Math.max(0.02, 0.6 / Math.sqrt(n))); dn.render(renderer); } else quad.render(renderer); renderer.autoClear = ac; }; }
+    const TARGET = cfg.samples || (coarse ? 300 : 600); let raf = 0, dead = false, stopped = false, expo = 1, user = 0, metered = 0;
+    PTR.onLost = () => { if (dead) return; dead = true; cancelAnimationFrame(raf); ui.progress(0, 'Mémoire graphique de l\'appareil saturée : calcul interrompu. Fermez, puis rechargez la page si la 3D ne revient pas.'); };
     const mc = document.createElement('canvas'), mw = 160, mh = Math.max(20, Math.round((160 * Hp) / Wp)); mc.width = mw; mc.height = mh; const mx = mc.getContext('2d', { willReadFrequently: true });
     const meter = () => { // exposition auto : médiane des luminances vers 0,42
       mx.drawImage(cv, 0, 0, mw, mh); const px = mx.getImageData(0, 0, mw, mh).data, L = []; for (let i = 0; i < px.length; i += 4) L.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]); L.sort((a, b) => a - b);
       const m = Math.max(3, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.15, Math.min(12, expo * Math.pow(0.42 / m, 1.8))); R2.toneMappingExposure = expo * Math.pow(2, user); };
-    const finish = (txt) => { cancelAnimationFrame(raf); pt.pausePathTracing = true; pt.renderSample(); ui.done(cv, txt); };
+    const finish = (txt) => { cancelAnimationFrame(raf); pt.pausePathTracing = true; pt.renderSample(); ui.done(cv, txt, true); };
     const frame = () => {
-      if (dead) return; pt.renderSample(); const n = Math.floor(pt.samples);
+      if (dead) return; const gl = R2.getContext(); if (gl && gl.isContextLost && gl.isContextLost()) { PTR.lost = true; if (PTR.onLost) PTR.onLost(); return; } pt.renderSample(); const n = Math.floor(pt.samples);
       ui.progress(n / TARGET, pt.isCompiling ? 'Préparation des matériaux…' : `Lancer de rayons… ${n} / ${TARGET} passes`);
       if (n >= 3 && metered === 0) { meter(); metered = 1; } else if (n >= 24 && metered === 1) { meter(); metered = 2; } else if (n >= TARGET * 0.6 && metered === 2) { meter(); metered = 3; }
       if (n >= TARGET || stopped) { if (metered < 3) meter(); finish(stopped ? `Photo prête (${n} passes)` : 'Photo prête'); return; }
@@ -7861,8 +7871,9 @@ details[open] summary::after{content:"–"}
         if (dead) return; ui.stop.hidden = false; raf = requestAnimationFrame(frame);
       },
       stop: () => { stopped = true; },
-      exposure: (v) => { user = v; R2.toneMappingExposure = expo * Math.pow(2, user); if (pt.pausePathTracing) { pt.renderSample(); ui.capture(cv); } },
-      close: () => { dead = true; cancelAnimationFrame(raf); try { pt.dispose(); } catch (e) { /* rien */ } for (const o of owned) if (o && o.dispose) o.dispose(); R2.dispose(); if (R2.forceContextLoss) R2.forceContextLoss(); cv.remove(); },
+      exposure: (v, final) => { user = v; R2.toneMappingExposure = expo * Math.pow(2, user); if (pt.pausePathTracing && !dead) { pt.renderSample(); if (final) ui.capture(cv); } },
+      smooth: (on) => { smooth = on; if (pt.pausePathTracing && !dead) { pt.renderSample(); ui.capture(cv); } },
+      close: () => { dead = true; cancelAnimationFrame(raf); PTR && (PTR.onLost = null); try { pt.dispose(); } catch (e) { /* rien */ } for (const o of owned) if (o && o.dispose) o.dispose(); if (dn) dn.dispose(); cv.remove(); },
     };
   };
 
@@ -7929,7 +7940,7 @@ details[open] summary::after{content:"–"}
     };
     return {
       start: () => { raf = requestAnimationFrame(pass); },
-      exposure: (v) => { user = v; withState(show); ui.capture(cv); },
+      exposure: (v, final) => { user = v; withState(show); if (final) ui.capture(cv); },
       close: () => { dead = true; cancelAnimationFrame(raf); for (const o of owned) o.dispose(); for (const L of [sun, sky, amb]) if (L.shadow.map) L.shadow.map.dispose(); rtP.dispose(); rtA.dispose(); rtO.dispose(); accM.dispose(); outM.dispose(); plane.dispose(); cv.remove(); },
     };
   };
