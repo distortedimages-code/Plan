@@ -86,7 +86,7 @@
     if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
-    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
+    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) - (App.stack.under(x) ? 1 : 0) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
     // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
     for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes

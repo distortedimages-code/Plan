@@ -60,6 +60,8 @@
     // ---- studio : supports (cotes fabricant) ----
     F('jaspers', 'Studio · mobilier', 'Stand Jaspers 4D-120B (4 étages)', 130, 70, { short: 'Jaspers 4D-120B', m: 'jaspers', ref: 'h 140 · entre montants 120 · prof. max 70' }),
     F('kallax24h', 'Studio · mobilier', 'Kallax 2 × 4 (couché ou debout)', 146.5, 39, { short: 'Kallax 2 × 4', m: 'kallax', grid: [2, 4], orient: 'h', ref: '147 × 77 × 39 · cases 33,5 × 33,5' }),
+    F('please', 'Studio · mobilier', 'Fauteuil Steelcase Please', 66, 64, { short: 'Please', m: 'please', ref: 'assise 42 – 52 · têtière en option' }),
+    F('persan', 'Studio · mobilier', 'Tapis persan', 300, 200, { short: 'Tapis persan', m: 'persan', under: true, ref: 'taille réglable dans la fiche' }),
     F('pied', 'Studio · mobilier', 'Pied d\'enceinte (tweeter à hauteur d\'oreille)', 30, 30, { short: 'Pied', m: 'pied', ref: 'plateau 20 × 23 · réglé sur l\'oreille assis' }),
     F('idasen', 'Studio · mobilier', 'Bureau assis-debout Idåsen 160 × 80', 160, 80, { short: 'Idåsen', m: 'idasen', ref: 'plateau réglable 63 – 127 cm' }),
     // ---- studio : machines, boîtiers simplifiés aux cotes du fabricant (largeur × profondeur × hauteur) ----
@@ -148,6 +150,9 @@
      Renvoie { outline (contour en plan si ce n'est pas le rectangle), plan: [{ pts, dash }], solids: [{ pts, z0, z1, round }], lines: [[[u,v,z],[u,v,z]]], dash (meuble en hauteur : contour en tirets), h } */
   const ell = (cu, cv, ru, rv, n = 28, a0 = 0, a1 = Math.PI * 2) => { const o = []; for (let k = 0; k < n; k++) { const a = a0 + ((a1 - a0) * k) / (a1 === Math.PI * 2 ? n : n - 1); o.push([cu + Math.cos(a) * ru, cv + Math.sin(a) * rv]); } return o; };
   const rect = (u0, v0, u1, v1) => [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+  const rrect = (u0, v0, u1, v1, r) => { r = Math.max(1, Math.min(r, (u1 - u0) / 2, (v1 - v0) / 2)); return [].concat(ell(u1 - r, v0 + r, r, r, 5, -Math.PI / 2, 0), ell(u1 - r, v1 - r, r, r, 5, 0, Math.PI / 2), ell(u0 + r, v1 - r, r, r, 5, Math.PI / 2, Math.PI), ell(u0 + r, v0 + r, r, r, 5, Math.PI, Math.PI * 1.5)); };
+  const ccw = (P) => { let a = 0; P.forEach((p, k) => { const q = P[(k + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; }); return a < 0 ? P.slice().reverse() : P; };
+  const seg3 = (pts, z, closed) => { const o = []; for (let k = 0; k < pts.length - (closed ? 0 : 1); k++) { const p = pts[k], q = pts[(k + 1) % pts.length]; o.push([[p[0], p[1], z], [q[0], q[1], z]]); } return o; };
   const ring3 = (pts, z) => pts.map((p, k) => [[p[0], p[1], z], [pts[(k + 1) % pts.length][0], pts[(k + 1) % pts.length][1], z]]);
   // cuvette : arrière droit, avant arrondi (forme en D)
   const bowl = (u0, u1, v0, v1, back) => { const ru = (u1 - u0) / 2, cu = (u0 + u1) / 2, vb = v1 - back; return [[u0, v1], [u0, vb]].concat(ell(cu, vb, ru, vb - v0, 18, Math.PI, Math.PI * 2).slice(1, -1)).concat([[u1, vb], [u1, v1]]); };
@@ -235,6 +240,53 @@
         M.plan.push({ pts: [[side, vc], [w - side, vc]], open: true, dash: k > 0 }, { pts: [[side, v0], [w - side, v0]], open: true, dash: true });
         M.decks.push({ pts: rect(side, v0, w - side, v1), z, name: 'étage ' + (k + 1), arm: L });
       });
+    },
+    // fauteuil Steelcase Please : piètement 5 branches sur roulettes Ø 65, vérin, assise 455 × 460, dossier 425 incliné,
+    // accoudoirs 3D, têtière en option ; hauteur d'assise 42 – 52 cm
+    please: (w, d, M, it, sh) => {
+      const zs = PL.chairSeat(sh) * 10, cu = w / 2, cv = d / 2, R = Math.min(w, d) / 2 - 35, top = zs + 650, head = !!(sh && sh.head);
+      M.h = head ? top + 120 : top; M.outline = ell(cu, cv, w / 2, d / 2, 40);
+      for (let k = 0; k < 5; k++) {
+        const a = Math.PI / 2 + (k * 2 * Math.PI) / 5, D = [Math.cos(a), Math.sin(a)], N = [-D[1], D[0]], at = (r, o) => [cu + D[0] * r + N[0] * o, cv + D[1] * r + N[1] * o];
+        M.solids.push({ pts: ccw([at(40, 24), at(R + 10, 15), at(R + 10, -15), at(40, -24)]), z0: 60, z1: 95 }, { pts: ell(cu + D[0] * R, cv + D[1] * R, 28, 28, 12), z0: 0, z1: 60, round: true });
+        M.plan.push({ pts: [at(45, 0), at(R, 0)], open: true, dash: true });
+      }
+      M.solids.push({ pts: ell(cu, cv, 42, 42, 14), z0: 60, z1: 140, round: true }, { pts: ell(cu, cv, 26, 26, 12), z0: 140, z1: zs - 95, round: true });
+      M.solids.push({ pts: rect(cu - 110, 200, cu + 110, 480), z0: zs - 95, z1: zs - 55 }, { pts: rrect(cu - 227, 40, cu + 227, 500, 70), z0: zs - 55, z1: zs }); // mécanisme, assise
+      M.solids.push({ pts: rect(cu - 30, 470, cu + 30, 560), z0: zs - 95, z1: zs + 200 }); // lame du dossier
+      // dossier : coque galbée (bords ramenés vers l'avant), en deux parties : lombaire puis épaules un peu en arrière
+      const shell = (vb, hw, cur, th) => { const n = 12, F = [], B = []; for (let k = 0; k <= n; k++) { const x = -hw + (2 * hw * k) / n, v = vb - cur * (x / hw) * (x / hw); F.push([cu + x, v]); B.push([cu + x, v + th]); } return ccw(F.concat(B.reverse())); };
+      const lo = shell(530, 195, 30, 38), hi = shell(552, 212, 38, 38), zm = zs + 360, vt = 552;
+      M.solids.push({ pts: lo, z0: zs + 120, z1: zm, round: true }, { pts: hi, z0: zm, z1: top, round: true }); M.plan.push({ pts: hi });
+      for (const sg of [-1, 1]) {
+        const ua = cu + sg * 252; M.solids.push({ pts: rect(Math.min(cu + sg * 150, ua), 255, Math.max(cu + sg * 150, ua), 305), z0: zs - 95, z1: zs - 70 }, { pts: rect(ua - 18, 255, ua + 18, 305), z0: zs - 95, z1: zs + 190 });
+        const pad = rrect(ua - 42, 150, ua + 42, 400, 30); M.solids.push({ pts: pad, z0: zs + 190, z1: zs + 215 }); M.plan.push({ pts: pad });
+      }
+      M.plan.push({ pts: rrect(cu - 227, 40, cu + 227, 500, 70) });
+      if (head) { const hp = rrect(cu - 130, vt - 10, cu + 130, vt + 40, 40); M.solids.push({ pts: hp, z0: top - 30, z1: top + 120 }, { pts: rect(cu - 18, vt + 5, cu + 18, vt + 40), z0: top - 60, z1: top - 30 }); M.plan.push({ pts: hp }); }
+    },
+    // tapis persan : franges aux deux extrémités, bordure (filets + rinceau ondulé), champ avec médaillon central en losange, pendentifs et écoinçons
+    persan: (w, d, M) => {
+      const Hh = 12, longU = w >= d, L = longU ? w : d, Sd = longU ? d : w, P = (a, b) => (longU ? [a, b] : [b, a]), Pl = (A) => A.map(([a, b]) => P(a, b));
+      const fr = Math.max(30, Math.min(80, L * 0.03)), a0 = fr, a1 = L - fr; M.h = Hh;
+      const box = (g) => Pl(rect(a0 + g, g, a1 - g, Sd - g)); M.outline = ccw(box(0)); M.solids.push({ pts: ccw(box(0)), z0: 0, z1: Hh });
+      const add = (pts, closed = true) => { M.plan.push(closed ? { pts } : { pts, open: true }); M.lines.push(...seg3(pts, Hh + 1, closed)); };
+      const g1 = Sd * 0.025, g2 = Sd * 0.045, g3 = Sd * 0.12, g4 = Sd * 0.14; for (const g of [g1, g2, g3, g4]) add(box(g));
+      // rinceau ondulé dans la grande bordure
+      const gm = (g2 + g3) / 2, A = (g3 - g2) * 0.32, lam = Math.max(60, (g3 - g2) * 1.7);
+      const wave = (pa, pb, nrm) => { const len = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]), n = Math.max(2, Math.round(len / (lam / 8))), o = []; for (let k = 0; k <= n; k++) { const t = k / n, sv = A * Math.sin((2 * Math.PI * t * len) / lam); o.push([pa[0] + (pb[0] - pa[0]) * t + nrm[0] * sv, pa[1] + (pb[1] - pa[1]) * t + nrm[1] * sv]); } return Pl(o); };
+      add(wave([a0 + gm, gm], [a1 - gm, gm], [0, 1]), false); add(wave([a0 + gm, Sd - gm], [a1 - gm, Sd - gm], [0, -1]), false);
+      add(wave([a0 + gm, gm], [a0 + gm, Sd - gm], [1, 0]), false); add(wave([a1 - gm, gm], [a1 - gm, Sd - gm], [-1, 0]), false);
+      // champ : médaillon, pendentifs, écoinçons
+      const fa0 = a0 + g4, fa1 = a1 - g4, fb0 = g4, fb1 = Sd - g4, Lf = fa1 - fa0, Sf = fb1 - fb0, ca = (fa0 + fa1) / 2, cb = Sd / 2;
+      const ra = Math.min(Lf * 0.24, Sf * 0.55), rb = Sf * 0.3;
+      add(Pl([[ca - ra, cb], [ca, cb - rb], [ca + ra, cb], [ca, cb + rb]])); add(Pl([[ca - ra * 0.72, cb], [ca, cb - rb * 0.72], [ca + ra * 0.72, cb], [ca, cb + rb * 0.72]]));
+      add(Pl(ell(ca, cb, ra * 0.32, rb * 0.32, 24))); add(Pl(ell(ca, cb, ra * 0.14, rb * 0.14, 16)));
+      for (const sg of [-1, 1]) { const pa = ca + sg * (ra + Lf * 0.035), q = Lf * 0.03; add(Pl([[pa - q, cb], [pa, cb - q * 0.8], [pa + q, cb], [pa, cb + q * 0.8]])); }
+      const ea = Math.min(Lf * 0.16, Sf * 0.3), eb = Sf * 0.24;
+      for (const [xa, xb, s0] of [[fa0, fb0, 0], [fa1, fb0, Math.PI / 2], [fa1, fb1, Math.PI], [fa0, fb1, -Math.PI / 2]]) { add(Pl(ell(xa, xb, ea, eb, 10, s0, s0 + Math.PI / 2)), false); add(Pl(ell(xa, xb, ea * 0.6, eb * 0.6, 8, s0, s0 + Math.PI / 2)), false); }
+      // franges
+      for (let b = 20; b <= Sd - 20; b += 30) for (const [x0, x1] of [[a0, 0], [a1, L]]) { const p = [P(x0, b), P(x1, b)]; M.plan.push({ pts: p, open: true }); M.lines.push([[p[0][0], p[0][1], 2], [p[1][0], p[1][1], 2]]); }
     },
     // pied d'enceinte : embase, colonne, plateau 20 × 23 cm ; le plateau monte pour mettre le tweeter à hauteur d'oreille
     pied: (w, d, M, it, sh) => {
@@ -382,6 +434,7 @@
   // Kallax : grille [colonnes, rangées] debout (it.grid), échangée quand il est couché ; 41,5 cm pour une case, + 35 cm par case
   PL.kallaxGrid = (it, sh) => { const g = (it && it.grid) || [2, 2]; return ((sh && sh.orient) || (it && it.orient) || 'v') === 'h' ? [g[1], g[0]] : [g[0], g[1]]; };
   PL.kallaxSize = (n) => 415 + (n - 1) * 350;
+  PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
   /* cuisine du plan Darty, en mm depuis l'angle intérieur : x le long du mur des colonnes (mur 3), y le long du mur de la fenêtre (mur 4).
