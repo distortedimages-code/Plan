@@ -291,3 +291,32 @@ details[open] summary::after{content:"–"}
 
 #modalBox .row:last-child{flex-wrap:wrap}
 #modalBox .btn.wrap{white-space:normal;text-align:left;height:auto;min-height:40px;padding:8px 12px;flex:1 1 100%}
+
+/* menu du mobilier : recherche et catégories, collés en haut du panneau */
+.libnav{position:sticky;top:-1px;z-index:3;background:var(--paper);padding:8px 0 6px;margin:0 0 4px;border-bottom:1px solid var(--rule)}
+.libnav input[type=search]{width:100%;height:40px;font:inherit;font-size:16px;padding:0 12px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:0}
+.libnav input[type=search]:focus{outline:2px solid var(--ink);outline-offset:-1px}
+.chips.libcats{flex-wrap:nowrap;overflow-x:auto;margin:8px 0 0;padding-bottom:4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.chips.libcats button{flex:none;white-space:nowrap}
+.libsec[hidden],.tile[hidden],.libnone[hidden]{display:none}
+.libnone{color:var(--ink-2);margin:16px 0}
+
+/* photo réaliste */
+.fps .fps-photo{margin-top:6px;background:var(--ink);color:var(--paper);font-weight:700}
+.ph{position:absolute;inset:0;z-index:20;background:rgba(20,18,16,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+.ph-img{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.ph-img canvas,.ph-img img{max-width:100%;max-height:100%;object-fit:contain;display:block;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.ph-img [hidden]{display:none}
+.ph-bar{width:min(480px,80%);height:3px;background:rgba(255,255,255,.18)}.ph-bar i{display:block;height:100%;width:0;background:#fff;transition:width .2s}
+.ph.done .ph-bar{visibility:hidden}
+.ph-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;color:#f4f1ea;font:500 13px/1.3 var(--sans)}
+.ph-tools button,.ph-tools .ph-save{height:36px;padding:0 14px;border:1px solid #f4f1ea;background:transparent;color:#f4f1ea;font:600 13px/34px var(--sans);text-decoration:none;cursor:pointer}
+.ph-tools .ph-save[hidden]{display:none}
+.ph-ex{display:flex;gap:8px;align-items:center}.ph-ex input{width:140px}
+
+.paint{display:flex;gap:8px;align-items:center;margin:8px 0}
+.paint input[type=color]{width:52px;height:40px;padding:2px;border:1px solid var(--rule);background:var(--paper)}
+.paint input:not([type=color]){flex:1;height:40px;font:inherit;font-size:16px;padding:0 10px;border:1px solid var(--rule);background:var(--paper);color:var(--ink)}
+.swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:6px 0}
+.swatches button{height:34px;border:1px solid var(--rule)}
+.swatches button[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}

@@ -4,13 +4,46 @@
   const F = (id, cat, name, w, d, extra = {}) => ({ id, cat, name, w, d, ...extra });
   const furniture = [
     F('lit90', 'Lits', 'Lit 90 × 200', 97, 209), F('lit140', 'Lits', 'Lit 140 × 200 (type Malm)', 156, 209), F('lit160', 'Lits', 'Lit 160 × 200 (type Malm)', 176, 209),
-    F('lit180', 'Lits', 'Lit 180 × 200', 196, 209), F('litbebe', 'Lits', 'Lit bébé 60 × 120', 66, 124), F('chevet', 'Lits', 'Chevet (type Malm)', 40, 48),
+    F('lit180', 'Lits', 'Lit 180 × 200', 196, 209), F('litbebe', 'Lits', 'Lit bébé 60 × 120', 66, 124),
+    // chevets IKEA (cotes des fiches produit ikea.com)
+    F('chevet', 'Chevets', 'Chevet Malm 2 tiroirs (IKEA)', 40, 48, { short: 'Malm', m: 'cab', cab: { H: 55, leg: 1, socle: true, rows: [['t', 1], ['t', 1]] } }),
+    F('brimnes-ch', 'Chevets', 'Chevet Brimnes (IKEA)', 39, 41, { short: 'Brimnes', m: 'cab', cab: { H: 53, leg: 2, socle: true, rows: [['t', 18], ['o', 27]] } }),
+    F('hemnes-ch', 'Chevets', 'Chevet Hemnes (IKEA)', 46, 35, { short: 'Hemnes', m: 'cab', cab: { H: 70, leg: 25, rows: [['o', 22], ['t', 17]], shelf: 8 } }),
+    F('idanas-ch', 'Chevets', 'Chevet Idanäs (IKEA)', 47, 40, { short: 'Idanäs', m: 'cab', cab: { H: 68, leg: 17, rows: [['o', 22], ['t', 22]] } }),
+    F('gursken-ch', 'Chevets', 'Chevet Gursken (IKEA)', 39, 30, { short: 'Gursken', m: 'cab', cab: { H: 67, leg: 14, rows: [['o', 26], ['t', 16]] } }),
+    F('olderdalen-ch', 'Chevets', 'Chevet Olderdalen (IKEA)', 47, 43, { short: 'Olderdalen', m: 'cab', cab: { H: 80, leg: 14, rows: [['o', 20], ['p', 30], ['o', 10]] } }),
+    F('knarrevik-ch', 'Chevets', 'Chevet Knarrevik (IKEA)', 37, 28, { short: 'Knarrevik', m: 'cab', cab: { H: 45, leg: 0, metal: true, rows: [['o', 1], ['o', 1.3]] } }),
     F('pax50', 'Rangement', 'Armoire 50 (type Pax)', 50, 58), F('pax100', 'Rangement', 'Armoire 100 (type Pax)', 100, 58), F('pax150', 'Rangement', 'Armoire 150 (type Pax)', 150, 58),
     F('pax200', 'Rangement', 'Dressing 200 (type Pax)', 200, 58), F('dressingL', 'Rangement', 'Dressing d\'angle', 150, 150, { shape: 'L', t: 58 }),
-    F('commode3', 'Rangement', 'Commode 3 tiroirs (type Malm)', 80, 48), F('commode6', 'Rangement', 'Commode 6 tiroirs (type Malm)', 160, 48), F('hemnes8', 'Rangement', 'Commode 8 tiroirs (type Hemnes)', 160, 50),
+    F('commode3', 'Rangement', 'Commode 3 tiroirs (type Malm)', 80, 48, { m: 'cab', cab: { H: 78, leg: 2, socle: true, rows: [['t', 1], ['t', 1], ['t', 1]] } }), F('commode6', 'Rangement', 'Commode 6 tiroirs (type Malm)', 160, 48, { m: 'cab', cab: { H: 78, leg: 2, socle: true, cols: [{ rows: [['t', 1], ['t', 1], ['t', 1]] }, { rows: [['t', 1], ['t', 1], ['t', 1]] }] } }), F('hemnes8', 'Rangement', 'Commode 8 tiroirs (type Hemnes)', 160, 50, { m: 'cab', cab: { H: 131, leg: 10, rows: null, cols: [{ rows: [['t', 1], ['t', 1], ['t', 1], ['t', 0.7]] }, { rows: [['t', 1], ['t', 1], ['t', 1], ['t', 0.7]] }] } }),
+    // rangements vendus sur conforama.fr (cotes de la fiche, code article en référence)
+    F('cf-colonne', 'Rangement', 'Étagère colonne 4 niches, tiroir et porte (Conforama)', 30, 24, { short: 'Colonne', m: 'cab', cab: { H: 158, leg: 2, socle: true, rows: [['o', 23], ['t', 9], ['o', 30.5], ['p', 29], ['o', 29], ['o', 29]] }, ref: 'conforama.fr · code S78627361' }),
+    F('cf-enfant8', 'Rangement', 'Rangement enfant 8 compartiments (Conforama)', 104, 29, { short: 'Rangement 8 cases', m: 'cab', cab: { H: 101.5, blocks: [{ h: 91, cols: [{ f: 28, rows: [['o', 1], ['o', 1], ['o', 1]] }, { f: 43, rows: [['o', 1], ['o', 1]] }, { f: 28, rows: [['o', 1], ['o', 1], ['o', 1]] }] }, { h: 10.5, cols: [{ rows: [['o', 1]] }] }] }, ref: 'conforama.fr · code B75068399' }),
+    F('cf-armoire3', 'Rangement', 'Meuble 3 portes 60 × 90 (Conforama)', 60, 29.5, { short: 'Meuble 3 portes', m: 'cab', cab: { H: 90, leg: 2, socle: true, rows: [['p', 1], ['p', 1], ['p', 1]] }, ref: 'conforama.fr · code J45696588' }),
     F('besta', 'Rangement', 'Meuble TV (type Bestå)', 180, 42),
+    // miroirs muraux (cotes IKEA ; ronds génériques) : hauteur de pose et sens réglables dans la fiche
+    F('nissedal40', 'Miroirs', 'Miroir Nissedal 40 × 150 (IKEA)', 40, 3, { short: 'Nissedal', m: 'mir', mi: { H: 150, shape: 'rect', fr: 30 } }),
+    F('nissedal65', 'Miroirs', 'Miroir Nissedal 65 × 150 (IKEA)', 65, 3, { short: 'Nissedal', m: 'mir', mi: { H: 150, shape: 'rect', fr: 30 } }),
+    F('nissedal65c', 'Miroirs', 'Miroir Nissedal 65 × 65 (IKEA)', 65, 3, { short: 'Nissedal', m: 'mir', mi: { H: 65, shape: 'rect', fr: 30 } }),
+    F('lindbyn60', 'Miroirs', 'Miroir Lindbyn 60 × 120, angles arrondis (IKEA)', 60, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 120, shape: 'rrect', r: 90, fr: 10 } }),
+    F('lindbyn40', 'Miroirs', 'Miroir Lindbyn 40 × 130, bouts ronds (IKEA)', 40, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 130, shape: 'pill', fr: 10 } }),
+    F('larbro', 'Miroirs', 'Miroir Lärbro 48 × 120 (IKEA)', 48, 3, { short: 'Lärbro', m: 'mir', mi: { H: 120, shape: 'rect', fr: 35 } }),
+    F('mirond60', 'Miroirs', 'Miroir rond Ø 60', 60, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 60, shape: 'round', fr: 15 } }),
+    F('mirond80', 'Miroirs', 'Miroir rond Ø 80', 80, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 80, shape: 'round', fr: 15 } }),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('basseverre', 'Tables', 'Table basse chêne et verre 80 × 80', 80, 80, { short: 'Table basse', m: 'basseverre' }), F('chaise', 'Tables', 'Chaise', 45, 52),
+    // bureaux IKEA (cotes des fiches produit)
+    F('micke105', 'Bureau', 'Bureau Micke 105 × 50 (IKEA)', 105, 50, { short: 'Micke', m: 'desk', dk: { H: 75, top: 20, L: { t: 'panneau' }, R: { t: 'caisson', w: 37, rows: [['o', 1], ['o', 1]] }, drawer: [[0, 1]], back: 45 } }),
+    F('micke73', 'Bureau', 'Bureau Micke 73 × 50 (IKEA)', 73, 50, { short: 'Micke', m: 'desk', dk: { H: 75, top: 20, L: { t: 'panneau' }, R: { t: 'panneau' }, drawer: [[0.07, 0.93]], back: 45 } }),
+    F('micke142', 'Bureau', 'Bureau Micke 142 × 50 (IKEA)', 142, 50, { short: 'Micke', m: 'desk', dk: { H: 75, top: 20, L: { t: 'panneau' }, R: { t: 'panneau' }, drawer: [[0.52, 0.97]], back: 45 } }),
+    F('malm-bur', 'Bureau', 'Bureau Malm 140 × 65 (IKEA)', 140, 65, { short: 'Malm', m: 'desk', dk: { H: 73, top: 30, L: { t: 'panneau' }, R: { t: 'caisson', w: 42, rows: [['o', 1], ['o', 1], ['t', 0.55]] }, back: 30 } }),
+    F('lagk140', 'Bureau', 'Bureau Lagkapten / Alex 140 × 60 (IKEA)', 140, 60, { short: 'Lagkapten / Alex', m: 'desk', dk: { H: 73, top: 30, L: { t: 'caisson', w: 36, d: 58, rows: [['t', 1], ['t', 1], ['t', 1], ['t', 1], ['t', 1]] }, R: { t: 'caisson', w: 36, d: 58, rows: [['p', 1]] } } }),
+    F('lagk200', 'Bureau', 'Bureau Lagkapten / Alex 200 × 60 (IKEA)', 200, 60, { short: 'Lagkapten / Alex', m: 'desk', dk: { H: 73, top: 30, L: { t: 'caisson', w: 36, d: 58, rows: [['t', 1], ['t', 1], ['t', 1], ['t', 1], ['t', 1]] }, R: { t: 'caisson', w: 36, d: 58, rows: [['p', 1]] } } }),
+    F('pahl', 'Bureau', 'Bureau enfant Påhl 96 × 58, réglable (IKEA)', 96, 58, { short: 'Påhl', m: 'desk', dk: { H: 72, Hs: [59, 66, 72], top: 22, L: { t: 'treteau' }, R: { t: 'treteau' } }, ref: 'hauteur 59, 66 ou 72 cm' }),
+    // bureaux vendus sur conforama.fr
+    F('cf-noah', 'Bureau', 'Bureau Noah pin massif, 2 tiroirs (Conforama)', 110, 54, { short: 'Noah', m: 'desk', dk: { H: 75, top: 25, L: { t: 'pied' }, R: { t: 'pied' }, drawer: [[0.04, 0.49], [0.51, 0.96]] }, ref: 'conforama.fr · code U19176483' }),
+    F('cf-bur110', 'Bureau', 'Bureau 110 × 50, 5 tiroirs (Conforama)', 110, 50, { short: 'Bureau 5 tiroirs', m: 'desk', dk: { H: 76, top: 25, L: { t: 'panneau' }, R: { t: 'caisson', w: 40, rows: [['o', 1.2], ['t', 1], ['t', 1], ['t', 1]] }, drawer: [[0.04, 0.96]], back: 30 }, ref: 'conforama.fr · code A42866278' }),
+    F('cf-bur90', 'Bureau', 'Bureau 90 × 50 avec étagère (Conforama)', 90, 50, { short: 'Bureau 90', m: 'desk', dk: { H: 74, top: 25, L: { t: 'panneau' }, R: { t: 'caisson', w: 30, rows: [['o', 1], ['o', 1]] } }, ref: 'conforama.fr · code Z49873847' }),
     F('bureau140', 'Bureau', 'Bureau 140 × 65', 140, 65), F('bureau160', 'Bureau', 'Bureau 160 × 80', 160, 80), F('caisson', 'Bureau', 'Caisson', 36, 58), F('fauteuilbur', 'Bureau', 'Fauteuil de bureau', 65, 65, { round: true }),
     F('canape2', 'Salon', 'Canapé 2 places', 180, 90), F('canape3', 'Salon', 'Canapé 3 places', 228, 95), F('angle', 'Salon', 'Canapé d\'angle', 250, 160, { shape: 'L', t: 95 }), F('fauteuil', 'Salon', 'Fauteuil', 68, 82),
     F('piano', 'Salon', 'Piano droit (piano d\'étude)', 150, 60, { short: 'Piano droit', m: 'pianodroit' }), F('pianon', 'Salon', 'Piano numérique', 140, 40, { m: 'pianonum' }), F('banquette', 'Salon', 'Banquette de piano', 57, 33, { m: 'banquette' }),
@@ -36,6 +69,10 @@
     F('kallax24', 'Étagères', 'Étagère 2 × 4 (type Kallax)', 76.5, 39, { m: 'kallax', H: 147, grid: [2, 4] }), F('kallax4', 'Étagères', 'Étagère 4 × 4 (type Kallax)', 146.5, 39, { m: 'kallax', H: 147, grid: [4, 4] }),
     F('billy40', 'Étagères', 'Bibliothèque 40 (type Billy)', 40, 28, { m: 'billy', H: 202 }), F('billy', 'Étagères', 'Bibliothèque 80 (type Billy)', 80, 28, { m: 'billy', H: 202 }),
     F('ivar', 'Étagères', 'Étagère 89 × 30 (type Ivar)', 89, 30, { m: 'ivar', H: 179 }), F('ivar50', 'Étagères', 'Étagère 89 × 50 (type Ivar)', 89, 50, { m: 'ivar', H: 179 }),
+    // étagères vendues sur conforama.fr
+    F('cf-samo', 'Étagères', 'Bibliothèque Samo 9 cases, 5 portes (Conforama)', 89, 29, { short: 'Samo', m: 'cab', cab: { H: 91, cols: [{ rows: [['p', 1], ['o', 1], ['p', 1]] }, { rows: [['o', 1], ['p', 1], ['o', 1]] }, { rows: [['p', 1], ['o', 1], ['p', 1]] }] }, ref: 'conforama.fr · code Q69934345' }),
+    F('cf-new', 'Étagères', 'Bibliothèque New 50 × 160, 5 niveaux (Conforama)', 50, 19, { short: 'New', m: 'cab', cab: { H: 160, leg: 3, socle: true, rows: [['o', 1], ['o', 1], ['o', 1], ['o', 1], ['o', 1]] }, ref: 'conforama.fr · code H36523485' }),
+    F('cf-soon', 'Étagères', 'Bibliothèque Soon 60 × 216, 5 étagères (Conforama)', 60, 40, { short: 'Soon', m: 'cab', cab: { H: 216, leg: 5, socle: true, rows: [['o', 1], ['o', 1], ['o', 1], ['o', 1], ['o', 1]] }, ref: 'conforama.fr · code W14626456' }),
     F('lack110', 'Étagères', 'Étagère murale 110 (type Lack)', 110, 26, { m: 'murale' }), F('lack30', 'Étagères', 'Étagère murale 30 (type Lack)', 30, 26, { m: 'murale' }),
     // cuisine du bon de commande : caissons 56 cm + façade 2 cm, socle 10 cm, caisson bas 78 cm, plan 3,9 cm (dessus à 91,9 cm)
     F('kfrigo60', 'Cuisine commandée', 'Colonne réfrigérateur intégré 60', 60, 58, { short: 'Frigo', m: 'kcol', k: 'frigo', ref: 'GR201178T1 · niche 178' }),
@@ -153,6 +190,32 @@
   const rrect = (u0, v0, u1, v1, r) => { r = Math.max(1, Math.min(r, (u1 - u0) / 2, (v1 - v0) / 2)); return [].concat(ell(u1 - r, v0 + r, r, r, 5, -Math.PI / 2, 0), ell(u1 - r, v1 - r, r, r, 5, 0, Math.PI / 2), ell(u0 + r, v1 - r, r, r, 5, Math.PI / 2, Math.PI), ell(u0 + r, v0 + r, r, r, 5, Math.PI, Math.PI * 1.5)); };
   const ccw = (P) => { let a = 0; P.forEach((p, k) => { const q = P[(k + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; }); return a < 0 ? P.slice().reverse() : P; };
   const seg3 = (pts, z, closed) => { const o = []; for (let k = 0; k < pts.length - (closed ? 0 : 1); k++) { const p = pts[k], q = pts[(k + 1) % pts.length]; o.push([[p[0], p[1], z], [q[0], q[1], z]]); } return o; };
+  const legs4 = (M, u0, u1, v0, v1, h, sz = 35, ins = 15) => { for (const [u, v] of [[u0 + ins, v0 + ins], [u1 - ins - sz, v0 + ins], [u1 - ins - sz, v1 - ins - sz], [u0 + ins, v1 - ins - sz]]) M.solids.push({ pts: rect(u, v, u + sz, v + sz), z0: 0, z1: h }); };
+  // corps de caisson : flancs, dessus, fond, dos, colonnes de rangées (tiroir t, porte p, ouvert o)
+  const block = (M, u0, u1, v0, v1, z0, z1, cols, o = {}) => {
+    const th = 18, bk = 6;
+    if (o.foot) { M.solids.push({ pts: rect(u0 + 15, v0 + 20, u1 - 15, v1 - 10), z0, z1: z0 + o.foot }); z0 += o.foot; }
+    M.solids.push({ pts: rect(u0, v0, u0 + th, v1), z0, z1 }, { pts: rect(u1 - th, v0, u1, v1), z0, z1 });
+    const zb = o.noBottom ? z0 : z0 + th, ztp = z1 - th;
+    M.solids.push({ pts: rect(u0 + th, v0, u1 - th, v1), z0: ztp, z1 }); if (!o.noBottom) M.solids.push({ pts: rect(u0 + th, v0, u1 - th, v1), z0, z1: zb });
+    M.solids.push({ pts: rect(u0 + th, v1 - bk, u1 - th, v1), z0: zb, z1: ztp });
+    const iw = u1 - u0 - 2 * th, nc = cols.length, sf = cols.reduce((a, c) => a + (c.f || 1), 0), ih = ztp - zb; let cu = u0 + th;
+    cols.forEach((col, ci) => {
+      const cw = ((iw - (nc - 1) * th) * (col.f || 1)) / sf, rows = col.rows || [], nr = rows.length, sw = rows.reduce((a, r) => a + r[1], 0) || 1; let z = zb;
+      rows.forEach(([t, wt], ri) => {
+        const rh = ((ih - (nr - 1) * th) * wt) / sw;
+        if (ri) M.solids.push({ pts: rect(cu, v0, cu + cw, v1 - bk), z0: z - th, z1: z });
+        if (t === 't' || t === 'p') {
+          M.solids.push({ pts: rect(cu + 2, v0, cu + cw - 2, v0 + 16), z0: z + 2, z1: z + rh - 2 });
+          if (t === 't') { const hz = z + rh - Math.min(45, rh / 3), hw = Math.min(60, cw / 4); M.lines.push([[cu + cw / 2 - hw, v0 - 1, hz], [cu + cw / 2 + hw, v0 - 1, hz]]); }
+          else { const hu = ci % 2 ? cu + 40 : cu + cw - 40, hz = z + rh / 2, hl = Math.min(60, rh / 4); M.lines.push([[hu, v0 - 1, hz - hl], [hu, v0 - 1, hz + hl]]); }
+        }
+        z += rh + th;
+      });
+      if (ci < nc - 1) M.solids.push({ pts: rect(cu + cw, v0, cu + cw + th, v1 - bk), z0: zb, z1: ztp });
+      cu += cw + th;
+    });
+  };
   const ring3 = (pts, z) => pts.map((p, k) => [[p[0], p[1], z], [pts[(k + 1) % pts.length][0], pts[(k + 1) % pts.length][1], z]]);
   // cuvette : arrière droit, avant arrondi (forme en D)
   const bowl = (u0, u1, v0, v1, back) => { const ru = (u1 - u0) / 2, cu = (u0 + u1) / 2, vb = v1 - back; return [[u0, v1], [u0, vb]].concat(ell(cu, vb, ru, vb - v0, 18, Math.PI, Math.PI * 2).slice(1, -1)).concat([[u1, vb], [u1, v1]]); };
@@ -287,6 +350,51 @@
       for (const [xa, xb, s0] of [[fa0, fb0, 0], [fa1, fb0, Math.PI / 2], [fa1, fb1, Math.PI], [fa0, fb1, -Math.PI / 2]]) { add(Pl(ell(xa, xb, ea, eb, 10, s0, s0 + Math.PI / 2)), false); add(Pl(ell(xa, xb, ea * 0.6, eb * 0.6, 8, s0, s0 + Math.PI / 2)), false); }
       // franges
       for (let b = 20; b <= Sd - 20; b += 30) for (const [x0, x1] of [[a0, 0], [a1, L]]) { const p = [P(x0, b), P(x1, b)]; M.plan.push({ pts: p, open: true }); M.lines.push([[p[0][0], p[0][1], 2], [p[1][0], p[1][1], 2]]); }
+    },
+    // caisson générique (chevets, commodes, rangements, étagères) : pieds ou socle, blocs empilés de colonnes,
+    // rangées tiroir « t », porte « p » ou ouvertes « o » (hauteurs relatives), dessus utilisable comme étage
+    cab: (w, d, M, it) => {
+      const c = it.cab, H = c.H * 10, lg = (c.leg || 0) * 10; M.h = H;
+      if (c.metal) { // piètement métal fin, plateaux
+        for (const [u, v] of [[0, 0], [w - 15, 0], [w - 15, d - 15], [0, d - 15]]) M.solids.push({ pts: rect(u, v, u + 15, v + 15), z0: 0, z1: H });
+        const rows = c.rows, sw = rows.reduce((a, r) => a + r[1], 0); let z = 60; M.solids.push({ pts: rect(15, 15, w - 15, d - 15), z0: z, z1: z + 12 });
+        for (const r of rows) { z += ((H - 72) * r[1]) / sw; M.solids.push({ pts: rect(z >= H - 15 ? 0 : 15, z >= H - 15 ? 0 : 15, z >= H - 15 ? w : w - 15, z >= H - 15 ? d : d - 15), z0: z - 12, z1: z }); }
+      } else {
+        if (lg) { if (c.socle) M.solids.push({ pts: rect(25, 25, w - 25, d - 15), z0: 0, z1: lg }); else legs4(M, 0, w, 0, d, lg, 36, 18); if (c.shelf) M.solids.push({ pts: rect(30, 30, w - 30, d - 30), z0: c.shelf * 10, z1: c.shelf * 10 + 15 }); }
+        const blocks = c.blocks || [{ h: 1, cols: c.cols || [{ rows: c.rows }] }], sh = blocks.reduce((a, b) => a + b.h, 0); let z = lg;
+        blocks.forEach((b, k) => { const bh = ((H - lg) * b.h) / sh; block(M, 0, w, 0, d, z, z + bh, b.cols, { noBottom: k > 0 }); z += bh; });
+      }
+      M.plan.push({ pts: [[0, 18], [w, 18]], open: true });
+      M.decks = [{ pts: rect(0, 0, w, d), z: H, name: 'dessus', top: true }];
+    },
+    // bureau générique : plateau, appuis à gauche et à droite (pieds, panneau, tréteau, caisson), tiroirs sous plateau, voile de fond
+    desk: (w, d, M, it, sh) => {
+      const k = it.dk, H = PL.deskHeight(it, sh) * 10, tt = k.top || 25, zt = H - tt; M.h = H;
+      M.solids.push({ pts: rect(0, 0, w, d), z0: zt, z1: H });
+      const side = (sp, left) => {
+        if (!sp) return 0;
+        if (sp.t === 'pied') { const ls = 45, i = 30, u = left ? i : w - i - ls; for (const v of [i, d - i - ls]) { M.solids.push({ pts: rect(u, v, u + ls, v + ls), z0: 0, z1: zt }); M.plan.push({ pts: rect(u, v, u + ls, v + ls), dash: true }); } return i + ls; }
+        if (sp.t === 'panneau') { const u = left ? 0 : w - 18; M.solids.push({ pts: rect(u, 0, u + 18, d), z0: 0, z1: zt }); M.plan.push({ pts: rect(u, 0, u + 18, d), dash: true }); return 18; }
+        if (sp.t === 'treteau') { const ft = 32, u = left ? 45 : w - 45 - ft; M.solids.push({ pts: rect(u, 25, u + ft, d - 25), z0: 0, z1: 35 }, { pts: rect(u, 40, u + ft, 80), z0: 35, z1: zt }, { pts: rect(u, d - 80, u + ft, d - 40), z0: 35, z1: zt }, { pts: rect(u, 40, u + ft, d - 40), z0: zt - 45, z1: zt }); M.plan.push({ pts: rect(u, 25, u + ft, d - 25), dash: true }); return 45 + ft; }
+        if (sp.t === 'caisson') { const cw = sp.w * 10, cd = sp.d ? Math.min(d, sp.d * 10) : d, u0 = left ? 0 : w - cw; block(M, u0, u0 + cw, (d - cd) / 2, (d + cd) / 2, 0, zt, sp.cols || [{ rows: sp.rows }], { foot: 20 }); M.plan.push({ pts: rect(u0, (d - cd) / 2, u0 + cw, (d + cd) / 2), dash: true }); return cw; }
+        return 0;
+      };
+      const a = side(k.L, true), b = side(k.R, false), span = w - a - b;
+      if (k.back) M.solids.push({ pts: rect(a, d - 30, w - b, d - 14), z0: zt - k.back * 10, z1: zt });
+      for (const [f0, f1] of k.drawer || []) { const u0 = a + span * f0, u1 = a + span * f1; M.solids.push({ pts: rect(u0 + 3, 0, u1 - 3, 16), z0: zt - 105, z1: zt - 4 }, { pts: rect(u0 + 6, 16, u1 - 6, Math.min(d - 40, 420)), z0: zt - 100, z1: zt - 4 }); M.lines.push([[(u0 + u1) / 2 - 50, -1, zt - 40], [(u0 + u1) / 2 + 50, -1, zt - 40]]); }
+      M.decks = [{ pts: rect(0, 0, w, d), z: H, name: 'plateau', top: true }];
+    },
+    // miroir mural : plaque verticale (rectangle, angles arrondis, bouts ronds ou rond), cadre et reflets ; sens et hauteur de pose réglables
+    mir: (w, d, M, it, sh) => {
+      const mi = it.mi, Hm = PL.mirrorH(it, sh), z0 = PL.mirrorZ(it, sh), fr = mi.fr || 20, cz = z0 + Hm / 2; M.dash = true; M.h = z0 + Hm;
+      const face = (ins) => { const W = w - 2 * ins, Hh = Hm - 2 * ins, u0 = ins, v0 = z0 + ins; if (W < 4 || Hh < 4) return null;
+        if (mi.shape === 'round') return ell(w / 2, cz, W / 2, Hh / 2, 40);
+        if (mi.shape === 'pill' || mi.shape === 'rrect') return rrect(u0, v0, u0 + W, v0 + Hh, mi.shape === 'pill' ? Math.min(W, Hh) / 2 : Math.max(2, (mi.r || 80) - ins)).map(([a, b]) => [a, b]);
+        return rect(u0, v0, u0 + W, v0 + Hh); };
+      const out = face(0), inn = face(fr); M.slabs = [{ face: out, v0: 0, v1: d, round: mi.shape !== 'rect' }];
+      if (inn) { M.lines.push(...inn.map((p, k2) => { const q = inn[(k2 + 1) % inn.length]; return [[p[0], -1, p[1]], [q[0], -1, q[1]]]; }));
+        const iw = w - 2 * fr, ih = Hm - 2 * fr; for (const [a0, b0, a1, b1] of [[0.18, 0.55, 0.42, 0.78], [0.3, 0.42, 0.62, 0.72]]) M.lines.push([[fr + iw * a0, -1, z0 + fr + ih * b0], [fr + iw * a1, -1, z0 + fr + ih * b1]]); }
+      M.plan.push({ pts: [[0, d / 2], [w, d / 2]], open: true });
     },
     // pied d'enceinte : embase, colonne, plateau 20 × 23 cm ; le plateau monte pour mettre le tweeter à hauteur d'oreille
     pied: (w, d, M, it, sh) => {
@@ -424,7 +532,7 @@
   }
   PL.furnModel = (id, w, d, sh) => {
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
+    const M = { outline: null, plan: [], solids: [], slabs: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
   };
   /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
   PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
@@ -434,6 +542,11 @@
   // Kallax : grille [colonnes, rangées] debout (it.grid), échangée quand il est couché ; 41,5 cm pour une case, + 35 cm par case
   PL.kallaxGrid = (it, sh) => { const g = (it && it.grid) || [2, 2]; return ((sh && sh.orient) || (it && it.orient) || 'v') === 'h' ? [g[1], g[0]] : [g[0], g[1]]; };
   PL.kallaxSize = (n) => 415 + (n - 1) * 350;
+  PL.deskHeight = (it, sh) => { const k = it.dk; return k.Hs && sh && k.Hs.includes(+sh.dh) ? +sh.dh : k.H; };
+  // miroir : debout (largeur × hauteur du catalogue) ou couché ; bas du miroir à 30 cm pour un grand, sinon centré à 155 cm
+  PL.mirrorHang = (it, sh) => (sh && sh.hang) || 'v';
+  PL.mirrorH = (it, sh) => (PL.mirrorHang(it, sh) === 'h' ? it.w : it.mi.H) * 10;
+  PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 

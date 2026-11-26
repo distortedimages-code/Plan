@@ -79,7 +79,17 @@
   /* ---------- mobilier : hauteurs et volumes simples ---------- */
   const HGT = { chevet: 500, pax50: 2360, pax100: 2360, pax150: 2360, pax200: 2360, dressingL: 2360, commode3: 780, commode6: 780, hemnes8: 1310, kallax2: 770, kallax4: 1470, billy: 2020, besta: 420,
     caisson: 600, piano: 1250, pianon: 900, meublebas: 900, colonne: 2200, frigo: 1800, lv: 850, ilot: 900, vasque: 850, lavelinge: 850, angle: 420, douche90: 50, douche120: 50, baignoire: 560 };
-  const frameOf = (P) => { const o = P[0], U = G.norm(G.sub(P[1], P[0])), Vv = G.norm(G.sub(P[3], P[0])); return { at: (u, v) => G.add(G.add(o, G.mul(U, u)), G.mul(Vv, v)), w: G.dist(P[0], P[1]), d: G.dist(P[0], P[3]) }; };
+  const frameOf = (P) => { const o = P[0], U = G.norm(G.sub(P[1], P[0])), Vv = G.norm(G.sub(P[3], P[0])); return { at: (u, v) => G.add(G.add(o, G.mul(U, u)), G.mul(Vv, v)), w: G.dist(P[0], P[1]), d: G.dist(P[0], P[3]), U, V: Vv }; };
+  /* plaque verticale : contour dans le plan (u, z) du meuble, épaisseur de v0 à v1 (miroirs ronds, cadres) */
+  const slab = (B, f, face, v0, v1, col, smooth) => {
+    const n = face.length; if (n < 3) return; const W = (q, v) => P3(f.at(q[0], v), q[1]);
+    const cu = face.reduce((a, q) => a + q[0], 0) / n, cz = face.reduce((a, q) => a + q[1], 0) / n;
+    for (let i = 0; i < n; i++) { const a = face[i], b = face[(i + 1) % n]; let nu = b[1] - a[1], nz = -(b[0] - a[0]); if (nu * ((a[0] + b[0]) / 2 - cu) + nz * ((a[1] + b[1]) / 2 - cz) < 0) { nu = -nu; nz = -nz; } quad(B, W(a, v0), W(b, v0), W(b, v1), W(a, v1), [f.U.x * nu, nz, -f.U.y * nu], col); }
+    let tr = []; try { tr = T.ShapeUtils.triangulateShape(face.map((q) => new T.Vector2(q[0], q[1])), []); } catch (e) { tr = []; }
+    for (const [i, j, k] of tr) { tri(B, W(face[i], v0), W(face[j], v0), W(face[k], v0), H3(f.V, -1), col); tri(B, W(face[i], v1), W(face[j], v1), W(face[k], v1), H3(f.V), col); }
+    for (let i = 0; i < n; i++) { const a = face[i], b = face[(i + 1) % n]; ln(W(a, v0), W(b, v0)); ln(W(a, v1), W(b, v1)); if (!smooth) ln(W(a, v0), W(a, v1)); }
+    if (smooth) for (const k of [0, Math.round(n / 4), Math.round(n / 2), Math.round((3 * n) / 4)]) ln(W(face[k % n], v0), W(face[k % n], v1));
+  };
   const sub = (f, u0, u1, v0, v1) => [f.at(u0, v0), f.at(u1, v0), f.at(u1, v1), f.at(u0, v1)];
   const ellipse = (f, n = 28, cu = f.w / 2, cv = f.d / 2, ru = f.w / 2, rv = f.d / 2) => { const o = []; for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; o.push(f.at(cu + Math.cos(a) * ru, cv + Math.sin(a) * rv)); } return o; };
   /* canapés : assise, dossier le long du dos (côté 3 pour un droit, les deux côtés extérieurs pour un angle), accoudoirs aux bouts */
@@ -113,7 +123,7 @@
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
     const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
-    if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
+    if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const q of M.slabs || []) slab(B, f, q.face, q.v0, q.v1, col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
     if (id === 'tableronde') { prism(B, ellipse(f), 720, 750, col, true); prism(B, sub(f, w / 2 - 45, w / 2 + 45, d / 2 - 45, d / 2 + 45), 0, 720, col); return; }
@@ -273,12 +283,12 @@
         const cd = G.mul(g.d, sg), od = G.mul(g.nin, side), // même convention que le plan
  a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
         const h0 = G.add(h, G.mul(od, 10)), poly = [h0, G.add(h0, G.mul(dir, lw - 20)), G.add(G.add(h0, G.mul(dir, lw - 20)), G.mul(pr, 40)), G.add(h0, G.mul(pr, 40))];
-        prism(B, poly, 8, top - 8, st.col.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
+        prism(B, poly, 8, top - 8, PH ? hexLin('#efede8') : st.col.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
       }
     } else if (o.sw !== 0 && o.type === 'coulissante') {
       const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(g.nin, side * 30), back = G.sub(from, to);
       const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(g.nin, side * 35)), G.add(a, G.mul(g.nin, side * 35))];
-      prism(B, poly, 8, top - 8, st.col.acc);
+      prism(B, poly, 8, top - 8, PH ? hexLin('#efede8') : st.col.acc);
     }
   };
 
@@ -309,10 +319,67 @@
     return tex;
   };
 
+  /* ---------- photo réaliste : couleurs (linéaires), parquet planche par planche ---------- */
+  let PH = false;
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const hexLin = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return [0.85, 0.85, 0.85]; const n = parseInt(m[1], 16); return [lin(((n >> 16) & 255) / 255), lin(((n >> 8) & 255) / 255), lin((n & 255) / 255)]; };
+  V.PAINT0 = '#f1eee8';
+  const paintCol = (r) => hexLin((r.paint && r.paint.hex) || V.PAINT0);
+  const furnCol = (s) => {
+    const id = s.lib || '', it = PL.lib.furniture.find((x) => x.id === id) || {};
+    if (s.kind !== 'meuble') return hexLin('#e6e3dd');
+    if (id === 'persan') return hexLin('#7a2b23');
+    if (/^(please|pied|jaspers)$/.test(id) || it.m === 'gear' || /^knarrevik/.test(id)) return hexLin('#2d2d30');
+    if (/hemnes|noah|olderdalen|idanas|basseverre|piano|banquette/.test(id)) return hexLin('#c09a6e');
+    if (/^lit|canape|lindakra|fauteuil|angle/.test(id)) return hexLin('#d8d2c8');
+    return hexLin('#ecebe7');
+  };
+  const photoFloorTexture = (fid, rooms, bb, cal) => {
+    const MX = matchMedia('(pointer:coarse)').matches ? 2048 : 4096;
+    const W = bb.x1 - bb.x0, H = bb.y1 - bb.y0, k = Math.min(MX / W, MX / H, 0.8); const cw = Math.max(16, Math.ceil(W * k)), ch = Math.max(16, Math.ceil(H * k));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+    const tp = (p) => [(p.x - bb.x0) * k, (p.y - bb.y0) * k];
+    const path = (pts) => { x.beginPath(); pts.forEach((p, i) => { const [a, b] = tp(p); i ? x.lineTo(a, b) : x.moveTo(a, b); }); x.closePath(); };
+    let seed = 1234567; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = '#8f8a82'; x.fillRect(0, 0, cw, ch);
+    const plank = (P, ang) => { // planche de chêne : teinte propre, fil du bois, nœud de temps en temps, joint chanfreiné
+      const l = 0.86 + rnd() * 0.24, wm = rnd() * 0.08; path(P); x.fillStyle = `rgb(${Math.round(196 * l)},${Math.round((160 - wm * 60) * l)},${Math.round((118 - wm * 80) * l)})`; x.fill();
+      const cpx = P.reduce((a, p) => a + tp(p)[0], 0) / P.length, cpy = P.reduce((a, p) => a + tp(p)[1], 0) / P.length; let a0 = ang;
+      if (a0 == null) { let best = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length], L = G.dist(p, q); if (L > best) { best = L; a0 = Math.atan2(q.y - p.y, q.x - p.x); } } }
+      const ext = Math.max(...P.map((p) => G.dist(p, P[0]))) * k + 4;
+      x.save(); path(P); x.clip(); x.translate(cpx, cpy); x.rotate(a0 || 0);
+      const n = 9 + Math.floor(rnd() * 6), wd = 230 * k;
+      for (let j = 0; j < n; j++) { const y0 = -wd / 2 + (wd * (j + rnd())) / n, amp = (0.6 + rnd() * 2.2) * k * 6, fq = 0.002 + rnd() * 0.006, ph = rnd() * 6.28; x.beginPath(); for (let t = -ext; t <= ext; t += 6) { const yy = y0 + Math.sin(t * fq / k * 0.35 + ph) * amp; t === -ext ? x.moveTo(t, yy) : x.lineTo(t, yy); } x.strokeStyle = `rgba(${90 + Math.round(rnd() * 30)},${58 + Math.round(rnd() * 20)},${30},${0.06 + rnd() * 0.14})`; x.lineWidth = 0.5 + rnd() * 1.4; x.stroke(); }
+      if (rnd() < 0.18) { const kx = (rnd() - 0.5) * ext, ky = (rnd() - 0.5) * wd * 0.5; x.beginPath(); x.ellipse(kx, ky, (6 + rnd() * 8) * k * 3, (3 + rnd() * 3) * k * 3, 0, 0, Math.PI * 2); x.fillStyle = 'rgba(85,52,25,0.45)'; x.fill(); }
+      x.restore(); path(P); x.strokeStyle = 'rgba(70,45,25,0.6)'; x.lineWidth = Math.max(0.7, 1.6 * k * 2); x.stroke();
+    };
+    for (const r of rooms) {
+      x.save(); path(r.pts); x.clip();
+      if (r.parquet === false) { // carrelage 60 × 60, joints clairs
+        x.fillStyle = '#d6d2ca'; x.fillRect(0, 0, cw, ch); const th = OR.angleOf(r.pts), fr = OR.frame(th), q = r.pts.map(fr.to); const X0 = Math.min(...q.map((p) => p.x)), X1 = Math.max(...q.map((p) => p.x)), Y0 = Math.min(...q.map((p) => p.y)), Y1 = Math.max(...q.map((p) => p.y));
+        for (let u = X0; u < X1; u += 600) for (let v = Y0; v < Y1; v += 600) { const t = 0.94 + rnd() * 0.08; path([fr.from({ x: u, y: v }), fr.from({ x: u + 600, y: v }), fr.from({ x: u + 600, y: v + 600 }), fr.from({ x: u, y: v + 600 })]); x.fillStyle = `rgb(${Math.round(214 * t)},${Math.round(209 * t)},${Math.round(200 * t)})`; x.fill(); x.strokeStyle = '#bdb7ac'; x.lineWidth = Math.max(1, 3 * k); x.stroke(); }
+      } else {
+        const res = cal && cal.results[r.id], polys = res ? (cal.polys = cal.polys || {}, cal.polys[r.id] = cal.polys[r.id] || PL.layout.boardPolys(res)) : null;
+        if (polys && polys.length) for (const b of polys) plank(b.poly, null);
+        else { // pas encore calepiné : lames 1286 × 214 en coupe de pierre, dans le sens de la pièce
+          const th = OR.angleOf(r.pts), fr = OR.frame(th), q = r.pts.map(fr.to); const X0 = Math.min(...q.map((p) => p.x)), X1 = Math.max(...q.map((p) => p.x)), Y0 = Math.min(...q.map((p) => p.y)), Y1 = Math.max(...q.map((p) => p.y));
+          let row = 0; for (let v = Y0; v < Y1; v += 214, row++) { const off = ((row * 0.37) % 1) * 1286; for (let u = X0 - off; u < X1; u += 1286) plank([fr.from({ x: u, y: v }), fr.from({ x: u + 1286, y: v }), fr.from({ x: u + 1286, y: v + 214 }), fr.from({ x: u, y: v + 214 })], th); }
+        }
+      }
+      x.save(); x.shadowColor = 'rgba(0,0,0,0.22)'; x.shadowBlur = 160 * k; x.shadowOffsetX = 20000; x.lineWidth = 90 * k; x.translate(-20000, 0); path(r.pts); x.strokeStyle = '#000'; x.stroke(); x.restore();
+      x.restore();
+    }
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.2)'; x.shadowBlur = 110 * k; x.shadowOffsetX = 20000; x.translate(-20000, 0); x.fillStyle = '#000';
+    for (const s of App.shapesOn(fid)) if (['meuble', 'poteau', 'forme'].includes(s.kind) && !(App.stack && App.stack.under(s)) && !(s.lib && /^mir|nissedal|lindbyn|larbro/.test(s.lib))) { path(s.pts); x.fill(); }
+    x.restore();
+    const tex = new T.CanvasTexture(c); tex.flipY = false; tex.encoding = T.sRGBEncoding; tex.anisotropy = st.R.capabilities.getMaxAnisotropy ? st.R.capabilities.getMaxAnisotropy() : 1; tex.minFilter = T.LinearMipmapLinearFilter;
+    return tex;
+  };
+
   const build = () => {
     const fid = st.fid, f = S.p.floors.find((x) => x.id === fid) || App.floor(); const rooms = App.rooms(fid), shapes = App.shapesOn(fid);
     const Hf = (f.ceiling || 250) * 10 + SLAB, Hc0 = (f.ceiling || 250) * 10;
-    const B = mk(), FL = mk(); st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
+    const B = mk(), FL = mk(), BF = PH ? mk() : B, OC = PH ? mk() : null; st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
     const all = shapes.flatMap((s) => s.pts || []); if (!all.length) return false;
     const bb = { x0: Math.min(...all.map((p) => p.x)) - 200, y0: Math.min(...all.map((p) => p.y)) - 200, x1: Math.max(...all.map((p) => p.x)) + 200, y1: Math.max(...all.map((p) => p.y)) + 200 };
     st.bb = bb; st.rooms = rooms; st.Hf = Hf;
@@ -321,7 +388,8 @@
     const uvf = (p) => [(p.x - bb.x0) / (bb.x1 - bb.x0), (p.y - bb.y0) / (bb.y1 - bb.y0)];
     const fps0 = shapes.filter((z) => z.kind === 'plafond' && z.drop > 0);
     for (const r of rooms) {
-      const Hc = App.feat.ceiling(r) * 10, n = r.pts.length;
+      const Hc = App.feat.ceiling(r) * 10, n = r.pts.length, wc = PH ? paintCol(r) : st.col.wall;
+      if (OC) { const big = G.offset(r.pts, G.area(r.pts) > 0 ? -260 : 260); if (big && big.length > 2) { prism(OC, big, Hc, Hc + 320, [0.5, 0.5, 0.5]); prism(OC, big, -320, -2, [0.5, 0.5, 0.5]); } }
       for (const part of minus(r.pts, downs)) fill(FL, part.outer, part.holes, () => 0, [0, 1, 0], null, uvf);
       for (const part of minus(r.pts, ups)) fill(B, part.outer, part.holes, () => Hc, [0, -1, 0], st.col.ceil);
       const sl = slopesOf(r, Hc); st.slopes[r.id] = sl;
@@ -330,7 +398,7 @@
       for (const z of fps0.filter((x) => x.drop > 0)) for (const Z of inter(r.pts, z.pts)) {
         const h = Hc - z.drop * 10; if (h <= 300) continue;
         fill(B, Z, [], () => h, [0, -1, 0], st.col.fp);
-        for (let i = 0; i < Z.length; i++) { const a = Z[i], b = Z[(i + 1) % Z.length]; ln(P3(a, h), P3(b, h)); if (G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40) continue; const dd = G.norm(G.sub(b, a)), nout = { x: dd.y, y: -dd.x }; quad(B, P3(a, h), P3(b, h), P3(b, Hc), P3(a, Hc), H3(nout), st.col.wall); }
+        for (let i = 0; i < Z.length; i++) { const a = Z[i], b = Z[(i + 1) % Z.length]; ln(P3(a, h), P3(b, h)); if (G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40) continue; const dd = G.norm(G.sub(b, a)), nout = { x: dd.y, y: -dd.x }; quad(B, P3(a, h), P3(b, h), P3(b, Hc), P3(a, Hc), H3(nout), wc); }
       }
       for (let i = 0; i < n; i++) {
         const W = App.ops.wall(r, i); if (W.el < 1) continue;
@@ -340,7 +408,7 @@
         for (let a = 0; a < us.length - 1; a++) for (let b = 0; b < vs.length - 1; b++) {
           const um = (us[a] + us[a + 1]) / 2, vm = (vs[b] + vs[b + 1]) / 2; if (ops.some((o) => um > o.u0 && um < o.u1 && vm > o.sill && vm < o.top)) continue;
           const pa = G.add(W.a, G.mul(W.d, us[a])), pb = G.add(W.a, G.mul(W.d, us[a + 1]));
-          quad(B, P3(pa, vs[b]), P3(pb, vs[b]), P3(pb, vs[b + 1]), P3(pa, vs[b + 1]), H3(nin), st.col.wall);
+          quad(B, P3(pa, vs[b]), P3(pb, vs[b]), P3(pb, vs[b + 1]), P3(pa, vs[b + 1]), H3(nin), wc);
         }
         ln(P3(W.a, 0), P3(W.b, 0)); if (!sl.length) ln(P3(W.a, Hc), P3(W.b, Hc));
         const Wp = App.ops.wall(r, (i - 1 + n) % n); if (Math.abs(G.cross(Wp.d, W.d)) > 0.1 || G.dot(Wp.d, W.d) < 0) ln(P3(W.a, 0), P3(W.a, sl.length ? Math.min(Hc, ...sl.filter((z) => z.inside(W.a)).map((z) => z.hAt(W.a))) : Hc));
@@ -360,17 +428,25 @@
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
-      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(B, s, home ? App.feat.ceiling(home) * 10 : Hc0, st.col.furn); ZO = 0;
+      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(BF, s, home ? App.feat.ceiling(home) * 10 : Hc0, PH ? furnCol(s) : st.col.furn); ZO = 0;
       if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '')) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
     st.segs.push(...st.leaves);
     // dehors : un sol à perte de vue
     const lvl = f.level || 0, gy = lvl > 0 ? -lvl * Hf - 150 : -150, cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, E = 90000;
-    quad(B, P3({ x: cx - E, y: cy - E }, gy), P3({ x: cx + E, y: cy - E }, gy), P3({ x: cx + E, y: cy + E }, gy), P3({ x: cx - E, y: cy + E }, gy), [0, 1, 0], st.col.ground);
+    quad(B, P3({ x: cx - E, y: cy - E }, gy), P3({ x: cx + E, y: cy - E }, gy), P3({ x: cx + E, y: cy + E }, gy), P3({ x: cx - E, y: cy + E }, gy), [0, 1, 0], PH ? hexLin('#6d7a58') : st.col.ground);
     // maillages
     const geo = (A, withUv) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3)); if (withUv) g.setAttribute('uv', new T.Float32BufferAttribute(A.uv, 2)); return g; };
     const matOpts = { specular: 0x000000, shininess: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: T.FrontSide, shadowSide: T.DoubleSide };
+    if (PH) { // photo réaliste : matériaux physiques, parquet dessiné planche par planche, pas de traits
+      const main = new T.Mesh(geo(B), new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide }));
+      const floor = new T.Mesh(geo(FL, true), new T.MeshStandardMaterial({ map: photoFloorTexture(fid, rooms, bb, App.calepinage(fid)), roughness: 0.62, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide }));
+      const furn = new T.Mesh(geo(BF), main.material), occ = new T.Mesh(geo(OC), main.material);
+      main.name = 'shell'; floor.name = 'floor'; furn.name = 'furn'; occ.name = 'occ';
+      for (const o of [main, floor, furn, occ]) { o.castShadow = true; o.receiveShadow = true; }
+      const grp = new T.Group(); grp.add(main, floor, furn, occ); st.scene.add(grp); st.grp = grp; return true;
+    }
     const main = new T.Mesh(geo(B), new T.MeshPhongMaterial(Object.assign({ vertexColors: true }, matOpts)));
     const tex = floorTexture(fid, rooms, bb, App.calepinage(fid));
     const floor = new T.Mesh(geo(FL, true), new T.MeshPhongMaterial(Object.assign({ map: tex }, matOpts)));
@@ -456,12 +532,100 @@
     resize(); st.raf = requestAnimationFrame(tick);
   };
   V.close = () => {
-    if (!st) return; cancelAnimationFrame(st.raf);
+    if (!st) return; if (st.ph && st.ph.close) st.ph.close(); cancelAnimationFrame(st.raf);
     window.removeEventListener('resize', resize); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', clearKeys);
     dispose(); st.rt.dispose(); st.R.dispose(); if (st.R.forceContextLoss) st.R.forceContextLoss(); st.el.remove(); st = null;
   };
   V.active = () => !!st;
   V.debug = () => st;
+
+  /* ---------- photo réaliste : on garde la vue simple pour se déplacer, et on « prend une photo » rendue à part :
+     même géométrie, matériaux physiques, murs à leur peinture, parquet planche par planche ; lumière naturelle =
+     soleil (pénombre douce) + ciel échantillonné direction par direction avec ses ombres, de sorte qu'il n'entre que
+     par les fenêtres ; les passes s'accumulent en flottant (lissage, ombres douces), puis exposition et ACES. ---------- */
+  const QV = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
+  V.photo = () => {
+    if (!st || st.ph) return; const R = st.R, coarse = matchMedia('(pointer:coarse)').matches;
+    const cfg = V.photoCfg || {}, vw = st.el.clientWidth, vh = st.el.clientHeight, LS = cfg.LS || (coarse ? 1400 : 1920), asp = vw / vh;
+    const Wp = Math.round(asp >= 1 ? LS : LS * asp), Hp = Math.round(asp >= 1 ? LS / asp : LS);
+    // scène photo : on reconstruit l'étage en mode photo, puis on rend la main à la visite
+    const keep = { grp: st.grp, L: st.L, segs: st.segs, leaves: st.leaves, rail: st.rail, doors: st.doors, slopes: st.slopes, stairs: st.stairs, rooms: st.rooms, bb: st.bb, Hf: st.Hf };
+    let ok = false; PH = true; try { ok = build(); } catch (e) { ok = false; } finally { PH = false; }
+    const pg = ok ? st.grp : null; Object.assign(st, keep); if (!pg) { App.toast && App.toast('Rendu impossible sur cet étage.'); return; }
+    st.scene.remove(pg); placeSun();
+    const scene = new T.Scene(); scene.add(pg); scene.background = new T.Color(1.35, 1.55, 1.9);
+    scene.add(new T.AmbientLight(0xfff4e8, 0.035));
+    const bb = st.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 1;
+    const mkL = (size, col) => { const L = new T.DirectionalLight(col, 1); L.castShadow = true; L.shadow.mapSize.set(size, size); L.shadow.bias = -0.0004; L.shadow.normalBias = 0.006; const c = L.shadow.camera; c.left = -R0; c.right = R0; c.top = R0; c.bottom = -R0; c.near = 1; c.far = 140; c.updateProjectionMatrix(); scene.add(L, L.target); return L; };
+    const sun = mkL(cfg.sh || (coarse ? 2048 : 4096), 0xfff0dc), sky = mkL(cfg.sh ? cfg.sh / 2 : coarse ? 1024 : 2048, 0xd6e4ff), amb = mkL(cfg.sh ? cfg.sh / 2 : 1024, 0xffffff);
+    // les rebonds prennent un peu la teinte des murs de la pièce où l'on se tient
+    { const here = st.rooms.find((r) => G.pointInPoly(st.pos, r.pts)), pc = here ? paintCol(here) : [0.85, 0.85, 0.85], m = Math.max(...pc, 0.01); amb.color.setRGB(0.65 + 0.35 * pc[0] / m, 0.65 + 0.35 * pc[1] / m, 0.65 + 0.35 * pc[2] / m); }
+    const meshes = {}; pg.traverse((o) => { if (o.isMesh) meshes[o.name] = o; });
+    const setPass = (bounce, below) => { sun.castShadow = sky.castShadow = !bounce; amb.castShadow = bounce && !below; for (const k of ['shell', 'floor', 'occ']) if (meshes[k]) meshes[k].castShadow = !bounce; };
+    const sunDir = st.sun.position.clone().sub(st.sun.target.position).normalize();
+    const cam = st.cam.clone(); cam.aspect = Wp / Hp; cam.updateProjectionMatrix();
+    const ht = (R.capabilities.isWebGL2 || R.extensions.has('OES_texture_half_float')) ? T.HalfFloatType : T.FloatType;
+    const rtP = new T.WebGLRenderTarget(Wp, Hp, { type: ht, depthBuffer: true, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
+    const rtA = new T.WebGLRenderTarget(Wp, Hp, { type: ht, depthBuffer: false, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
+    const rtO = new T.WebGLRenderTarget(Wp, Hp, { depthBuffer: false, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
+    const qc = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), plane = new T.PlaneGeometry(2, 2);
+    const accM = new T.ShaderMaterial({ uniforms: { t: { value: rtP.texture }, k: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float k; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb * k, 1.); }', blending: T.AdditiveBlending, transparent: true, depthTest: false, depthWrite: false });
+    const outM = new T.ShaderMaterial({ uniforms: { t: { value: rtA.texture }, e: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float e; varying vec2 vUv; vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0., 1.); } void main(){ vec3 c = aces(max(texture2D(t, vUv).rgb, 0.) * e); gl_FragColor = vec4(pow(c, vec3(1./2.2)), 1.); }', depthTest: false, depthWrite: false });
+    const accS = new T.Scene(), outS = new T.Scene(); accS.add(new T.Mesh(plane, accM)); outS.add(new T.Mesh(plane, outM));
+    // fenêtre de résultat
+    const ov = document.createElement('div'); ov.className = 'ph';
+    ov.innerHTML = `<div class="ph-img"><canvas width="${Wp}" height="${Hp}"></canvas><img alt="Rendu réaliste de la vue" hidden></div>
+      <div class="ph-bar"><i></i></div>
+      <div class="ph-tools"><span class="ph-st">Rendu en cours…</span><label class="ph-ex">Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0" disabled></label><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="close">Fermer</button></div>`;
+    st.el.appendChild(ov); st.ph = { ov };
+    const cv = ov.querySelector('canvas'), cx2 = cv.getContext('2d'), img = ov.querySelector('img'), bar = ov.querySelector('.ph-bar i'), stx = ov.querySelector('.ph-st'), rng = ov.querySelector('input'), sv = ov.querySelector('.ph-save');
+    const N = cfg.N || (coarse ? 48 : 96), SUN = 2.8, SKY = 1.25, AMB = 1.15; let i = 0, expo = 1, user = 0, dead = false; const buf = new Uint8Array(Wp * Hp * 4), id = cx2.createImageData(Wp, Hp);
+    let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const withState = (fn) => { const tm = R.toneMapping, enc = R.outputEncoding, ty = R.shadowMap.type, ac = R.autoClear, cc = R.getClearColor(new T.Color()).clone(), ca = R.getClearAlpha();
+      R.toneMapping = T.NoToneMapping; R.outputEncoding = T.LinearEncoding; R.shadowMap.type = T.PCFSoftShadowMap;
+      try { fn(); } finally { R.setRenderTarget(null); R.toneMapping = tm; R.outputEncoding = enc; R.shadowMap.type = ty; R.autoClear = ac; R.setClearColor(cc, ca); R.shadowMap.needsUpdate = true; st.dirty = true; } };
+    const show = () => { // ton final → image (lignes inversées)
+      outM.uniforms.e.value = expo * Math.pow(2, user) * (N / Math.max(1, i)); R.setRenderTarget(rtO); R.autoClear = true; R.render(outS, qc); R.readRenderTargetPixels(rtO, 0, 0, Wp, Hp, buf);
+      const d = id.data, row = Wp * 4; for (let y = 0; y < Hp; y++) d.set(buf.subarray((Hp - 1 - y) * row, (Hp - y) * row), y * row); cx2.putImageData(id, 0, 0); };
+    const meter = () => { // exposition auto : la médiane des luminances vers 0,46
+      const L = []; for (let p = 0; p < buf.length; p += 4 * 37) L.push(0.2126 * buf[p] + 0.7152 * buf[p + 1] + 0.0722 * buf[p + 2]); L.sort((a, b) => a - b);
+      const m = Math.max(4, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.25, Math.min(8, expo * Math.pow(0.42 / m, 2.0))); };
+    const pass = () => {
+      if (dead || !st) return;
+      withState(() => {
+        const t0 = performance.now();
+        while (i < N && performance.now() - t0 < 45) {
+          const sd = sunDir.clone().add(new T.Vector3((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04)).normalize();
+          sun.position.set(cx + sd.x * 70, sd.y * 70, cz + sd.z * 70); sun.target.position.set(cx, 0, cz); sun.target.updateMatrixWorld(); 
+          const ix = Math.floor(((i * 0.6180339887) % 1) * N), ce = 0.04 + 0.96 * ((ix + rnd()) / N), ph = ix * 2.39996 + rnd() * 0.4, se = Math.sqrt(1 - ce * ce);
+          sky.position.set(cx + se * Math.cos(ph) * 70, ce * 70, cz + se * Math.sin(ph) * 70); sky.target.position.set(cx, 0, cz); sky.target.updateMatrixWorld(); sky.intensity = SKY;
+          const ay = 2 * ((((i * 0.7548776662) % 1) + rnd() / N) % 1) - 1, aph = i * 2.39996 + rnd(), ar = Math.sqrt(Math.max(0, 1 - ay * ay));
+          amb.position.set(cx + ar * Math.cos(aph) * 70, ay * 70, cz + ar * Math.sin(aph) * 70); amb.target.position.set(cx, ay < 0 ? -1 : 0, cz); amb.target.updateMatrixWorld();
+          cam.setViewOffset(Wp, Hp, rnd() - 0.5, rnd() - 0.5, Wp, Hp);
+          R.setRenderTarget(rtA); if (i === 0) { R.setClearColor(0x000000, 1); R.clear(); }
+          for (const bounce of [false, true]) { // passe directe (soleil + ciel), puis passe de rebonds
+            setPass(bounce, ay < 0); sun.intensity = bounce || sd.y <= 0.02 ? 0 : SUN; sky.intensity = bounce ? 0 : SKY; amb.intensity = bounce ? AMB : 0;
+            R.shadowMap.needsUpdate = true; R.autoClear = true; R.setRenderTarget(rtP); R.setClearColor(0x000000, 1);
+            if (bounce) { const bg = scene.background; scene.background = null; R.render(scene, cam); scene.background = bg; } else R.render(scene, cam);
+            R.setRenderTarget(rtA); R.autoClear = false; accM.uniforms.k.value = 1 / N; R.render(accS, qc);
+          }
+          i++;
+        }
+        show(); if (i >= 6 && !st.ph.metered) { meter(); st.ph.metered = 1; show(); }
+      });
+      bar.style.width = Math.round((100 * i) / N) + '%'; stx.textContent = `Rendu en cours… ${Math.round((100 * i) / N)} %`;
+      if (i < N) { st.ph.raf = requestAnimationFrame(pass); return; }
+      withState(() => { meter(); show(); });
+      finish();
+    };
+    const finish = () => { stx.textContent = 'Photo prête'; ov.classList.add('done'); rng.disabled = false; const url = cv.toDataURL('image/jpeg', 0.92); img.src = url; img.hidden = false; cv.hidden = true; sv.href = url; sv.hidden = false; };
+    rng.addEventListener('input', () => { user = +rng.value; withState(show); const url = cv.toDataURL('image/jpeg', 0.92); img.src = url; sv.href = url; });
+    const close = () => { dead = true; if (st && st.ph && st.ph.raf) cancelAnimationFrame(st.ph.raf);
+      pg.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
+      for (const L of [sun, sky, amb]) if (L.shadow.map) L.shadow.map.dispose(); rtP.dispose(); rtA.dispose(); rtO.dispose(); accM.dispose(); outM.dispose(); plane.dispose(); ov.remove(); if (st) { st.ph = null; st.dirty = true; } };
+    ov.querySelector('[data-ph=close]').addEventListener('click', close); st.ph.close = close;
+    st.ph.raf = requestAnimationFrame(pass);
+  };
   const dispose = () => { if (!st.grp) return; st.grp.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); st.scene.remove(st.grp); st.grp = null; };
   const setFloor = (fid, roomId) => {
     const prev = st.pos ? Object.assign({}, st.pos) : null; st.fid = fid; dispose(); st.sunBase = null;
@@ -482,7 +646,7 @@
       <div class="fps-tl"><button class="fps-x" data-f="close" aria-label="Quitter la visite">✕</button><div class="fps-room"><b></b></div></div>
       <div class="fps-tr"><canvas class="fps-map" aria-label="Plan de situation"></canvas></div>
       <div class="fps-br">${fl.length > 1 ? `<div class="fps-seg">${fl.map((f) => `<button data-fl="${f.id}">${App.esc ? App.esc(f.name) : f.name}</button>`).join('')}</div>` : ''}
-        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div></div>
+        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div><button class="fps-photo" data-f="photo">Photo réaliste</button></div>
       <div class="fps-hint">${touch ? 'Pouce gauche : marcher · glisser à droite : regarder' : 'ZQSD ou flèches : marcher · glisser : regarder · Maj : presser le pas'}</div>
       <div class="fps-joy"><i></i></div>`);
     st.el.addEventListener('click', (e) => {
@@ -490,6 +654,7 @@
       if (b.dataset.fl) { setFloor(b.dataset.fl); return; }
       if (b.dataset.f === 'close') V.close();
       else if (b.dataset.f === 'sun') { st.sunStep = (st.sunStep + 1) % 8; placeSun(); }
+      else if (b.dataset.f === 'photo') V.photo();
       else if (b.dataset.f === 'grain') { st.scale = st.scale === 1 ? 0.5 : 1; b.setAttribute('aria-pressed', st.scale < 1); resize(); }
     });
     const cv = st.el.querySelector('canvas.view');

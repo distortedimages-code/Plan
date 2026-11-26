@@ -94,7 +94,7 @@
     $('tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { S.sel = null; ui.setTab(b.dataset.tab); if ($('sheet').dataset.h === 'min') ui.sheet('half'); App.render(); } };
     const panel = $('panel');
     panel.addEventListener('click', onPanelClick); panel.addEventListener('change', onPanelChange);
-    panel.addEventListener('input', (e) => { const t = e.target; if (t.dataset.live === 'name' && App.selected()) { App.selected().name = t.value; App.render(); } if (t.dataset.live === 'bgop') { const v = +t.value / 100; App.setBgOpacity(v); panel.querySelectorAll('[data-bgop-v]').forEach((x) => { x.textContent = Math.round(v * 100) + ' %'; }); panel.querySelectorAll('input[data-live=bgop]').forEach((x) => { if (x !== t) x.value = t.value; }); } });
+    panel.addEventListener('input', (e) => { const t = e.target; if (t.dataset.live === 'libq') { ui.libQ = t.value; ui.libFilter(); return; } if (t.dataset.live === 'name' && App.selected()) { App.selected().name = t.value; App.render(); } if (t.dataset.live === 'bgop') { const v = +t.value / 100; App.setBgOpacity(v); panel.querySelectorAll('[data-bgop-v]').forEach((x) => { x.textContent = Math.round(v * 100) + ' %'; }); panel.querySelectorAll('input[data-live=bgop]').forEach((x) => { if (x !== t) x.value = t.value; }); } });
     // poignée du panneau
     const grip = $('grip'); let gy = null, gh = 0;
     grip.addEventListener('pointerdown', (e) => { gy = e.clientY; gh = $('sheet').getBoundingClientRect().height; grip.setPointerCapture(e.pointerId); });
@@ -409,6 +409,7 @@
     else if (S.tab === 'import') html = App.importer.panel();
     else if (S.tab === 'projet') html = panelProjet();
     panel.innerHTML = html;
+    if (S.tab === 'mobilier' && !sel) ui.libFilter();
     if (S.tab === 'elec' && !sel) drawElecTiles();
     if (S.tab === 'import' && !sel) App.importer.bind(panel);
   }
@@ -452,6 +453,7 @@
       if (hab.low > 0) h += `<p style="margin-top:10px">Surface à plus de 1,80 m : <b style="color:var(--ink)">${App.fmtM2(hab.SH)} m²</b>${s.areaSH ? ' (plan : ' + s.areaSH.toLocaleString('fr-FR') + ' m²)' : ''}</p>`;
       h += `<div class="field" style="margin-top:10px"><label>Parquet dans cette pièce</label><input type="checkbox" data-c="parquet" ${s.parquet !== false ? 'checked' : ''}></div>
         <div class="field"><label>Hauteur sous plafond</label><div class="unit"><input data-c="ceil" inputmode="decimal" placeholder="${App.feat.ceiling(Object.assign({}, s, { ceiling: null }))}" value="${s.ceiling || ''}"><span>cm</span></div></div>
+        ${paintUI(s)}
         <h3>Transformer</h3><div class="row"><button class="btn sm" data-a="cut">Ajouter une cloison</button>${nb.length ? `<select id="mergeWith" style="height:36px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${nb.map((r) => `<option value="${r.id}">${esc(r.name || 'Pièce')}</option>`).join('')}</select><button class="btn sm" data-a="merge">Fusionner</button>` : ''}</div>
         ${(() => { const st = App.stairs.stairsTouching(s).filter(() => Math.abs(G.area(s.pts)) < 8e6); return st.length ? `<div class="preview"><b>Partie d'escalier ?</b> Cette pièce touche ${esc(st[0].name || 'l\'escalier')}. Si c'est son palier ou ses marches tournantes, réunissez-les.<div class="row" style="margin-top:8px"><button class="btn sm red" data-x="stjoin2" data-v="${st[0].id}">Assembler à l'escalier</button></div></div>` : ''; })()}
         <p>Touchez un mur sur le plan (ou son nom ci-dessous) pour passer en mode cloison : verrou, longueur, déplacement avec aperçu avant validation.</p>`;
@@ -477,6 +479,14 @@
     return h;
   }
 
+  // peinture des murs : couleur et référence du nuancier, utilisées par la photo réaliste de la visite 3D
+  const SWATCH = [['Blanc chaud', '#f1eee8'], ['Blanc pur', '#f7f7f4'], ['Lin', '#e4d9c6'], ['Greige', '#cbc2b3'], ['Sauge', '#b6c1a9'], ['Bleu poudré', '#c3d1dc'], ['Rose poudré', '#e6cdc4'], ['Ocre doux', '#dcc08f'], ['Terracotta', '#c27f66'], ['Vert sapin', '#3e5849'], ['Bleu nuit', '#2e3c54'], ['Anthracite', '#4a4a4c']];
+  function paintUI(s) {
+    const hex = (s.paint && s.paint.hex) || (App.fps && App.fps.PAINT0) || '#f1eee8', ref = (s.paint && s.paint.ref) || '';
+    return `<h3>Peinture des murs</h3><div class="paint"><input type="color" data-c="paint" value="${esc(hex)}" aria-label="Couleur des murs"><input data-c="paintref" placeholder="Référence (ex. Unikalo …)" value="${esc(ref)}" aria-label="Référence de la teinte"></div>
+      <div class="swatches">${SWATCH.map(([n, h]) => `<button data-a="paintq" data-v="${h}" title="${n}" aria-label="${n}" aria-pressed="${hex.toLowerCase() === h}" style="background:${h}"></button>`).join('')}</div>
+      <p class="hint2">Utilisée par la photo réaliste de la visite 3D. Les teintes à l'écran restent indicatives : la référence sert à retrouver la vraie couleur sur le nuancier.</p>`;
+  }
   function furnitureDims(s) {
     if (s.pts.length !== 4) return '';
     const w = G.dist(s.pts[0], s.pts[1]), d = G.dist(s.pts[1], s.pts[2]);
@@ -618,10 +628,26 @@
   function panelMob() {
     const cats = {}; PL.lib.furniture.concat(PL.lib.structure).forEach((it) => { (cats[it.cat] = cats[it.cat] || []).push(it); });
     const placed = App.shapesOn().filter((s) => s.kind === 'meuble');
-    return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Dimensions indicatives, toutes modifiables : cotes des modèles IKEA courants (Godmorgon, Kallax, Billy, Ivar…) et du commerce pour les WC. « Dos au mur » le plaque contre le mur le plus proche ; « h » : hauteur du dessus.</p>
-      ${Object.entries(cats).map(([c, items]) => `<h3>${esc(c)}</h3>${c === 'Cuisine commandée' ? `<p class="hint2">D'après le bon de commande et les plans Darty : cuisine en U avec presqu'île, plan de travail à 91,9 cm. « Poser toute la cuisine » place chaque élément à sa cote, avec les prises et arrivées d'eau du plan technique ; touchez ensuite l'angle de la pièce.</p><div class="row" style="margin-bottom:10px"><button class="btn sm primary" data-a="kitplace">Poser toute la cuisine</button>${App.shapesOn().some((x) => x.grp === 'cuisine') ? '<button class="btn sm ghost" data-a="kitdel">Retirer la cuisine posée</button>' : ''}</div>` : ''}<div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div>`).join('')}
+    const cur = cats[ui.libCat] ? ui.libCat : '';
+    return `<h2>Mobilier</h2><p class="lead">Touchez un élément pour le poser au centre de la vue, puis déplacez-le avec la poignée rouge. Cotes des fiches IKEA et Conforama, toutes modifiables ; « h » : hauteur du dessus.</p>
+      <div class="libnav"><input type="search" data-live="libq" placeholder="Chercher : chevet, Kallax, miroir, Conforama…" value="${esc(ui.libQ || '')}" aria-label="Chercher un meuble"><div class="chips libcats" role="tablist">${['', ...Object.keys(cats)].map((c) => `<button data-a="libcat" data-v="${esc(c)}" aria-pressed="${cur === c}">${c ? esc(c) : 'Tout'}</button>`).join('')}</div></div>
+      ${Object.entries(cats).map(([c, items]) => `<section class="libsec" data-cat="${esc(c)}"><h3>${esc(c)}</h3>${c === 'Cuisine commandée' ? `<p class="hint2">D'après le bon de commande et les plans Darty : cuisine en U avec presqu'île, plan de travail à 91,9 cm. « Poser toute la cuisine » place chaque élément à sa cote, avec les prises et arrivées d'eau du plan technique ; touchez ensuite l'angle de la pièce.</p><div class="row" style="margin-bottom:10px"><button class="btn sm primary" data-a="kitplace">Poser toute la cuisine</button>${App.shapesOn().some((x) => x.grp === 'cuisine') ? '<button class="btn sm ghost" data-a="kitdel">Retirer la cuisine posée</button>' : ''}</div>` : ''}<div class="grid">${items.map((it) => `<button class="tile" data-a="lib" data-v="${it.id}" data-q="${esc(norm([it.name, it.cat, it.ref || '', it.short || ''].join(' ')))}">${svgFor(it)}<b>${esc(it.name)}</b><small>${it.round ? 'Ø ' + it.w : it.w + ' × ' + it.d}${(() => { const M = PL.furnModel && PL.furnModel(it.id, it.w * 10, it.d * 10); return M && M.h ? ' · h ' + (Math.round(M.h) / 10).toLocaleString('fr-FR') : ''; })()} cm${it.ref ? '<br>' + esc(it.ref) : ''}</small></button>`).join('')}</div></section>`).join('')}<p class="libnone" hidden>Aucun meuble ne correspond.</p>
       ${placed.length ? `<h3>Posés sur cet étage</h3><div class="list">${placed.map((s) => `<button class="item" data-a="sel" data-v="${s.id}"><span class="nm">${esc(s.name)}</span>${s.locked ? '<span class="tag">verrouillé</span>' : ''}<span class="meta">${App.fmtCm(G.dist(s.pts[0], s.pts[1]), 0)} × ${App.fmtCm(G.dist(s.pts[1], s.pts[2]), 0)}</span></button>`).join('')}</div>` : ''}`;
   }
+
+  const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  try { ui.libCat = localStorage.getItem('calepin:libcat') || ''; } catch (e) { ui.libCat = ''; }
+  ui.libQ = '';
+  // menu des catégories et recherche : on montre ou cache les sections sans redessiner le panneau
+  ui.libFilter = () => {
+    const panel = $('panel'), q = norm(ui.libQ || '').trim(), words = q.split(/\s+/).filter(Boolean); let any = false;
+    panel.querySelectorAll('.libsec').forEach((sec) => {
+      let n = 0; sec.querySelectorAll('.tile').forEach((t) => { const ok = !words.length || words.every((w) => t.dataset.q.includes(w)); t.hidden = !ok; if (ok) n++; });
+      const show = words.length ? n > 0 : !ui.libCat || sec.dataset.cat === ui.libCat; sec.hidden = !show; if (show && n) any = true;
+    });
+    panel.querySelectorAll('.libcats [data-a=libcat]').forEach((b) => b.setAttribute('aria-pressed', !words.length && b.dataset.v === (ui.libCat || '')));
+    const none = panel.querySelector('.libnone'); if (none) none.hidden = any;
+  };
 
   /* ----- Électricité ----- */
   function panelElec() {
@@ -686,11 +712,16 @@
       case 'earq': App.mutate(() => { s.ear = +v; }); break;
       case 'kxo': App.mutate(() => App.stack.orient(s, v)); break;
       case 'seatq': App.mutate(() => { s.seat = +v; }); break;
+      case 'dhq': App.mutate(() => { s.dh = +v; }); break;
+      case 'paintq': App.mutate(() => { s.paint = Object.assign({}, s.paint, { hex: v }); }); break;
+      case 'hangq': App.mutate(() => App.stack.hang(s, v)); break;
+      case 'mzq': App.mutate(() => { s.mz = +v; }); break;
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
       case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
       case 'kitplace': ui.setTool('kitcorner'); if (innerWidth < 900) ui.sheet('min'); App.toast('Touchez l\'angle intérieur de la cuisine'); break;
       case 'kitdel': { if (!(await ui.confirm('Retirer la cuisine', 'Les éléments de la cuisine posée et leurs prises seront retirés de cet étage.', 'Retirer'))) break; App.mutate((P) => { P.shapes = P.shapes.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); P.points = P.points.filter((x) => !(x.grp === 'cuisine' && x.floor === P.floorId)); }); App.toast('Cuisine retirée — Annuler pour revenir'); break; }
+      case 'libcat': { const panel = $('panel'); ui.libCat = v || ''; try { localStorage.setItem('calepin:libcat', ui.libCat); } catch (e) {} ui.libQ = ''; const q = panel.querySelector('[data-live=libq]'); if (q) q.value = ''; ui.libFilter(); const nav = panel.querySelector('.libnav'); if (nav && panel.scrollTop > nav.offsetTop) panel.scrollTop = nav.offsetTop; break; }
       case 'lib': ui.placeLib(PL.lib.furniture.concat(PL.lib.structure).find((x) => x.id === v)); if (innerWidth < 900) ui.sheet('min'); break;
       case 'etype': S.elecType = v; if (S.mode !== 'elec') { S.mode = 'elec'; } ui.setTool('elec'); if (innerWidth < 900) ui.sheet('min'); break;
       case 'lockpos': App.mutate(() => { s.locked = !s.locked; }); break;
@@ -746,10 +777,13 @@
     if (c === 'pname') { App.mutate((P) => { P.name = val; }); return; }
     if (c === 'kind') { App.mutate(() => { s.kind = val; if (val === 'escalier') s.stair = s.stair || { dir: 'monte' }; }); return; }
     if (c === 'parquet') { App.mutate(() => { s.parquet = val; }); return; }
+    if (c === 'paint') { App.mutate(() => { s.paint = Object.assign({}, s.paint, { hex: String(val).toLowerCase() }); }); return; }
+    if (c === 'paintref') { App.mutate(() => { s.paint = Object.assign({}, s.paint, { ref: String(val).trim() }); if (!s.paint.ref) delete s.paint.ref; }); return; }
     if (c === 'ceil') { App.mutate(() => { s.ceiling = num(val) || null; }); return; }
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
     if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
+    if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
     if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }
     if (c === 'desktop') { const v = num(val); if (!(v >= 63 && v <= 127)) { App.toast('Le plateau Idåsen va de 63 à 127 cm'); ui.refresh(true); return; } App.mutate(() => { s.top = v; }); return; }
