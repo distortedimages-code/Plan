@@ -334,46 +334,6 @@
     if (/^lit|canape|lindakra|fauteuil|angle/.test(id)) return hexLin('#d8d2c8');
     return hexLin('#ecebe7');
   };
-  const photoFloorCanvas = (fid, rooms, bb, cal) => {
-    const MX = matchMedia('(pointer:coarse)').matches ? 2048 : 4096;
-    const W = bb.x1 - bb.x0, H = bb.y1 - bb.y0, k = Math.min(MX / W, MX / H, 0.8); const cw = Math.max(16, Math.ceil(W * k)), ch = Math.max(16, Math.ceil(H * k));
-    const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
-    const tp = (p) => [(p.x - bb.x0) * k, (p.y - bb.y0) * k];
-    const path = (pts) => { x.beginPath(); pts.forEach((p, i) => { const [a, b] = tp(p); i ? x.lineTo(a, b) : x.moveTo(a, b); }); x.closePath(); };
-    let seed = 1234567; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    x.fillStyle = '#8f8a82'; x.fillRect(0, 0, cw, ch);
-    const plank = (P, ang) => { // planche de chêne : teinte propre, fil du bois, nœud de temps en temps, joint chanfreiné
-      const l = 0.86 + rnd() * 0.24, wm = rnd() * 0.08; path(P); x.fillStyle = `rgb(${Math.round(196 * l)},${Math.round((160 - wm * 60) * l)},${Math.round((118 - wm * 80) * l)})`; x.fill();
-      const cpx = P.reduce((a, p) => a + tp(p)[0], 0) / P.length, cpy = P.reduce((a, p) => a + tp(p)[1], 0) / P.length; let a0 = ang;
-      if (a0 == null) { let best = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length], L = G.dist(p, q); if (L > best) { best = L; a0 = Math.atan2(q.y - p.y, q.x - p.x); } } }
-      const ext = Math.max(...P.map((p) => G.dist(p, P[0]))) * k + 4;
-      x.save(); path(P); x.clip(); x.translate(cpx, cpy); x.rotate(a0 || 0);
-      const n = 9 + Math.floor(rnd() * 6), wd = 230 * k;
-      for (let j = 0; j < n; j++) { const y0 = -wd / 2 + (wd * (j + rnd())) / n, amp = (0.6 + rnd() * 2.2) * k * 6, fq = 0.002 + rnd() * 0.006, ph = rnd() * 6.28; x.beginPath(); for (let t = -ext; t <= ext; t += 6) { const yy = y0 + Math.sin(t * fq / k * 0.35 + ph) * amp; t === -ext ? x.moveTo(t, yy) : x.lineTo(t, yy); } x.strokeStyle = `rgba(${90 + Math.round(rnd() * 30)},${58 + Math.round(rnd() * 20)},${30},${0.06 + rnd() * 0.14})`; x.lineWidth = 0.5 + rnd() * 1.4; x.stroke(); }
-      if (rnd() < 0.18) { const kx = (rnd() - 0.5) * ext, ky = (rnd() - 0.5) * wd * 0.5; x.beginPath(); x.ellipse(kx, ky, (6 + rnd() * 8) * k * 3, (3 + rnd() * 3) * k * 3, 0, 0, Math.PI * 2); x.fillStyle = 'rgba(85,52,25,0.45)'; x.fill(); }
-      x.restore(); path(P); x.strokeStyle = 'rgba(70,45,25,0.6)'; x.lineWidth = Math.max(0.7, 1.6 * k * 2); x.stroke();
-    };
-    for (const r of rooms) {
-      x.save(); path(r.pts); x.clip();
-      if (r.parquet === false) { // carrelage 60 × 60, joints clairs
-        x.fillStyle = '#d6d2ca'; x.fillRect(0, 0, cw, ch); const th = OR.angleOf(r.pts), fr = OR.frame(th), q = r.pts.map(fr.to); const X0 = Math.min(...q.map((p) => p.x)), X1 = Math.max(...q.map((p) => p.x)), Y0 = Math.min(...q.map((p) => p.y)), Y1 = Math.max(...q.map((p) => p.y));
-        for (let u = X0; u < X1; u += 600) for (let v = Y0; v < Y1; v += 600) { const t = 0.94 + rnd() * 0.08; path([fr.from({ x: u, y: v }), fr.from({ x: u + 600, y: v }), fr.from({ x: u + 600, y: v + 600 }), fr.from({ x: u, y: v + 600 })]); x.fillStyle = `rgb(${Math.round(214 * t)},${Math.round(209 * t)},${Math.round(200 * t)})`; x.fill(); x.strokeStyle = '#bdb7ac'; x.lineWidth = Math.max(1, 3 * k); x.stroke(); }
-      } else {
-        const res = cal && cal.results[r.id], polys = res ? (cal.polys = cal.polys || {}, cal.polys[r.id] = cal.polys[r.id] || PL.layout.boardPolys(res)) : null;
-        if (polys && polys.length) for (const b of polys) plank(b.poly, null);
-        else { // pas encore calepiné : lames 1286 × 214 en coupe de pierre, dans le sens de la pièce
-          const th = OR.angleOf(r.pts), fr = OR.frame(th), q = r.pts.map(fr.to); const X0 = Math.min(...q.map((p) => p.x)), X1 = Math.max(...q.map((p) => p.x)), Y0 = Math.min(...q.map((p) => p.y)), Y1 = Math.max(...q.map((p) => p.y));
-          let row = 0; for (let v = Y0; v < Y1; v += 214, row++) { const off = ((row * 0.37) % 1) * 1286; for (let u = X0 - off; u < X1; u += 1286) plank([fr.from({ x: u, y: v }), fr.from({ x: u + 1286, y: v }), fr.from({ x: u + 1286, y: v + 214 }), fr.from({ x: u, y: v + 214 })], th); }
-        }
-      }
-      x.save(); x.shadowColor = 'rgba(0,0,0,0.22)'; x.shadowBlur = 160 * k; x.shadowOffsetX = 20000; x.lineWidth = 90 * k; x.translate(-20000, 0); path(r.pts); x.strokeStyle = '#000'; x.stroke(); x.restore();
-      x.restore();
-    }
-    x.save(); x.shadowColor = 'rgba(0,0,0,0.2)'; x.shadowBlur = 110 * k; x.shadowOffsetX = 20000; x.translate(-20000, 0); x.fillStyle = '#000';
-    for (const s of App.shapesOn(fid)) if (['meuble', 'poteau', 'forme'].includes(s.kind) && !(App.stack && App.stack.under(s)) && !(s.lib && /^mir|nissedal|lindbyn|larbro/.test(s.lib))) { path(s.pts); x.fill(); }
-    x.restore();
-    return c;
-  };
 
   const build = () => {
     const fid = st.fid, f = S.p.floors.find((x) => x.id === fid) || App.floor(); const rooms = App.rooms(fid), shapes = App.shapesOn(fid);
@@ -505,7 +465,7 @@
     try { T = await load(); }
     catch (e) { host.remove(); App.toast && App.toast('Impossible de charger le moteur 3D. Vérifiez la connexion.'); return; }
     let R; try { R = new T.WebGLRenderer({ canvas: host.querySelector('canvas'), antialias: false, powerPreference: 'high-performance' }); }
-    catch (e) { host.remove(); App.toast && App.toast(PTR || V.lostOnce ? 'La 3D est bloquée après une saturation de la mémoire graphique : rechargez la page pour la réactiver.' : 'La 3D n\'est pas disponible sur cet appareil.'); return; }
+    catch (e) { host.remove(); App.toast && App.toast(V.lostOnce ? 'La 3D est bloquée après une saturation de la mémoire graphique : rechargez la page pour la réactiver.' : 'La 3D n\'est pas disponible sur cet appareil.'); return; }
     host.querySelector('canvas').addEventListener('webglcontextlost', (e) => { e.preventDefault(); V.lostOnce = true; if (st) { App.toast && App.toast('La 3D a perdu la main (mémoire graphique saturée). Fermez la visite ; si elle ne revient pas, rechargez la page.'); } });
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
@@ -525,288 +485,13 @@
     resize(); st.raf = requestAnimationFrame(tick);
   };
   V.close = () => {
-    if (!st) return; if (st.ph && st.ph.close) st.ph.close(); cancelAnimationFrame(st.raf);
+    if (!st) return; cancelAnimationFrame(st.raf);
     window.removeEventListener('resize', resize); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', clearKeys);
     dispose(); st.rt.dispose(); st.R.dispose(); if (st.R.forceContextLoss) st.R.forceContextLoss(); st.el.remove(); st = null;
   };
   V.active = () => !!st;
   V.debug = () => st;
 
-  /* ---------- photo réaliste ----------
-     La visite reste en rendu simple pour se déplacer ; « Photo réaliste » reconstruit la vue en mode photo et la calcule à part.
-     Moteur principal : lancer de rayons (three-gpu-pathtracer sur un three.js récent, chargés à la demande) : la lumière du
-     soleil et du ciel entre par les fenêtres et rebondit, reflets dans les miroirs, ombres justes. Repli : rendu rapide par
-     passes accumulées (soleil, ciel et rebonds approchés avec des ombres portées). */
-  const QV = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
-  let PTM = null; // modules du lancer de rayons
-  const loadPT = () => PTM || (PTM = Promise.all([import('three'), import('three-gpu-pathtracer'), import('three/examples/jsm/postprocessing/Pass.js').catch(() => ({}))]).then(([THREE, P, X]) => ({ THREE, P, FSQ: X.FullScreenQuad })).catch((e) => { PTM = null; throw e; }));
-
-  // la vue courante reconstruite en mode photo : tampons bruts (sommets, normales, couleurs linéaires), caméra, soleil
-  const photoData = () => {
-    const keep = { grp: st.grp, L: st.L, segs: st.segs, leaves: st.leaves, rail: st.rail, doors: st.doors, slopes: st.slopes, stairs: st.stairs, rooms: st.rooms, bb: st.bb, Hf: st.Hf };
-    let ok = false; st.phData = null; PH = true; try { ok = build(); } catch (e) { ok = false; console.warn(e); } finally { PH = false; BM = null; }
-    const d = ok ? st.phData : null; st.phData = null; Object.assign(st, keep); placeSun(); if (!d) return null;
-    const c = st.cam; d.cam = { fov: c.fov, pos: [c.position.x, c.position.y, c.position.z], rot: [c.rotation.x, c.rotation.y, c.rotation.z] };
-    const sd = st.sun.position.clone().sub(st.sun.target.position).normalize(); d.sun = [sd.x, sd.y, sd.z];
-    d.here = d.rooms.find((r) => G.pointInPoly(st.pos, r.pts)) || null; return d;
-  };
-
-  // lames de parquet : une plaque par lame posée 1 mm au-dessus d'un fond sombre (le joint), teinte propre, veinage d'une des 6 bandes de la texture
-  const plankData = (d) => {
-    const A = mk(), FLAT = mk(), cal = App.calepinage(d.fid), PQ = S.p.parquet || {}, Lp = PQ.L || 1286, Wp = PQ.W || 214, NV = 6;
-    let seed = 4242; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const oak = (l, wm) => [lin((196 * l) / 255), lin(((160 - wm * 60) * l) / 255), lin(((118 - wm * 80) * l) / 255)];
-    for (const r of d.rooms) {
-      if (r.parquet === false) { fill(FLAT, r.pts, [], () => 1, [0, 1, 0], hexLin('#d3cfc6')); continue; }
-      const res = cal && cal.results[r.id], polys = res ? (cal.polys = cal.polys || {}, cal.polys[r.id] = cal.polys[r.id] || PL.layout.boardPolys(res)) : null;
-      if (!polys || !polys.length) { fill(FLAT, r.pts, [], () => 1, [0, 1, 0], oak(0.98, 0.03)); continue; }
-      for (const b of polys) {
-        const P0 = b.poly; if (!P0 || P0.length < 3) continue; const P = G.offset(P0, G.area(P0) > 0 ? 0.8 : -0.8); if (!P || P.length < 3 || Math.abs(G.area(P)) < 100) continue;
-        let a0 = 0, best = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length], L = G.dist(p, q); if (L > best) { best = L; a0 = Math.atan2(q.y - p.y, q.x - p.x); } }
-        const u = { x: Math.cos(a0), y: Math.sin(a0) }, v = { x: -u.y, y: u.x }, s0 = Math.min(...P.map((p) => G.dot(p, u))), t0 = Math.min(...P.map((p) => G.dot(p, v)));
-        const k = Math.floor(rnd() * NV), off = rnd() * 0.35, col = oak(0.86 + rnd() * 0.26, rnd() * 0.08);
-        fill(A, P, [], () => 1, [0, 1, 0], col, (p) => [Math.min(1, off + ((G.dot(p, u) - s0) / Lp) * (1 - off)), (k + Math.max(0.02, Math.min(0.98, (G.dot(p, v) - t0) / Wp))) / NV]);
-      }
-    }
-    return { planks: A, flat: FLAT };
-  };
-  // texture de veinage du chêne : 6 bandes (une par variante de lame), à multiplier par la teinte de chaque lame
-  const grainCanvas = (size) => {
-    const c = document.createElement('canvas'); c.width = size; c.height = size; const x = c.getContext('2d'), sh = size / 6, sc = size / 2048;
-    let seed = 777; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    for (let k = 0; k < 6; k++) {
-      const y0 = k * sh; x.fillStyle = '#efe6da'; x.fillRect(0, y0, size, sh); x.save(); x.beginPath(); x.rect(0, y0, size, sh); x.clip();
-      for (let j = 0; j < 50; j++) { const yy = y0 + rnd() * sh, amp = (1 + rnd() * 6) * sc, fq = (0.0015 + rnd() * 0.008) / sc, ph = rnd() * 6.3; x.beginPath(); for (let t = 0; t <= size; t += 6) { const y = yy + Math.sin(t * fq + ph) * amp + Math.sin(t * fq * 3.1 + ph) * amp * 0.3; t ? x.lineTo(t, y) : x.moveTo(t, y); } x.strokeStyle = `rgba(${105 + Math.round(rnd() * 25)},${74 + Math.round(rnd() * 16)},46,${0.05 + rnd() * 0.2})`; x.lineWidth = (0.6 + rnd() * 2.4) * sc; x.stroke(); }
-      for (let m = 0; m < 3; m++) if (rnd() < 0.5) { x.beginPath(); x.ellipse(rnd() * size, y0 + sh * (0.2 + rnd() * 0.6), (8 + rnd() * 14) * sc, (3 + rnd() * 4) * sc, 0, 0, Math.PI * 2); x.fillStyle = 'rgba(92,60,32,0.4)'; x.fill(); }
-      const g = x.createLinearGradient(0, y0, 0, y0 + sh); g.addColorStop(0, 'rgba(90,60,30,0.10)'); g.addColorStop(0.08, 'rgba(0,0,0,0)'); g.addColorStop(0.92, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(90,60,30,0.10)'); x.fillStyle = g; x.fillRect(0, y0, size, sh);
-      x.restore();
-    }
-    return c;
-  };
-
-  // prompt pour ChatGPT : rendre la capture photographique sans rien changer à la scène
-  const gptPrompt = (d) => {
-    const r = d && d.here, pt = r && r.paint, PQ = S.p.parquet || {};
-    const murs = pt && (pt.ref || pt.hex) ? `murs peints${pt.ref ? ' « ' + pt.ref + ' »' : ''}${pt.hex ? ' (teinte ' + pt.hex + ')' : ''}` : 'murs blancs';
-    return [
-      "Transforme cette image en une vraie photographie d'intérieur, comme prise par un photographe d'architecture, à la lumière naturelle du jour qui entre par les fenêtres.",
-      "Reste le plus fidèle possible à l'image fournie : même cadrage et même point de vue, même pièce, mêmes meubles exactement aux mêmes places, aux mêmes dimensions et dans les mêmes couleurs, mêmes fenêtres et portes, mêmes couleurs de murs et de sol.",
-      "N'ajoute ni ne retire aucun meuble et ne change pas la disposition. Tu peux seulement rendre les matières réalistes (bois, mélaminé, tissu, peinture mate), les ombres douces et les reflets, et ajouter de tout petits détails discrets (plinthes, poignées, prises).",
-      `Pièce : ${r && r.name ? r.name : 'chambre'} ; ${murs} ; sol : ${PQ.name || 'parquet en chêne'}.`,
-      "Pas de personnes, pas de texte, pas de déformation grand-angle.",
-    ].join('\n');
-  };
-
-  // fenêtre de résultat, commune aux deux moteurs
-  const photoUI = (d) => {
-    const ov = document.createElement('div'); ov.className = 'ph';
-    ov.innerHTML = `<div class="ph-img"><div class="ph-stage"></div><img alt="Rendu réaliste de la vue" hidden></div><div class="ph-bar"><i></i></div>
-      <div class="ph-tools"><span class="ph-st">Préparation…</span><button data-ph="stop" hidden>Arrêter ici</button><label class="ph-ex" hidden>Luminosité <input type="range" min="-1.5" max="1.5" step="0.1" value="0"></label><button data-ph="sm" aria-pressed="true" hidden>Lissage</button><span class="ph-ab" hidden><button data-ph="vcap" aria-pressed="false">Capture</button><button data-ph="vai" aria-pressed="true">Rendu IA</button></span><a class="ph-save" hidden download="calepin-photo.jpg">Enregistrer</a><button data-ph="gpt" hidden>Envoyer à ChatGPT</button><button data-ph="ai" hidden>Rendu IA</button><button data-ph="key" hidden title="Coller ou changer la clé OpenAI">Clé OpenAI</button><button data-ph="close">Fermer</button></div>
-      <div class="ph-gpt ph-key" hidden><p><b>Rendu IA avec votre clé OpenAI.</b> La clé reste sur cet appareil (jamais dans le projet ni sur GitHub) ; chaque rendu est facturé sur votre compte OpenAI. Ne marche que depuis la version GitHub Pages de Calepin.</p><input type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" aria-label="Clé API OpenAI"><div class="ph-row"><button data-ph="keysave">Enregistrer sur cet appareil</button><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Créer une clé</a><button data-ph="keydel">Oublier la clé</button><button data-ph="keyx">Annuler</button></div></div>
-      <p class="ph-msg" hidden></p>
-      <div class="ph-gpt" hidden><p>Le prompt est copié. Gardez l'image (appui long dessus, ou « Enregistrer »), ouvrez ChatGPT, joignez-la et collez le prompt :</p><textarea readonly rows="6"></textarea><div class="ph-row"><button data-ph="copy">Copier le prompt</button><a href="https://chatgpt.com/" target="_blank" rel="noopener">Ouvrir ChatGPT</a><button data-ph="gptx">OK</button></div></div>`;
-    st.el.appendChild(ov); const q = (x) => ov.querySelector(x);
-    const ui = { ov, stage: q('.ph-stage'), img: q('img'), bar: q('.ph-bar i'), stx: q('.ph-st'), stop: q('[data-ph=stop]'), ex: q('.ph-ex'), rng: q('.ph-ex input'), sm: q('[data-ph=sm]'), save: q('.ph-save'), gpt: q('[data-ph=gpt]'), gp: q('.ph-gpt'), blob: null };
-    const msgEl = q('.ph-msg'); ui.msg = (html) => { if (!html) { msgEl.hidden = true; msgEl.innerHTML = ''; return; } msgEl.innerHTML = html; msgEl.hidden = false; };
-    ui.progress = (f, txt) => { ui.bar.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; ui.stx.textContent = txt; };
-    ui.capture = (cv) => { ui.img.removeAttribute('src'); ui.blob = null; const url = cv.toDataURL('image/jpeg', 0.9); ui.img.src = url; ui.save.href = url; if (cv.toBlob) cv.toBlob((b) => { ui.blob = b; }, 'image/jpeg', 0.9); };
-    ui.done = (cv, txt, pt) => { if (pt) ui.sm.hidden = false; ov.classList.add('done'); ui.stop.hidden = true; ui.ex.hidden = false; ui.save.hidden = false; ui.gpt.hidden = false; ov.querySelector('[data-ph=ai]').hidden = false; ov.querySelector('[data-ph=key]').hidden = false; ui.stx.textContent = txt || 'Photo prête'; ui.capture(cv); ui.img.hidden = false; ui.stage.hidden = true; };
-    const txt = () => gptPrompt(d), fallback = () => { ui.gp.hidden = false; ui.gp.querySelector('textarea').value = txt(); };
-    ui.gpt.addEventListener('click', () => {
-      const t = txt(); try { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); } catch (e) { /* presse-papiers refusé */ }
-      const f = ui.blob && typeof File === 'function' ? new File([ui.blob], 'calepin-photo.jpg', { type: 'image/jpeg' }) : null;
-      if (f && navigator.canShare && navigator.share && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], text: t }).then(() => {}, (e) => { if (!e || e.name !== 'AbortError') fallback(); }); App.toast && App.toast('Prompt copié : choisissez ChatGPT dans le partage'); return; }
-      fallback();
-    });
-    q('[data-ph=copy]').addEventListener('click', () => { const ta = ui.gp.querySelector('textarea'); try { navigator.clipboard.writeText(ta.value).then(() => App.toast && App.toast('Prompt copié'), () => { ta.select(); }); } catch (e) { ta.select(); } });
-    q('[data-ph=gptx]').addEventListener('click', () => { ui.gp.hidden = true; });
-    // rendu IA direct par l'API OpenAI (édition d'image) : la capture + le même prompt de fidélité
-    const KEY = 'calepin:openai-key', kp = q('.ph-key'), kin = kp.querySelector('input'), ab = q('.ph-ab'), aiB = q('[data-ph=ai]');
-    const getKey = () => { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } };
-    let capUrl = '', aiUrl = '';
-    const view = (which) => { const u = which === 'ai' ? aiUrl : capUrl; if (!u) return; ui.img.src = u; ui.save.href = u; ui.save.download = which === 'ai' ? 'calepin-rendu-ia.jpg' : 'calepin-photo.jpg'; q('[data-ph=vai]').setAttribute('aria-pressed', which === 'ai'); q('[data-ph=vcap]').setAttribute('aria-pressed', which !== 'ai'); };
-    q('[data-ph=vai]').addEventListener('click', () => view('ai')); q('[data-ph=vcap]').addEventListener('click', () => view('cap'));
-    q('[data-ph=keyx]').addEventListener('click', () => { kp.hidden = true; });
-    q('[data-ph=key]').addEventListener('click', () => { kp.hidden = false; kin.value = ''; kin.placeholder = getKey() ? 'Une clé est déjà enregistrée : collez la nouvelle ici' : 'sk-…'; kin.focus(); });
-    q('[data-ph=keydel]').addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } kin.value = ''; App.toast && App.toast('Clé oubliée sur cet appareil'); });
-    q('[data-ph=keysave]').addEventListener('click', () => { const k = kin.value.replace(/\s+/g, ''); if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(k)) { ui.msg('Ce texte ne ressemble pas à une clé OpenAI : elle commence par « sk- » (copiez-la en entier).'); return; } try { localStorage.setItem(KEY, k); } catch (e) { ui.msg('Impossible d\'enregistrer la clé dans ce navigateur (navigation privée ?).'); return; } kin.value = ''; kp.hidden = true; ui.msg('Clé enregistrée sur cet appareil.'); aiB.click(); });
-    const onPages = location.protocol === 'file:' || /(^|\.)github\.io$/.test(location.hostname) || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    const PAGES = 'https://distortedimages-code.github.io/Plan/';
-    aiB.addEventListener('click', async () => {
-      if (!onPages) { ui.msg(`Le rendu IA ne marche pas ici : cette version (dans l'app Claude) n'a pas le droit d'envoyer l'image à OpenAI. Ouvrez Calepin dans Safari : <a href="${PAGES}" target="_blank" rel="noopener">distortedimages-code.github.io/Plan</a>. En attendant, « Envoyer à ChatGPT » marche partout.`); return; }
-      const key = getKey(); if (!key) { kp.hidden = false; kin.focus(); return; }
-      if (!ui.blob) { ui.msg('L\'image n\'est pas encore prête, réessayez dans un instant.'); return; }
-      ui.msg('');
-      capUrl = capUrl || ui.img.src; aiB.disabled = true; const prev = ui.stx.textContent; ui.stx.textContent = 'Rendu IA en cours… (jusqu\'à 1 ou 2 minutes)'; ui.ov.classList.add('busy');
-      try {
-        // modèle d'édition d'image : le plus précis d'abord, puis les précédents si le compte n'y a pas accès
-        let pref = ''; try { pref = localStorage.getItem('calepin:openai-model') || ''; } catch (e) { /* rien */ }
-        const models = [...new Set([pref, 'gpt-image-2.5-sunburst', 'gpt-image-2', 'gpt-image-1.5'].filter(Boolean))];
-        let r, j = {};
-        for (let mi = 0; mi < models.length; mi++) {
-          const fd = new FormData(); fd.append('model', models[mi]); fd.append('image[]', new File([ui.blob], 'capture.jpg', { type: 'image/jpeg' })); fd.append('prompt', txt()); fd.append('quality', 'high'); fd.append('size', 'auto'); fd.append('output_format', 'jpeg');
-          ui.stx.textContent = `Rendu IA en cours (${models[mi]})… jusqu'à 1 ou 2 minutes`;
-          try { r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd }); } catch (e) { throw new Error('net'); }
-          j = await r.json().catch(() => ({}));
-          const em = (j.error && j.error.message) || '';
-          if (!r.ok && mi < models.length - 1 && (r.status === 404 || (r.status === 400 || r.status === 403) && /model|does not exist|not found|access|available/i.test(em) && !/verif/i.test(em))) continue; // modèle inconnu ou pas ouvert : on essaie le suivant
-          if (r.ok) { try { localStorage.setItem('calepin:openai-model', models[mi]); } catch (e) { /* rien */ } }
-          break;
-        }
-        if (!r.ok) { const m = (j.error && j.error.message) || ''; throw new Error(r.status === 401 ? 'Clé refusée par OpenAI : vérifiez-la (« Oublier la clé » puis recollez-la).' : r.status === 403 ? 'Accès refusé : vérifiez votre organisation OpenAI (vérification d\'identité requise pour les modèles d\'image). ' + m : r.status === 429 ? 'Crédit épuisé ou limite de dépense atteinte sur votre compte OpenAI.' : 'OpenAI a refusé le rendu : ' + (m || r.status)); }
-        const b = j.data && j.data[0] && j.data[0].b64_json; if (!b) throw new Error('Réponse sans image.');
-        aiUrl = 'data:image/jpeg;base64,' + b; ab.hidden = false; view('ai'); ui.stx.textContent = 'Rendu IA prêt';
-      } catch (e) { ui.stx.textContent = prev; if (/Clé refusée/.test(e.message)) kp.hidden = false; ui.msg(e.message === 'net' ? 'Envoi impossible vers OpenAI : vérifiez la connexion. Si ça persiste, dites-le-moi (le navigateur a peut-être bloqué la requête).' : e.message); }
-      finally { aiB.disabled = false; ui.ov.classList.remove('busy'); }
-    });
-    return ui;
-  };
-
-  V.photo = async () => {
-    if (!st || st.ph) return;
-    const cfg = V.photoCfg || {}, coarse = matchMedia('(pointer:coarse)').matches, asp = st.el.clientWidth / st.el.clientHeight;
-    const d = photoData(); if (!d) { App.toast && App.toast('Rendu impossible sur cet étage.'); return; }
-    const ui = photoUI(d); let eng = null, closed = false;
-    const close = () => { closed = true; try { if (eng) eng.close(); } catch (e) { /* déjà libéré */ } ui.ov.remove(); if (st) { st.ph = null; st.dirty = true; } };
-    st.ph = { ui, close }; ui.ov.querySelector('[data-ph=close]').addEventListener('click', close);
-    let live = 0; // pendant qu'on glisse : on montre la toile, on ne fabrique pas d'image à chaque cran (mémoire)
-    ui.rng.addEventListener('input', () => { if (!eng || !eng.exposure) return; if (!ui.stage.hidden || !ui.img.hidden) { ui.stage.hidden = false; ui.img.hidden = true; } cancelAnimationFrame(live); live = requestAnimationFrame(() => eng && eng.exposure(+ui.rng.value, false)); });
-    ui.rng.addEventListener('change', () => { if (!eng || !eng.exposure) return; cancelAnimationFrame(live); eng.exposure(+ui.rng.value, true); ui.stage.hidden = true; ui.img.hidden = false; });
-    ui.sm.addEventListener('click', () => { if (!eng || !eng.smooth) return; const on = ui.sm.getAttribute('aria-pressed') !== 'true'; ui.sm.setAttribute('aria-pressed', on); eng.smooth(on); });
-    ui.stop.addEventListener('click', () => { if (eng && eng.stop) eng.stop(); });
-    const size = (LS) => { LS = cfg.LS || LS; return asp >= 1 ? [LS, Math.round(LS / asp)] : [Math.round(LS * asp), LS]; };
-    if (!cfg.quick) {
-      try {
-        ui.progress(0.01, 'Chargement du moteur de lancer de rayons…'); const mods = await loadPT(); if (closed) return;
-        const [W, H] = size(coarse ? 900 : 1600); eng = ptEngine(mods, d, ui, W, H, cfg, coarse); await eng.start(); return;
-      } catch (e) { console.warn('lancer de rayons indisponible', e); if (closed) return; try { if (eng) eng.close(); } catch (e2) { /* rien */ } eng = null; ui.stage.innerHTML = ''; ui.progress(0, 'Lancer de rayons indisponible ici : rendu rapide…'); ui.msg('Le lancer de rayons n\'a pas pu démarrer sur cet appareil (' + String((e && e.message) || e).slice(0, 160).replace(/[<>&]/g, '') + ') : rendu rapide à la place. Rechargez la page pour réessayer.'); }
-    }
-    const [W, H] = size(coarse ? 1400 : 1920); eng = quickEngine(d, ui, W, H, cfg, coarse); eng.start();
-  };
-
-  /* lancer de rayons : progressif, exposition automatique, arrêt possible à tout moment */
-  let PTR = null; // un seul contexte graphique pour toutes les photos (iOS supporte mal qu'on en crée et détruise beaucoup)
-  const ptEngine = ({ THREE: M, P, FSQ }, d, ui, Wp, Hp, cfg, coarse) => {
-    if (PTR && (PTR.lost || (PTR.R2.getContext && PTR.R2.getContext().isContextLost()))) PTR = null;
-    if (!PTR) { const c0 = document.createElement('canvas'); const R0 = new M.WebGLRenderer({ canvas: c0, alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); PTR = { R2: R0, cv: c0, lost: false }; c0.addEventListener('webglcontextlost', (e) => { e.preventDefault(); PTR.lost = true; if (PTR.onLost) PTR.onLost(); }); }
-    const R2 = PTR.R2, cv = PTR.cv; cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv);
-    R2.setPixelRatio(1); R2.setSize(Wp, Hp, false); R2.toneMapping = M.ACESFilmicToneMapping; R2.toneMappingExposure = 1; R2.outputColorSpace = M.SRGBColorSpace;
-    const sc = new M.Scene(), owned = [];
-    const geo = (A, uv) => { const g = new M.BufferGeometry(); g.setAttribute('position', new M.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new M.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new M.Float32BufferAttribute(A.c, 3)); if (uv && A.uv.length) g.setAttribute('uv', new M.Float32BufferAttribute(A.uv, 2)); return g; };
-    const add = (A, mat) => { owned.push(mat); if (!A || !A.p.length) return; const g = geo(A, !!mat.map); owned.push(g); sc.add(new M.Mesh(g, mat)); };
-    const walls = new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.93 });
-    add(d.shell, walls); add(d.occ, walls);
-    add(d.furn, new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }));
-    add(d.mirror, new M.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.02 }));
-    add(d.floor, new M.MeshStandardMaterial({ color: 0x3a2b1f, roughness: 1 }));
-    const pk = plankData(d), TS = cfg.ts || (coarse ? 1024 : 2048), tex = new M.CanvasTexture(grainCanvas(TS)); tex.colorSpace = M.SRGBColorSpace; tex.flipY = false; owned.push(tex);
-    add(pk.planks, new M.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.4 }));
-    add(pk.flat, new M.MeshStandardMaterial({ vertexColors: true, roughness: 0.45 }));
-    // ciel : horizon clair, zénith bleu, sol vert-gris (en HDR) ; soleil dans la direction choisie avec « Soleil »
-    const sky = new P.ProceduralEquirectTexture(512, 256), dir = new M.Vector3();
-    sky.generationCallback = (polar, uv, coord, color) => { dir.setFromSpherical(polar); const y = dir.y; if (y >= 0) { const t = Math.pow(y, 0.5); color.setRGB(1.5 + (0.45 - 1.5) * t, 1.55 + (0.7 - 1.55) * t, 1.6 + (1.35 - 1.6) * t); } else { const t = Math.min(1, -y * 3); color.setRGB(0.5 - 0.22 * t, 0.52 - 0.2 * t, 0.45 - 0.22 * t); } };
-    sky.update(); owned.push(sky); sc.background = sky; sc.environment = sky;
-    const bb = d.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, sd = new M.Vector3(...d.sun).normalize();
-    const sun = new M.DirectionalLight(0xfff0d8, cfg.sun || 9); sun.position.set(cx + sd.x * 60, sd.y * 60, cz + sd.z * 60); sun.target.position.set(cx, 0, cz); sc.add(sun, sun.target); sun.target.updateMatrixWorld();
-    const cam = new M.PerspectiveCamera(d.cam.fov, Wp / Hp, 0.05, 300); cam.position.set(...d.cam.pos); cam.rotation.set(d.cam.rot[0], d.cam.rot[1], d.cam.rot[2], 'YXZ'); cam.updateMatrixWorld();
-    const tl = cfg.tiles || (coarse ? 4 : 2), pt = new P.WebGLPathTracer(R2); pt.tiles.set(tl, tl); pt.bounces = cfg.bounces || (coarse ? 4 : 7); pt.filterGlossyFactor = 1; pt.minSamples = 1; pt.renderDelay = 0; pt.fadeDuration = 0; pt.dynamicLowRes = false; pt.textureSize.set(TS, TS);
-    // débruitage à l'affichage : lissage qui respecte les arêtes, d'autant plus fort qu'il y a peu de passes
-    const dn = FSQ && P.DenoiseMaterial ? new FSQ(new P.DenoiseMaterial()) : null; let smooth = true;
-    if (dn) { owned.push(dn.material); pt.renderToCanvasCallback = (target, renderer, quad) => { const ac = renderer.autoClear; renderer.autoClear = false; if (smooth) { const n = Math.max(1, pt.samples); dn.material.map = target.texture; dn.material.sigma = n < 40 ? 6 : 4.5; dn.material.kSigma = 1; dn.material.threshold = Math.min(0.35, Math.max(0.02, 0.6 / Math.sqrt(n))); dn.render(renderer); } else quad.render(renderer); renderer.autoClear = ac; }; }
-    const TARGET = cfg.samples || (coarse ? 300 : 600); let raf = 0, dead = false, stopped = false, expo = 1, user = 0, metered = 0;
-    PTR.onLost = () => { if (dead) return; dead = true; cancelAnimationFrame(raf); ui.progress(0, 'Mémoire graphique de l\'appareil saturée : calcul interrompu. Fermez, puis rechargez la page si la 3D ne revient pas.'); };
-    const mc = document.createElement('canvas'), mw = 160, mh = Math.max(20, Math.round((160 * Hp) / Wp)); mc.width = mw; mc.height = mh; const mx = mc.getContext('2d', { willReadFrequently: true });
-    const meter = () => { // exposition auto : médiane des luminances vers 0,42
-      mx.drawImage(cv, 0, 0, mw, mh); const px = mx.getImageData(0, 0, mw, mh).data, L = []; for (let i = 0; i < px.length; i += 4) L.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]); L.sort((a, b) => a - b);
-      const m = Math.max(3, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.15, Math.min(12, expo * Math.pow(0.42 / m, 1.8))); R2.toneMappingExposure = expo * Math.pow(2, user); };
-    const finish = (txt) => { cancelAnimationFrame(raf); pt.pausePathTracing = true; pt.renderSample(); ui.done(cv, txt, true); };
-    const frame = () => {
-      if (dead) return; const gl = R2.getContext(); if (gl && gl.isContextLost && gl.isContextLost()) { PTR.lost = true; if (PTR.onLost) PTR.onLost(); return; } pt.renderSample(); const n = Math.floor(pt.samples);
-      ui.progress(n / TARGET, pt.isCompiling ? 'Préparation des matériaux…' : `Lancer de rayons… ${n} / ${TARGET} passes`);
-      if (n >= 3 && metered === 0) { meter(); metered = 1; } else if (n >= 24 && metered === 1) { meter(); metered = 2; } else if (n >= TARGET * 0.6 && metered === 2) { meter(); metered = 3; }
-      if (n >= TARGET || stopped) { if (metered < 3) meter(); finish(stopped ? `Photo prête (${n} passes)` : 'Photo prête'); return; }
-      raf = requestAnimationFrame(frame);
-    };
-    return {
-      start: async () => {
-        ui.progress(0.02, 'Préparation de la scène…');
-        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); pt.setScene(sc, cam); // arbre de volumes englobants construit d'un coup
-        if (dead) return; ui.stop.hidden = false; raf = requestAnimationFrame(frame);
-      },
-      stop: () => { stopped = true; },
-      exposure: (v, final) => { user = v; R2.toneMappingExposure = expo * Math.pow(2, user); if (pt.pausePathTracing && !dead) { pt.renderSample(); if (final) ui.capture(cv); } },
-      smooth: (on) => { smooth = on; if (pt.pausePathTracing && !dead) { pt.renderSample(); ui.capture(cv); } },
-      close: () => { dead = true; cancelAnimationFrame(raf); PTR && (PTR.onLost = null); try { pt.dispose(); } catch (e) { /* rien */ } for (const o of owned) if (o && o.dispose) o.dispose(); if (dn) dn.dispose(); cv.remove(); },
-    };
-  };
-
-  /* rendu rapide (repli) : passes accumulées en flottant — soleil légèrement décalé (pénombre), ciel échantillonné
-     direction par direction avec ses ombres (il n'entre que par les fenêtres), rebonds approchés où seuls les meubles font ombre */
-  const quickEngine = (d, ui, Wp, Hp, cfg, coarse) => {
-    const R = st.R, owned = [];
-    const geo = (A, uv) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3)); if (uv) g.setAttribute('uv', new T.Float32BufferAttribute(A.uv, 2)); owned.push(g); return g; };
-    const base = { roughness: 0.9, metalness: 0, side: T.FrontSide, shadowSide: T.DoubleSide };
-    const mat = new T.MeshStandardMaterial(Object.assign({ vertexColors: true }, base)); owned.push(mat);
-    const ftex = new T.CanvasTexture(photoFloorCanvas(d.fid, d.rooms, d.bb, App.calepinage(d.fid))); ftex.flipY = false; ftex.encoding = T.sRGBEncoding; ftex.anisotropy = R.capabilities.getMaxAnisotropy ? R.capabilities.getMaxAnisotropy() : 1; ftex.minFilter = T.LinearMipmapLinearFilter; owned.push(ftex);
-    const fmat = new T.MeshStandardMaterial(Object.assign({ map: ftex }, base, { roughness: 0.62 })), mmat = new T.MeshStandardMaterial(Object.assign({}, base, { color: 0xd9dee2, roughness: 0.12, metalness: 0.25 })); owned.push(fmat, mmat);
-    const pg = new T.Group(), meshes = {};
-    for (const [k, A, m, uv] of [['shell', d.shell, mat], ['floor', d.floor, fmat, true], ['furn', d.furn, mat], ['occ', d.occ, mat], ['mirror', d.mirror, mmat]]) { if (!A || !A.p.length) continue; const o = new T.Mesh(geo(A, uv), m); o.castShadow = o.receiveShadow = true; meshes[k] = o; pg.add(o); }
-    const scene = new T.Scene(); scene.add(pg); scene.background = new T.Color(1.35, 1.55, 1.9); scene.add(new T.AmbientLight(0xfff4e8, 0.035));
-    const bb = d.bb, cx = (bb.x0 + bb.x1) / 2000, cz = -(bb.y0 + bb.y1) / 2000, R0 = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2000 + 1;
-    const mkL = (size, col) => { const L = new T.DirectionalLight(col, 1); L.castShadow = true; L.shadow.mapSize.set(size, size); L.shadow.bias = -0.0004; L.shadow.normalBias = 0.006; const c = L.shadow.camera; c.left = -R0; c.right = R0; c.top = R0; c.bottom = -R0; c.near = 1; c.far = 140; c.updateProjectionMatrix(); scene.add(L, L.target); return L; };
-    const sun = mkL(cfg.sh || (coarse ? 2048 : 4096), 0xfff0dc), sky = mkL(cfg.sh ? cfg.sh / 2 : coarse ? 1024 : 2048, 0xd6e4ff), amb = mkL(cfg.sh ? cfg.sh / 2 : 1024, 0xffffff);
-    { const pc = d.here ? paintCol(d.here) : [0.85, 0.85, 0.85], m = Math.max(...pc, 0.01); amb.color.setRGB(0.65 + (0.35 * pc[0]) / m, 0.65 + (0.35 * pc[1]) / m, 0.65 + (0.35 * pc[2]) / m); }
-    const setPass = (bounce, below) => { sun.castShadow = sky.castShadow = !bounce; amb.castShadow = bounce && !below; for (const k of ['shell', 'floor', 'occ']) if (meshes[k]) meshes[k].castShadow = !bounce; };
-    const sunDir = new T.Vector3(...d.sun).normalize();
-    const cam = new T.PerspectiveCamera(d.cam.fov, Wp / Hp, 0.05, 300); cam.position.set(...d.cam.pos); cam.rotation.order = 'YXZ'; cam.rotation.set(...d.cam.rot); cam.updateMatrixWorld();
-    const ht = R.capabilities.isWebGL2 || R.extensions.has('OES_texture_half_float') ? T.HalfFloatType : T.FloatType, rto = { minFilter: T.NearestFilter, magFilter: T.NearestFilter };
-    const rtP = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ type: ht, depthBuffer: true }, rto)), rtA = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ type: ht, depthBuffer: false }, rto)), rtO = new T.WebGLRenderTarget(Wp, Hp, Object.assign({ depthBuffer: false }, rto));
-    const qc = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), plane = new T.PlaneGeometry(2, 2);
-    const accM = new T.ShaderMaterial({ uniforms: { t: { value: rtP.texture }, k: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float k; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb * k, 1.); }', blending: T.AdditiveBlending, transparent: true, depthTest: false, depthWrite: false });
-    const outM = new T.ShaderMaterial({ uniforms: { t: { value: rtA.texture }, e: { value: 1 } }, vertexShader: QV, fragmentShader: 'uniform sampler2D t; uniform float e; varying vec2 vUv; vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0., 1.); } void main(){ vec3 c = aces(max(texture2D(t, vUv).rgb, 0.) * e); gl_FragColor = vec4(pow(c, vec3(1./2.2)), 1.); }', depthTest: false, depthWrite: false });
-    const accS = new T.Scene(), outS = new T.Scene(); accS.add(new T.Mesh(plane, accM)); outS.add(new T.Mesh(plane, outM));
-    const cv = document.createElement('canvas'); cv.width = Wp; cv.height = Hp; ui.stage.appendChild(cv); const cx2 = cv.getContext('2d');
-    const N = cfg.N || (coarse ? 48 : 96), SUN = 2.8, SKY = 1.25, AMB = 1.15; let i = 0, expo = 1, user = 0, dead = false, raf = 0, metered = false; const buf = new Uint8Array(Wp * Hp * 4), id = cx2.createImageData(Wp, Hp);
-    let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const withState = (fn) => { const tm = R.toneMapping, enc = R.outputEncoding, ty = R.shadowMap.type, ac = R.autoClear, cc = R.getClearColor(new T.Color()).clone(), ca = R.getClearAlpha();
-      R.toneMapping = T.NoToneMapping; R.outputEncoding = T.LinearEncoding; R.shadowMap.type = T.PCFSoftShadowMap;
-      try { fn(); } finally { R.setRenderTarget(null); R.toneMapping = tm; R.outputEncoding = enc; R.shadowMap.type = ty; R.autoClear = ac; R.setClearColor(cc, ca); R.shadowMap.needsUpdate = true; if (st) st.dirty = true; } };
-    const show = () => { outM.uniforms.e.value = expo * Math.pow(2, user) * (N / Math.max(1, i)); R.setRenderTarget(rtO); R.autoClear = true; R.render(outS, qc); R.readRenderTargetPixels(rtO, 0, 0, Wp, Hp, buf);
-      const dd = id.data, row = Wp * 4; for (let y = 0; y < Hp; y++) dd.set(buf.subarray((Hp - 1 - y) * row, (Hp - y) * row), y * row); cx2.putImageData(id, 0, 0); };
-    const meter = () => { const L = []; for (let p = 0; p < buf.length; p += 4 * 37) L.push(0.2126 * buf[p] + 0.7152 * buf[p + 1] + 0.0722 * buf[p + 2]); L.sort((a, b) => a - b); const m = Math.max(4, L[Math.floor(L.length * 0.5)]) / 255; expo = Math.max(0.25, Math.min(8, expo * Math.pow(0.42 / m, 2.0))); };
-    const pass = () => {
-      if (dead || !st) return;
-      withState(() => {
-        const t0 = performance.now();
-        while (i < N && performance.now() - t0 < 45) {
-          const sd = sunDir.clone().add(new T.Vector3((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.04)).normalize();
-          sun.position.set(cx + sd.x * 70, sd.y * 70, cz + sd.z * 70); sun.target.position.set(cx, 0, cz); sun.target.updateMatrixWorld();
-          const ix = Math.floor(((i * 0.6180339887) % 1) * N), ce = 0.04 + 0.96 * ((ix + rnd()) / N), ph = ix * 2.39996 + rnd() * 0.4, se = Math.sqrt(1 - ce * ce);
-          sky.position.set(cx + se * Math.cos(ph) * 70, ce * 70, cz + se * Math.sin(ph) * 70); sky.target.position.set(cx, 0, cz); sky.target.updateMatrixWorld();
-          const ay = 2 * ((((i * 0.7548776662) % 1) + rnd() / N) % 1) - 1, aph = i * 2.39996 + rnd(), ar = Math.sqrt(Math.max(0, 1 - ay * ay));
-          amb.position.set(cx + ar * Math.cos(aph) * 70, ay * 70, cz + ar * Math.sin(aph) * 70); amb.target.position.set(cx, 0, cz); amb.target.updateMatrixWorld();
-          cam.setViewOffset(Wp, Hp, rnd() - 0.5, rnd() - 0.5, Wp, Hp);
-          R.setRenderTarget(rtA); if (i === 0) { R.setClearColor(0x000000, 1); R.clear(); }
-          for (const bounce of [false, true]) {
-            setPass(bounce, ay < 0); sun.intensity = bounce || sd.y <= 0.02 ? 0 : SUN; sky.intensity = bounce ? 0 : SKY; amb.intensity = bounce ? AMB : 0;
-            R.shadowMap.needsUpdate = true; R.autoClear = true; R.setRenderTarget(rtP); R.setClearColor(0x000000, 1);
-            if (bounce) { const bg = scene.background; scene.background = null; R.render(scene, cam); scene.background = bg; } else R.render(scene, cam);
-            R.setRenderTarget(rtA); R.autoClear = false; accM.uniforms.k.value = 1 / N; R.render(accS, qc);
-          }
-          i++;
-        }
-        show(); if (i >= 6 && !metered) { meter(); metered = true; show(); }
-      });
-      ui.progress(i / N, `Rendu rapide… ${Math.round((100 * i) / N)} %`);
-      if (i < N) { raf = requestAnimationFrame(pass); return; }
-      withState(() => { meter(); show(); }); ui.done(cv);
-    };
-    return {
-      start: () => { raf = requestAnimationFrame(pass); },
-      exposure: (v, final) => { user = v; withState(show); if (final) ui.capture(cv); },
-      close: () => { dead = true; cancelAnimationFrame(raf); for (const o of owned) o.dispose(); for (const L of [sun, sky, amb]) if (L.shadow.map) L.shadow.map.dispose(); rtP.dispose(); rtA.dispose(); rtO.dispose(); accM.dispose(); outM.dispose(); plane.dispose(); cv.remove(); },
-    };
-  };
   const dispose = () => { if (!st.grp) return; st.grp.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); st.scene.remove(st.grp); st.grp = null; };
   const setFloor = (fid, roomId) => {
     const prev = st.pos ? Object.assign({}, st.pos) : null; st.fid = fid; dispose(); st.sunBase = null;
@@ -827,7 +512,7 @@
       <div class="fps-tl"><button class="fps-x" data-f="close" aria-label="Quitter la visite">✕</button><div class="fps-room"><b></b></div></div>
       <div class="fps-tr"><canvas class="fps-map" aria-label="Plan de situation"></canvas></div>
       <div class="fps-br">${fl.length > 1 ? `<div class="fps-seg">${fl.map((f) => `<button data-fl="${f.id}">${App.esc ? App.esc(f.name) : f.name}</button>`).join('')}</div>` : ''}
-        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div><button class="fps-photo" data-f="photo">Photo réaliste</button></div>
+        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div></div>
       <div class="fps-hint">${touch ? 'Pouce gauche : marcher · glisser à droite : regarder' : 'ZQSD ou flèches : marcher · glisser : regarder · Maj : presser le pas'}</div>
       <div class="fps-joy"><i></i></div>`);
     st.el.addEventListener('click', (e) => {
@@ -835,7 +520,6 @@
       if (b.dataset.fl) { setFloor(b.dataset.fl); return; }
       if (b.dataset.f === 'close') V.close();
       else if (b.dataset.f === 'sun') { st.sunStep = (st.sunStep + 1) % 8; placeSun(); }
-      else if (b.dataset.f === 'photo') V.photo();
       else if (b.dataset.f === 'grain') { st.scale = st.scale === 1 ? 0.5 : 1; b.setAttribute('aria-pressed', st.scale < 1); resize(); }
     });
     const cv = st.el.querySelector('canvas.view');

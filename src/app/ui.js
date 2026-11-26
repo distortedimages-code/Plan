@@ -453,7 +453,6 @@
       if (hab.low > 0) h += `<p style="margin-top:10px">Surface à plus de 1,80 m : <b style="color:var(--ink)">${App.fmtM2(hab.SH)} m²</b>${s.areaSH ? ' (plan : ' + s.areaSH.toLocaleString('fr-FR') + ' m²)' : ''}</p>`;
       h += `<div class="field" style="margin-top:10px"><label>Parquet dans cette pièce</label><input type="checkbox" data-c="parquet" ${s.parquet !== false ? 'checked' : ''}></div>
         <div class="field"><label>Hauteur sous plafond</label><div class="unit"><input data-c="ceil" inputmode="decimal" placeholder="${App.feat.ceiling(Object.assign({}, s, { ceiling: null }))}" value="${s.ceiling || ''}"><span>cm</span></div></div>
-        ${paintUI(s)}
         <h3>Transformer</h3><div class="row"><button class="btn sm" data-a="cut">Ajouter une cloison</button>${nb.length ? `<select id="mergeWith" style="height:36px;border:1px solid var(--rule);background:var(--paper);padding:0 8px">${nb.map((r) => `<option value="${r.id}">${esc(r.name || 'Pièce')}</option>`).join('')}</select><button class="btn sm" data-a="merge">Fusionner</button>` : ''}</div>
         ${(() => { const st = App.stairs.stairsTouching(s).filter(() => Math.abs(G.area(s.pts)) < 8e6); return st.length ? `<div class="preview"><b>Partie d'escalier ?</b> Cette pièce touche ${esc(st[0].name || 'l\'escalier')}. Si c'est son palier ou ses marches tournantes, réunissez-les.<div class="row" style="margin-top:8px"><button class="btn sm red" data-x="stjoin2" data-v="${st[0].id}">Assembler à l'escalier</button></div></div>` : ''; })()}
         <p>Touchez un mur sur le plan (ou son nom ci-dessous) pour passer en mode cloison : verrou, longueur, déplacement avec aperçu avant validation.</p>`;
@@ -479,14 +478,6 @@
     return h;
   }
 
-  // peinture des murs : couleur et référence du nuancier, utilisées par la photo réaliste de la visite 3D
-  const SWATCH = [['Blanc chaud', '#f1eee8'], ['Blanc pur', '#f7f7f4'], ['Lin', '#e4d9c6'], ['Greige', '#cbc2b3'], ['Sauge', '#b6c1a9'], ['Bleu poudré', '#c3d1dc'], ['Rose poudré', '#e6cdc4'], ['Ocre doux', '#dcc08f'], ['Terracotta', '#c27f66'], ['Vert sapin', '#3e5849'], ['Bleu nuit', '#2e3c54'], ['Anthracite', '#4a4a4c']];
-  function paintUI(s) {
-    const hex = (s.paint && s.paint.hex) || (App.fps && App.fps.PAINT0) || '#f1eee8', ref = (s.paint && s.paint.ref) || '';
-    return `<h3>Peinture des murs</h3><div class="paint"><input type="color" data-c="paint" value="${esc(hex)}" aria-label="Couleur des murs"><input data-c="paintref" placeholder="Référence (ex. Unikalo …)" value="${esc(ref)}" aria-label="Référence de la teinte"></div>
-      <div class="swatches">${SWATCH.map(([n, h]) => `<button data-a="paintq" data-v="${h}" title="${n}" aria-label="${n}" aria-pressed="${hex.toLowerCase() === h}" style="background:${h}"></button>`).join('')}</div>
-      <p class="hint2">Utilisée par la photo réaliste de la visite 3D. Les teintes à l'écran restent indicatives : la référence sert à retrouver la vraie couleur sur le nuancier.</p>`;
-  }
   function furnitureDims(s) {
     if (s.pts.length !== 4) return '';
     const w = G.dist(s.pts[0], s.pts[1]), d = G.dist(s.pts[1], s.pts[2]);
@@ -638,6 +629,7 @@
   const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   try { ui.libCat = localStorage.getItem('calepin:libcat') || ''; } catch (e) { ui.libCat = ''; }
   ui.libQ = '';
+  try { localStorage.removeItem('calepin:openai-key'); localStorage.removeItem('calepin:openai-model'); } catch (e) { /* rien */ }
   // menu des catégories et recherche : on montre ou cache les sections sans redessiner le panneau
   ui.libFilter = () => {
     const panel = $('panel'), q = norm(ui.libQ || '').trim(), words = q.split(/\s+/).filter(Boolean); let any = false;
@@ -713,7 +705,6 @@
       case 'kxo': App.mutate(() => App.stack.orient(s, v)); break;
       case 'seatq': App.mutate(() => { s.seat = +v; }); break;
       case 'dhq': App.mutate(() => { s.dh = +v; }); break;
-      case 'paintq': App.mutate(() => { s.paint = Object.assign({}, s.paint, { hex: v }); }); break;
       case 'hangq': App.mutate(() => App.stack.hang(s, v)); break;
       case 'mzq': App.mutate(() => { s.mz = +v; }); break;
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
@@ -777,8 +768,6 @@
     if (c === 'pname') { App.mutate((P) => { P.name = val; }); return; }
     if (c === 'kind') { App.mutate(() => { s.kind = val; if (val === 'escalier') s.stair = s.stair || { dir: 'monte' }; }); return; }
     if (c === 'parquet') { App.mutate(() => { s.parquet = val; }); return; }
-    if (c === 'paint') { App.mutate(() => { s.paint = Object.assign({}, s.paint, { hex: String(val).toLowerCase() }); }); return; }
-    if (c === 'paintref') { App.mutate(() => { s.paint = Object.assign({}, s.paint, { ref: String(val).trim() }); if (!s.paint.ref) delete s.paint.ref; }); return; }
     if (c === 'ceil') { App.mutate(() => { s.ceiling = num(val) || null; }); return; }
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
