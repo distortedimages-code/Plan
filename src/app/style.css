@@ -200,7 +200,7 @@ details[open] summary::after{content:"–"}
 .modal h4{margin:0 0 6px;font-size:20px;font-weight:700}
 .modal p{color:var(--ink-2);font-size:14px;margin:6px 0 14px}
 .modal textarea{width:100%;min-height:140px;border:1px solid var(--rule);font:12px/1.4 ui-monospace,Menlo,monospace;padding:8px;background:var(--paper)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + var(--safe-t) + 58px);background:var(--ink);color:var(--paper);padding:9px 14px;font-size:14px;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 24px)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + var(--safe-t) + 58px);background:var(--ink);color:var(--paper);padding:9px 14px;font-size:14px;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 24px)}
 .toast.on{opacity:1}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
@@ -336,3 +336,7 @@ details[open] summary::after{content:"–"}
 .ph.busy .ph-bar{visibility:visible}.ph.busy .ph-bar i{width:100%!important;animation:phb 1.4s linear infinite;opacity:.6}
 @keyframes phb{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 @media (prefers-reduced-motion:reduce){.ph.busy .ph-bar i{animation:none}}
+
+.ph-msg{max-width:min(640px,92%);margin:0;padding:10px 12px;background:#f4f1ea;color:#1b1a18;font:500 14px/1.45 var(--sans)}
+.ph-msg[hidden]{display:none}.ph-msg a{color:inherit;font-weight:700}
+.ph img{-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
