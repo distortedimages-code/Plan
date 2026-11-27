@@ -308,6 +308,9 @@ details[open] summary::after{content:"–"}
 .chips.libcats button{flex:none;white-space:nowrap}
 .libsec[hidden],.tile[hidden],.libnone[hidden]{display:none}
 .libnone{color:var(--ink-2);margin:16px 0}
+
+/* repères de chutes */
+.lk{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:2px solid transparent;font:700 11px/1 var(--sans);margin-right:4px;background:var(--paper)}
 </style></head><body>
 <div class="app" id="app">
   <header class="top">
@@ -1093,11 +1096,26 @@ details[open] summary::after{content:"–"}
         results[o.room.id] = { phase, gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
       });
     }
+    // chutes : la lame entamée et la chute qui en est posée ailleurs reçoivent la même lettre et la même couleur
+    const byGroup = {}; for (const id in results) (byGroup[results[id].group] = byGroup[results[id].group] || []).push(results[id]);
+    let nl = 0;
+    for (const g of Object.keys(byGroup)) {
+      const all = []; byGroup[g].forEach((res) => res.rows.forEach((row) => row.runs.forEach((ru) => ru.pieces.forEach((pc) => { pc.row = row.num; delete pc.link; all.push(pc); }))));
+      const byN = new Map(all.map((pc) => [pc.n, pc]));
+      all.filter((pc) => pc.src === 'chute' && pc.fromN != null).sort((a, b) => a.n - b.n).forEach((pc) => {
+        const par = byN.get(pc.fromN); if (!par || par.link) return; const code = linkCode(nl), ci = nl % LINK_COLORS.length; nl++;
+        par.link = { code, ci, role: 'source', other: pc.n, otherRow: pc.row }; pc.link = { code, ci, role: 'use', other: par.n, otherRow: par.row };
+      });
+    }
     const boardArea = (P.L * P.W) / 1e6;
     const perBox = P.perBox || (P.m2Box ? Math.max(1, Math.round(P.m2Box / boardArea)) : 0);
     const byArea = Math.ceil((totalArea / 1e6) * (1 + P.waste / 100) / boardArea);
     return { P, results, totals: { boards: totalBoards, area: totalArea / 1e6, wasteLen: totalWaste, reused: totalReused, boxes: perBox ? Math.ceil(totalBoards / perBox) : null, boxesArea: perBox ? Math.ceil(byArea / perBox) : null, boardsArea: byArea, perBox } };
   }
+
+  // lettres A, B… Z, puis AA, AB… ; couleurs franches, lisibles sur le chêne et distinctes du rouge des coupes
+  const LINK_COLORS = ['#2f6fd6', '#159a6a', '#8a4fd1', '#d23f86', '#d98200', '#0e98ad', '#5f7410', '#3a4b9a', '#b05a1e', '#6f6f6f'];
+  const linkCode = (k) => (k < 26 ? String.fromCharCode(65 + k) : linkCode(Math.floor(k / 26) - 1) + String.fromCharCode(65 + (k % 26)));
 
   /* pièce → polygones monde des lames (pour le rendu) */
   function boardPolys(res) {
@@ -1114,13 +1132,13 @@ details[open] summary::after{content:"–"}
           if (atStart && atEnd) { cutA = cutB = true; }
           else if (atStart || atEnd) { const wallSideIsX0 = Math.abs(pc.x0 - run.x0) < 0.6; if (wallSideIsX0) cutA = true; else cutB = true; void startIsX0; }
         }
-        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB });
+        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB, link: pc.link || null });
       });
     }
     return out;
   }
 
-  PL.layout = { DEFAULTS, computeFloor, computeGroup, recommendDir, boardPolys, wallName, fmt, fmtm };
+  PL.layout = { DEFAULTS, computeFloor, computeGroup, recommendDir, boardPolys, wallName, fmt, fmtm, LINK_COLORS };
 })();
 
 /* Calepin — analyse d'un plan vectoriel : échelle, calques, murs, pièces, ouvertures, escaliers. */
@@ -3278,14 +3296,15 @@ details[open] summary::after{content:"–"}
   };
   App.boardInfo = ({ row, pc }) => {
     const W = App.calepinage().P.W; const parts = [`Lame n° ${pc.n}`, `rang ${row.num}`];
-    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute de la n° ${pc.fromN || '?'}` : `à couper à ${Math.round(pc.len)} mm`);
+    const lk = pc.link;
+    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute ${lk ? lk.code + ' ' : ''}de la n° ${pc.fromN || '?'}${lk && lk.otherRow ? ' (rang ' + lk.otherRow + ')' : ''}` : `à couper à ${Math.round(pc.len)} mm`);
     if (row.ripMax < W - 0.5) parts.push(`délignée à ${Math.round(row.ripMax)} mm de large`);
-    if (pc.rest > 0) parts.push(`garder la chute (${Math.round(pc.rest)} mm)`);
+    if (pc.rest > 0) parts.push(lk && lk.role === 'source' ? `garder la chute ${lk.code} (${Math.round(pc.rest)} mm) pour la n° ${lk.other}${lk.otherRow ? ' (rang ' + lk.otherRow + ')' : ''}` : `chute de ${Math.round(pc.rest)} mm à garder (pas réemployée dans ce calepinage)`);
     return parts.join(' · ');
   };
 
   function drawCalepinage(fid, rooms) {
-    const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P;
+    const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P; const links = S.calLinks !== false, LC = PL.layout.LINK_COLORS;
     if (!cal.polys) { cal.polys = {}; for (const id in cal.results) cal.polys[id] = PL.layout.boardPolys(cal.results[id]); }
     for (const r of rooms) {
       const res = cal.results[r.id]; if (!res) continue;
@@ -3298,6 +3317,7 @@ details[open] summary::after{content:"–"}
       for (const b of polys) {
         path(b.poly);
         ctx.fillStyle = b.src === 'chute' ? C.oakReuse : C.oak; ctx.fill();
+        if (links && b.link) { ctx.save(); ctx.globalAlpha = b.link.role === 'use' ? 0.42 : 0.26; ctx.fillStyle = LC[b.link.ci]; ctx.fill(); ctx.restore(); }
         if (z > 0.012) { ctx.strokeStyle = C.oakLine; ctx.lineWidth = lw; ctx.stroke(); }
       }
       if (S.boardSel && S.boardSel.id === r.id && S.sel && S.sel.id === r.id) { const b = polys.find((x) => x.n === S.boardSel.n); if (b) { path(b.poly); ctx.fillStyle = 'rgba(224,64,32,.18)'; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke(); } }
@@ -3309,6 +3329,19 @@ details[open] summary::after{content:"–"}
         if (b.cutB) { ctx.moveTo(q[1].x, q[1].y); ctx.lineTo(q[2].x, q[2].y); }
       }
       ctx.stroke();
+      // repères de chutes : pastille pleine sur la chute posée, cerclée sur la lame dont elle vient, près du bout coupé
+      if (links && P.W * z >= 9) {
+        const rr = Math.max(6, Math.min(10, P.W * z * 0.27));
+        for (const b of polys) {
+          if (!b.link) continue; const q = b.poly.map(App.w2s), lenPx = G.dist(q[0], q[1]); if (lenPx < rr * 5) continue;
+          const ax = G.norm(G.sub(q[1], q[0])), endA = G.mul(G.add(q[0], q[3]), 0.5), endB = G.mul(G.add(q[1], q[2]), 0.5);
+          const fromA = b.cutA || (!b.cutB && b.link.role === 'source'), off = Math.min(lenPx * 0.22, rr * 2.4);
+          const c = fromA ? G.add(endA, G.mul(ax, off)) : G.sub(endB, G.mul(ax, off)); const col = LC[b.link.ci];
+          ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, Math.PI * 2);
+          if (b.link.role === 'use') { ctx.fillStyle = col; ctx.fill(); } else { ctx.fillStyle = C.paper; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); }
+          const t = b.link.code; text(t, c.x, c.y + 0.5, 700, Math.round(rr * (t.length > 1 ? 0.95 : 1.15)), b.link.role === 'use' ? '#fff' : col);
+        }
+      }
       ctx.restore();
       // numéros de rangs et délignage
       if (z > 0.05) {
@@ -3399,6 +3432,18 @@ details[open] summary::after{content:"–"}
         const tip = G.add(G.add(c, G.mul(d, 16)), G.mul(nrm, 16 * side));
         ctx.fillStyle = C.red; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(tip.x + d.x * 22 - nrm.x * 0 * side, tip.y + d.y * 22); ctx.lineTo(tip.x + nrm.x * 10 * side, tip.y + nrm.y * 10 * side); ctx.closePath(); ctx.fill();
         if (z > 0.04) text('Départ', tip.x + d.x * 30 + nrm.x * 12 * side, tip.y + d.y * 30 + nrm.y * 12 * side, 700, 11, C.red, 'left');
+      }
+    }
+    // lame touchée : sa partenaire (chute ou lame d'origine) entourée de la même couleur, et un trait qui les relie
+    if (links && S.boardSel && S.sel && S.sel.id === S.boardSel.id && cal.results[S.boardSel.id]) {
+      const g = cal.results[S.boardSel.id].group, me = (cal.polys[S.boardSel.id] || []).find((x) => x.n === S.boardSel.n);
+      if (me && me.link) {
+        let mate = null; for (const r of rooms) { const res = cal.results[r.id]; if (!res || res.group !== g) continue; const m = (cal.polys[r.id] || []).find((x) => x.n === me.link.other); if (m) { mate = m; break; } }
+        if (mate) {
+          const col = LC[me.link.ci], ca = App.w2s(G.centroid(me.poly)), cb = App.w2s(G.centroid(mate.poly));
+          ctx.save(); path(mate.poly); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+          ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ca.x, ca.y); ctx.lineTo(cb.x, cb.y); ctx.stroke(); ctx.restore();
+        }
       }
     }
   }
@@ -4594,14 +4639,14 @@ details[open] summary::after{content:"–"}
     if (!r || !res) { S.step = null; return panelCal(); }
     const row = res.rows[st.row - 1]; const rip = row.ripMax < P.W - 0.5;
     const pcs = row.runs.flatMap((ru, k) => ru.pieces.map((pc, i) => ({ ...pc, run: k, first: i === 0, last: i === ru.pieces.length - 1 })));
-    const chip = (pc) => `<div style="flex:none;border:1px solid ${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'};padding:8px 10px;min-width:74px;background:${pc.kind === 'cut' ? 'color-mix(in srgb,var(--red) 8%,var(--paper))' : 'var(--paper)'}"><div style="font-size:12px;font-weight:700;margin-bottom:4px">n° ${pc.n}</div><div style="font-weight:200;font-size:26px;line-height:1;letter-spacing:-.02em;color:${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'}">${Math.round(pc.len)}</div><div style="font-size:11px;color:var(--ink-2);margin-top:4px">${pc.kind === 'full' ? 'entière' : pc.src === 'chute' ? (pc.fromN ? 'chute de la n° ' + pc.fromN : 'chute du rang ' + (pc.from || '?')) : 'à couper'}</div></div>`;
+    const chip = (pc) => `<div style="flex:none;border:1px solid ${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'};padding:8px 10px;min-width:74px;background:${pc.kind === 'cut' ? 'color-mix(in srgb,var(--red) 8%,var(--paper))' : 'var(--paper)'}"><div style="font-size:12px;font-weight:700;margin-bottom:4px">n° ${pc.n}</div><div style="font-weight:200;font-size:26px;line-height:1;letter-spacing:-.02em;color:${pc.kind === 'cut' ? 'var(--red)' : 'var(--ink)'}">${Math.round(pc.len)}</div><div style="font-size:11px;color:var(--ink-2);margin-top:4px">${pc.kind === 'full' ? 'entière' : pc.src === 'chute' ? (pc.fromN ? 'chute de la n° ' + pc.fromN : 'chute du rang ' + (pc.from || '?')) : 'à couper'}</div>${S.calLinks !== false && pc.link ? `<div style="margin-top:5px;font-size:11px;display:flex;gap:5px;align-items:center"><b class="lk" style="${pc.link.role === 'use' ? `background:${PL.layout.LINK_COLORS[pc.link.ci]};color:#fff` : `border-color:${PL.layout.LINK_COLORS[pc.link.ci]};color:${PL.layout.LINK_COLORS[pc.link.ci]}`}">${pc.link.code}</b>${pc.link.role === 'use' ? 'chute posée' : '→ n° ' + pc.link.other}</div>` : ''}</div>`;
     const keeps = pcs.filter((pc) => pc.rest > 0).map((pc) => Math.round(pc.rest));
     return `<button class="link" data-a="stepEnd">← Fin du pas à pas</button>
       <h2 style="margin-top:10px">${esc(r.name || 'Pièce')}</h2><p class="lead">Rang ${row.num}${pcs.length ? ` · lames ${Math.min(...pcs.map((x) => x.n))} à ${Math.max(...pcs.map((x) => x.n))}` : ''}${row.num === 1 ? ' — le long du mur de départ' : row.back ? ' — derrière le mur de départ, à poser à rebours' : ''}<br><span style="font-size:13px;color:var(--ink-2)">${st.row} / ${res.rows.length} dans cette pièce</span></p>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div><b style="${rip ? 'color:var(--red)' : ''}">${rip ? Math.round(row.ripMax) : P.W}</b><span>${rip ? 'mm : lames délignées' + (row.ripMax - row.ripMin > 2 ? ' en biais (' + Math.round(row.ripMin) + '–' + Math.round(row.ripMax) + ')' : '') : 'mm : largeur entière'}</span></div><div><b>${pcs.length}</b><span>lames dans ce rang</span></div></div>
       <p style="margin:4px 0 8px">Dans l'ordre de pose, depuis l'angle de départ (longueurs en mm) :</p>
       <div class="pcs">${pcs.map(chip).join('<i>›</i>')}</div>
-      ${keeps.length ? `<p class="note">Gardez ${pcs.filter((pc) => pc.rest > 0).map((pc) => Math.round(pc.rest) + ' mm (de la n° ' + pc.n + ')').join(' et ')} de chute pour un rang suivant.</p>` : ''}
+      ${keeps.length ? `<p class="note">Gardez ${pcs.filter((pc) => pc.rest > 0).map((pc) => Math.round(pc.rest) + ' mm (de la n° ' + pc.n + ')' + (pc.link ? `, chute ${pc.link.code} pour la n° ${pc.link.other}${pc.link.otherRow ? ' au rang ' + pc.link.otherRow : ''}` : '')).join(' et ')} de chute.</p>` : ''}
       ${row.warn.length ? `<p class="note">${esc(row.warn.join(' ; '))}</p>` : ''}
       <div class="row" style="margin-top:14px"><button class="btn" data-a="stepGo" data-v="-1" ${st.row <= 1 ? 'disabled' : ''} style="flex:1">‹ Rang précédent</button><button class="btn primary" data-a="stepGo" data-v="1" ${st.row >= res.rows.length ? 'disabled' : ''} style="flex:1">Rang suivant ›</button></div>`;
   }
@@ -4612,7 +4657,8 @@ details[open] summary::after{content:"–"}
     let h = `<h2>Calepinage · ${esc(App.floor().name)}</h2><p class="lead">${esc(P.name || 'Parquet')} — ${P.L} × ${P.W} mm, ${P.pattern === 'anglaise' ? 'pose à l\'anglaise' : P.pattern === 'pont12' ? 'pont de bateau ½' : 'pont de bateau ⅓'}</p>
       <div class="kpis"><div><b>${fmt(t.area, 1)}</b><span>m² de parquet</span></div><div><b>${t.boards}</b><span>lames entamées</span></div><div><b>${t.boxes ?? '—'}</b><span>paquets${t.perBox ? ' de ' + t.perBox : ''}</span></div></div>
       <p>${t.reused} chutes réemployées en début ou fin de rang. Estimation à la surface + ${P.waste} % : ${t.boardsArea} lames${t.boxesArea ? ' (' + t.boxesArea + ' paquets)' : ''}.</p>
-      <div class="legend"><span><i style="background:var(--oak)"></i>Lame entière</span><span><i style="background:var(--oak);border-right:3px solid var(--red)"></i>Coupe (trait rouge)</span><span><i style="background:var(--oak-reuse)"></i>Chute réemployée</span><span style="color:var(--red);font-weight:600">↕ 73 mm</span><span>rang déligné</span></div>
+      <div class="legend"><span><i style="background:var(--oak)"></i>Lame entière</span><span><i style="background:var(--oak);border-right:3px solid var(--red)"></i>Coupe (trait rouge)</span><span><i style="background:var(--oak-reuse)"></i>Chute réemployée</span>${S.calLinks !== false ? `<span><b class="lk" style="background:${PL.layout.LINK_COLORS[0]};color:#fff">A</b><b class="lk" style="border-color:${PL.layout.LINK_COLORS[0]};color:${PL.layout.LINK_COLORS[0]}">A</b>même lettre, même couleur : la chute (pleine) vient de la lame entamée (cerclée)</span>` : ''}<span style="color:var(--red);font-weight:600">↕ 73 mm</span><span>rang déligné</span></div>
+      <div class="field"><label>Repérer les chutes (lettres et couleurs)</label><input type="checkbox" data-c="calLinks" ${S.calLinks !== false ? 'checked' : ''}></div>
       <p class="hint2"><b style="color:var(--ink)">Les numéros sur les lames</b> donnent l'ordre de pose : on part de la lame 1, dans l'angle du drapeau rouge « Départ », puis rang par rang (zoomez pour les voir). Sous le numéro, en rouge, la longueur à couper. Touchez une lame pour le détail, ou suivez le pas à pas rang par rang.</p>
       ${S.mode !== 'calepinage' ? '<button class="btn primary" data-a="mode" data-v="calepinage" style="margin:6px 0">Afficher les lames sur le plan</button>' : ''}
       <details ${S.pqOpen ? 'open' : ''} data-d="pq"><summary>Référence du parquet</summary>
@@ -4653,7 +4699,7 @@ details[open] summary::after{content:"–"}
     return h;
   }
   function cutTable(res, P) {
-    return `<table class="cuts"><thead><tr><th>Rang</th><th>Largeur</th><th>1re lame</th><th>Dernière</th><th>Lames n°</th></tr></thead><tbody>${res.rows.map((r) => r.runs.map((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; const rip = r.ripMax < P.W - 0.5; return `<tr><td>${k ? '' : r.num}</td><td class="${rip ? 'r' : ''}">${k ? '' : rip ? Math.round(r.ripMax) + ' mm' : 'entière'}</td><td class="${f.kind === 'cut' ? 'r' : ''}">${Math.round(f.len)}${f.src === 'chute' ? '*' : ''}</td><td class="${ru.pieces.length > 1 && l.kind === 'cut' ? 'r' : ''}">${ru.pieces.length > 1 ? Math.round(l.len) + (l.src === 'chute' ? '*' : '') : '—'}</td><td>${f.n === l.n ? f.n : f.n + '–' + l.n}</td></tr>`; }).join('')).join('')}</tbody></table><p>Longueurs en mm, rangs numérotés depuis le mur de départ. * chute réemployée.</p>`;
+    return `<table class="cuts"><thead><tr><th>Rang</th><th>Largeur</th><th>1re lame</th><th>Dernière</th><th>Lames n°</th></tr></thead><tbody>${res.rows.map((r) => r.runs.map((ru, k) => { const f = ru.pieces[0], l = ru.pieces[ru.pieces.length - 1]; const rip = r.ripMax < P.W - 0.5; return `<tr><td>${k ? '' : r.num}</td><td class="${rip ? 'r' : ''}">${k ? '' : rip ? Math.round(r.ripMax) + ' mm' : 'entière'}</td><td class="${f.kind === 'cut' ? 'r' : ''}">${Math.round(f.len)}${f.src === 'chute' ? '*' + (f.link ? ' ' + f.link.code : '') : ''}</td><td class="${ru.pieces.length > 1 && l.kind === 'cut' ? 'r' : ''}">${ru.pieces.length > 1 ? Math.round(l.len) + (l.src === 'chute' ? '*' + (l.link ? ' ' + l.link.code : '') : '') : '—'}</td><td>${f.n === l.n ? f.n : f.n + '–' + l.n}</td></tr>`; }).join('')).join('')}</tbody></table><p>Longueurs en mm, rangs numérotés depuis le mur de départ. * chute réemployée (la lettre renvoie à la lame dont elle vient).</p>`;
   }
   ui.ficheText = () => {
     const cal = App.calepinage(); const P = S.p.parquet; const lines = [];
@@ -4688,6 +4734,7 @@ details[open] summary::after{content:"–"}
   const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   try { ui.libCat = localStorage.getItem('calepin:libcat') || ''; } catch (e) { ui.libCat = ''; }
   ui.libQ = '';
+  try { S.calLinks = localStorage.getItem('calepin:callinks') !== '0'; } catch (e) { S.calLinks = true; }
   try { localStorage.removeItem('calepin:openai-key'); localStorage.removeItem('calepin:openai-model'); } catch (e) { /* rien */ }
   // menu des catégories et recherche : on montre ou cache les sections sans redessiner le panneau
   ui.libFilter = () => {
@@ -4831,6 +4878,7 @@ details[open] summary::after{content:"–"}
     if (c === 'fceil') { App.mutate(() => { App.floor().ceiling = num(val) || 250; }); return; }
     if (c === 'hmin' || c === 'hmax') { App.mutate(() => { s[c] = num(val); }); return; }
     if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
+    if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
     if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }

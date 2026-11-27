@@ -300,3 +300,6 @@ details[open] summary::after{content:"–"}
 .chips.libcats button{flex:none;white-space:nowrap}
 .libsec[hidden],.tile[hidden],.libnone[hidden]{display:none}
 .libnone{color:var(--ink-2);margin:16px 0}
+
+/* repères de chutes */
+.lk{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:2px solid transparent;font:700 11px/1 var(--sans);margin-right:4px;background:var(--paper)}

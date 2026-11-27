@@ -390,11 +390,26 @@
         results[o.room.id] = { phase, gap: Pg.gap, gapInfo, group: g, ang: gr.ang, side: gr.side, rows: o.rows, outer: o.outer, holes: o.holes, obs: o.obs, area, advice: adv.lines, piecesNew: o.piecesNew, cuts: o.cuts, lead: gr.lead === o.room, groupStats: gr.stats, groupSize: groups[g].length, rec: gr.rec, startEdgeIdx: gr.lead === o.room ? gr.startEdgeIdx : null };
       });
     }
+    // chutes : la lame entamée et la chute qui en est posée ailleurs reçoivent la même lettre et la même couleur
+    const byGroup = {}; for (const id in results) (byGroup[results[id].group] = byGroup[results[id].group] || []).push(results[id]);
+    let nl = 0;
+    for (const g of Object.keys(byGroup)) {
+      const all = []; byGroup[g].forEach((res) => res.rows.forEach((row) => row.runs.forEach((ru) => ru.pieces.forEach((pc) => { pc.row = row.num; delete pc.link; all.push(pc); }))));
+      const byN = new Map(all.map((pc) => [pc.n, pc]));
+      all.filter((pc) => pc.src === 'chute' && pc.fromN != null).sort((a, b) => a.n - b.n).forEach((pc) => {
+        const par = byN.get(pc.fromN); if (!par || par.link) return; const code = linkCode(nl), ci = nl % LINK_COLORS.length; nl++;
+        par.link = { code, ci, role: 'source', other: pc.n, otherRow: pc.row }; pc.link = { code, ci, role: 'use', other: par.n, otherRow: par.row };
+      });
+    }
     const boardArea = (P.L * P.W) / 1e6;
     const perBox = P.perBox || (P.m2Box ? Math.max(1, Math.round(P.m2Box / boardArea)) : 0);
     const byArea = Math.ceil((totalArea / 1e6) * (1 + P.waste / 100) / boardArea);
     return { P, results, totals: { boards: totalBoards, area: totalArea / 1e6, wasteLen: totalWaste, reused: totalReused, boxes: perBox ? Math.ceil(totalBoards / perBox) : null, boxesArea: perBox ? Math.ceil(byArea / perBox) : null, boardsArea: byArea, perBox } };
   }
+
+  // lettres A, B… Z, puis AA, AB… ; couleurs franches, lisibles sur le chêne et distinctes du rouge des coupes
+  const LINK_COLORS = ['#2f6fd6', '#159a6a', '#8a4fd1', '#d23f86', '#d98200', '#0e98ad', '#5f7410', '#3a4b9a', '#b05a1e', '#6f6f6f'];
+  const linkCode = (k) => (k < 26 ? String.fromCharCode(65 + k) : linkCode(Math.floor(k / 26) - 1) + String.fromCharCode(65 + (k % 26)));
 
   /* pièce → polygones monde des lames (pour le rendu) */
   function boardPolys(res) {
@@ -411,11 +426,11 @@
           if (atStart && atEnd) { cutA = cutB = true; }
           else if (atStart || atEnd) { const wallSideIsX0 = Math.abs(pc.x0 - run.x0) < 0.6; if (wallSideIsX0) cutA = true; else cutB = true; void startIsX0; }
         }
-        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB });
+        out.push({ poly: q, kind: pc.kind, src: pc.src, len: pc.len, row: r.num, n: pc.n, cutA, cutB, link: pc.link || null });
       });
     }
     return out;
   }
 
-  PL.layout = { DEFAULTS, computeFloor, computeGroup, recommendDir, boardPolys, wallName, fmt, fmtm };
+  PL.layout = { DEFAULTS, computeFloor, computeGroup, recommendDir, boardPolys, wallName, fmt, fmtm, LINK_COLORS };
 })();

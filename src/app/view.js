@@ -259,14 +259,15 @@
   };
   App.boardInfo = ({ row, pc }) => {
     const W = App.calepinage().P.W; const parts = [`Lame n° ${pc.n}`, `rang ${row.num}`];
-    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute de la n° ${pc.fromN || '?'}` : `à couper à ${Math.round(pc.len)} mm`);
+    const lk = pc.link;
+    parts.push(pc.kind === 'full' ? 'pleine longueur' : pc.src === 'chute' ? `${Math.round(pc.len)} mm, dans la chute ${lk ? lk.code + ' ' : ''}de la n° ${pc.fromN || '?'}${lk && lk.otherRow ? ' (rang ' + lk.otherRow + ')' : ''}` : `à couper à ${Math.round(pc.len)} mm`);
     if (row.ripMax < W - 0.5) parts.push(`délignée à ${Math.round(row.ripMax)} mm de large`);
-    if (pc.rest > 0) parts.push(`garder la chute (${Math.round(pc.rest)} mm)`);
+    if (pc.rest > 0) parts.push(lk && lk.role === 'source' ? `garder la chute ${lk.code} (${Math.round(pc.rest)} mm) pour la n° ${lk.other}${lk.otherRow ? ' (rang ' + lk.otherRow + ')' : ''}` : `chute de ${Math.round(pc.rest)} mm à garder (pas réemployée dans ce calepinage)`);
     return parts.join(' · ');
   };
 
   function drawCalepinage(fid, rooms) {
-    const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P;
+    const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P; const links = S.calLinks !== false, LC = PL.layout.LINK_COLORS;
     if (!cal.polys) { cal.polys = {}; for (const id in cal.results) cal.polys[id] = PL.layout.boardPolys(cal.results[id]); }
     for (const r of rooms) {
       const res = cal.results[r.id]; if (!res) continue;
@@ -279,6 +280,7 @@
       for (const b of polys) {
         path(b.poly);
         ctx.fillStyle = b.src === 'chute' ? C.oakReuse : C.oak; ctx.fill();
+        if (links && b.link) { ctx.save(); ctx.globalAlpha = b.link.role === 'use' ? 0.42 : 0.26; ctx.fillStyle = LC[b.link.ci]; ctx.fill(); ctx.restore(); }
         if (z > 0.012) { ctx.strokeStyle = C.oakLine; ctx.lineWidth = lw; ctx.stroke(); }
       }
       if (S.boardSel && S.boardSel.id === r.id && S.sel && S.sel.id === r.id) { const b = polys.find((x) => x.n === S.boardSel.n); if (b) { path(b.poly); ctx.fillStyle = 'rgba(224,64,32,.18)'; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.stroke(); } }
@@ -290,6 +292,19 @@
         if (b.cutB) { ctx.moveTo(q[1].x, q[1].y); ctx.lineTo(q[2].x, q[2].y); }
       }
       ctx.stroke();
+      // repères de chutes : pastille pleine sur la chute posée, cerclée sur la lame dont elle vient, près du bout coupé
+      if (links && P.W * z >= 9) {
+        const rr = Math.max(6, Math.min(10, P.W * z * 0.27));
+        for (const b of polys) {
+          if (!b.link) continue; const q = b.poly.map(App.w2s), lenPx = G.dist(q[0], q[1]); if (lenPx < rr * 5) continue;
+          const ax = G.norm(G.sub(q[1], q[0])), endA = G.mul(G.add(q[0], q[3]), 0.5), endB = G.mul(G.add(q[1], q[2]), 0.5);
+          const fromA = b.cutA || (!b.cutB && b.link.role === 'source'), off = Math.min(lenPx * 0.22, rr * 2.4);
+          const c = fromA ? G.add(endA, G.mul(ax, off)) : G.sub(endB, G.mul(ax, off)); const col = LC[b.link.ci];
+          ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, Math.PI * 2);
+          if (b.link.role === 'use') { ctx.fillStyle = col; ctx.fill(); } else { ctx.fillStyle = C.paper; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); }
+          const t = b.link.code; text(t, c.x, c.y + 0.5, 700, Math.round(rr * (t.length > 1 ? 0.95 : 1.15)), b.link.role === 'use' ? '#fff' : col);
+        }
+      }
       ctx.restore();
       // numéros de rangs et délignage
       if (z > 0.05) {
@@ -380,6 +395,18 @@
         const tip = G.add(G.add(c, G.mul(d, 16)), G.mul(nrm, 16 * side));
         ctx.fillStyle = C.red; ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(tip.x + d.x * 22 - nrm.x * 0 * side, tip.y + d.y * 22); ctx.lineTo(tip.x + nrm.x * 10 * side, tip.y + nrm.y * 10 * side); ctx.closePath(); ctx.fill();
         if (z > 0.04) text('Départ', tip.x + d.x * 30 + nrm.x * 12 * side, tip.y + d.y * 30 + nrm.y * 12 * side, 700, 11, C.red, 'left');
+      }
+    }
+    // lame touchée : sa partenaire (chute ou lame d'origine) entourée de la même couleur, et un trait qui les relie
+    if (links && S.boardSel && S.sel && S.sel.id === S.boardSel.id && cal.results[S.boardSel.id]) {
+      const g = cal.results[S.boardSel.id].group, me = (cal.polys[S.boardSel.id] || []).find((x) => x.n === S.boardSel.n);
+      if (me && me.link) {
+        let mate = null; for (const r of rooms) { const res = cal.results[r.id]; if (!res || res.group !== g) continue; const m = (cal.polys[r.id] || []).find((x) => x.n === me.link.other); if (m) { mate = m; break; } }
+        if (mate) {
+          const col = LC[me.link.ci], ca = App.w2s(G.centroid(me.poly)), cb = App.w2s(G.centroid(mate.poly));
+          ctx.save(); path(mate.poly); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+          ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ca.x, ca.y); ctx.lineTo(cb.x, cb.y); ctx.stroke(); ctx.restore();
+        }
       }
     }
   }
