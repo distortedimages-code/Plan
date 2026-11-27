@@ -3,7 +3,7 @@
   const PL = (globalThis.PL = globalThis.PL || {});
   const G = PL.geom;
 
-  const DEFAULTS = { L: 1200, W: 190, T: 14, gap: 10, gapMode: 'auto', gapMin: 8, gapPerM: 1.5, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
+  const DEFAULTS = { doorMid: true, L: 1200, W: 190, T: 14, gap: 10, gapMode: 'auto', gapMin: 8, gapPerM: 1.5, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
 
   const rotAll = (pts, a) => pts.map((p) => G.rot(p, a));
   const swap = (pts) => pts.map((p) => ({ x: p.y, y: p.x }));
@@ -109,6 +109,42 @@
     return { ang: best.ang, wall: best.wall, why, all: res };
   }
 
+  /* ---------- seuils au milieu des portes ----------
+     Dans chaque embrasure de porte (ou passage) vers une autre pièce, le parquet de la pièce avance jusqu'au milieu de
+     l'épaisseur du mur : la barre de seuil tombe centrée dans la porte. L'épaisseur se mesure jusqu'au mur d'en face. */
+  const DOOR_TYPES = ['porte', 'porte2', 'coulissante', 'galandage', 'passage'];
+  function wallDepth(c, nOut, others) {
+    let best = Infinity;
+    for (const r of others) { const P = r.pts, n = P.length; for (let i = 0; i < n; i++) { const a = P[i], b = P[(i + 1) % n], e = G.sub(b, a), den = nOut.x * e.y - nOut.y * e.x; if (Math.abs(den) < 1e-9) continue; const w = G.sub(a, c), t = (w.x * e.y - w.y * e.x) / den, u = (w.x * nOut.y - w.y * nOut.x) / den; if (t > 20 && t < 700 && u >= -0.001 && u <= 1.001) best = Math.min(best, t); } }
+    return isFinite(best) ? best : 0;
+  }
+  function withDoorTongues(room, allRooms, P) {
+    if (!P.doorMid || !room.openings || !room.openings.length) return room.pts;
+    const pts = G.ensureCCW(room.pts), n = pts.length, flip = pts !== room.pts && pts[0] !== room.pts[0]; // ensureCCW peut inverser l'ordre des sommets
+    if (flip) return room.pts; // les murs des ouvertures sont indexés sur l'ordre d'origine : on ne touche pas une pièce dans l'autre sens
+    const byWall = {};
+    for (const o of room.openings) {
+      if (!DOOR_TYPES.includes(o.type) || o.wall == null || o.wall >= n) continue;
+      const a = pts[o.wall], b = pts[(o.wall + 1) % n], el = G.dist(a, b); if (el < 1) continue;
+      const d = G.mul(G.sub(b, a), 1 / el), nOut = { x: d.y, y: -d.x }; // pièces en sens direct : l'extérieur est à droite du mur
+      const pos = Math.max(0, Math.min(o.pos || 0, el - 10)), w = Math.min(o.width || 0, el - pos); if (w < 300) continue;
+      const c = G.add(a, G.mul(d, pos + w / 2));
+      const other = (o.to && allRooms.find((r) => r.id === o.to)) ? [allRooms.find((r) => r.id === o.to)] : allRooms.filter((r) => r !== room);
+      const t = wallDepth(c, nOut, other.length ? other : allRooms.filter((r) => r !== room)); if (!t) continue; // porte vers l'extérieur : rien à prolonger
+      (byWall[o.wall] = byWall[o.wall] || []).push({ pos, w, h: t / 2, d, nOut, a });
+    }
+    if (!Object.keys(byWall).length) return room.pts;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(pts[i]);
+      for (const q of (byWall[i] || []).sort((x, y) => x.pos - y.pos)) {
+        const p0 = G.add(q.a, G.mul(q.d, q.pos)), p1 = G.add(q.a, G.mul(q.d, q.pos + q.w));
+        out.push(p0, G.add(p0, G.mul(q.nOut, q.h)), G.add(p1, G.mul(q.nOut, q.h)), p1);
+      }
+    }
+    return out;
+  }
+
   /* ---------- pose d'un rang ---------- */
   function takePool(pool, need) {
     let bi = -1; for (let i = 0; i < pool.length; i++) if (pool[i].v >= need - 0.5 && (bi < 0 || pool[i].v < pool[bi].v)) bi = i;
@@ -198,8 +234,9 @@
     if (manual) ang = G.rad(+manual.cal.dir);
     else { rec = recommendDir(lead, P, obsFor(lead)); ang = rec.ang; }
     // repère local : lames selon x
+    const ext = new Map(rooms.map((room) => [room, withDoorTongues(room, opts.all || rooms, P)]));
     const build = (a) => rooms.map((room) => {
-      const loc = rotAll(room.pts, -a), outer = G.offset(loc, P.gap);
+      const loc = rotAll(room.pts, -a), outer = G.offset(rotAll(ext.get(room), -a), P.gap);
       const obs = obsFor(room), holes = obs.map((o) => G.offset(rotAll(o.pts, -a), -P.gap));
       return { room, loc, outer, holes, obs };
     });
@@ -347,9 +384,10 @@
       const other = ctx.byId[d.to];
       const sameGroup = other && ctx.groupOf(other) === ctx.groupOf(room) && ctx.groupOf(room);
       const nm = other ? other.name : 'pièce voisine';
-      if (sameGroup) A.push({ t: 'jonction', s: `Passage vers ${nm} : pose continue, rangs alignés. Recouper le bas des huisseries à l'épaisseur du parquet + sous-couche pour glisser les lames dessous.` });
-      else if (other && other.parquet === false) A.push({ t: 'jonction', s: `Passage vers ${nm} : profilé de transition (changement de revêtement) sous le vantail fermé.` });
-      else A.push({ t: 'jonction', s: `Passage vers ${nm} : ${P.lay === 'flottante' ? 'joint de fractionnement + barre de seuil' : 'barre de seuil'} à l'aplomb du vantail fermé. Recouper le bas des huisseries.` });
+      const mid = P.doorMid && other, where = mid ? 'centré au milieu de l\'embrasure (le parquet de chaque pièce va jusqu\'à la moitié du mur)' : 'à l\'aplomb du vantail fermé';
+      if (sameGroup) A.push({ t: 'jonction', s: `Passage vers ${nm} : rangs alignés de part et d'autre${mid ? ', joint ' + where : ''}. Recouper le bas des huisseries à l'épaisseur du parquet + sous-couche pour glisser les lames dessous.` });
+      else if (other && other.parquet === false) A.push({ t: 'jonction', s: `Passage vers ${nm} : profilé de transition (changement de revêtement) ${where}.` });
+      else A.push({ t: 'jonction', s: `Passage vers ${nm} : ${P.lay === 'flottante' ? 'joint de fractionnement + barre de seuil' : 'barre de seuil'} ${where}. Recouper le bas des huisseries.` });
     });
     // fractionnement
     const bb = G.bbox(o.outer);
@@ -363,6 +401,7 @@
     const rooms = shapes.filter((s) => s.kind === 'piece' && s.parquet !== false && s.pts && s.pts.length >= 3);
     const obstacles = shapes.filter((s) => (s.kind === 'exclusion' || s.kind === 'escalier' || s.kind === 'poteau' || (s.kind === 'meuble' && s.noParquet)) && s.pts && s.pts.length >= 3).map((s) => ({ ...s, pts: G.ensureCCW(s.pts) }));
     const byId = {}; shapes.forEach((s) => { byId[s.id] = s; });
+    const pieces = shapes.filter((s) => s.kind === 'piece' && s.pts && s.pts.length >= 3); // pour mesurer l'épaisseur des murs aux portes, même vers une pièce carrelée
     const groupOf = (r) => (r.cal && r.cal.group) || '';
     const groups = {}; rooms.forEach((r) => { const g = groupOf(r) || '#' + r.id; (groups[g] = groups[g] || []).push(r); });
     const ctx = { byId, groupOf };
@@ -372,12 +411,12 @@
       try {
         if (P.gapMode === 'auto') {
           // jeu périphérique calculé : 1,5 mm par mètre de la plus grande dimension posée d'un seul tenant, avec un minimum
-          Pg = Object.assign({}, P, { gap: P.gapMin }); gr = computeGroup(groups[g], obstacles, Pg);
+          Pg = Object.assign({}, P, { gap: P.gapMin }); gr = computeGroup(groups[g], obstacles, Pg, { all: pieces });
           const ext = (ang) => { const pts = groups[g].flatMap((r) => r.pts.map((p) => G.rot(p, -ang))); const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y); return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)]; };
           const [dl, dw] = ext(gr.ang), need = Math.max(P.gapMin, Math.ceil((P.gapPerM * Math.max(dl, dw)) / 1000));
           gapInfo = { gap: need, along: dl, across: dw, byLen: Math.ceil((P.gapPerM * dl) / 1000), byWid: Math.ceil((P.gapPerM * dw) / 1000) };
-          if (need !== Pg.gap) { Pg = Object.assign({}, P, { gap: need }); gr = computeGroup(groups[g], obstacles, Pg); }
-        } else gr = computeGroup(groups[g], obstacles, P);
+          if (need !== Pg.gap) { Pg = Object.assign({}, P, { gap: need }); gr = computeGroup(groups[g], obstacles, Pg, { all: pieces }); }
+        } else gr = computeGroup(groups[g], obstacles, P, { all: pieces });
       } catch (e) { console.error(e); continue; }
       totalBoards += gr.stats.boards; totalWaste += gr.stats.wasteLen; totalReused += gr.stats.reused;
       gr.rooms.forEach((o) => {

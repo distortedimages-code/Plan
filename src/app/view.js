@@ -75,7 +75,7 @@
       path(r.pts); ctx.fillStyle = r.parquet === false && showCal ? C.ink5 : C.paper; ctx.globalAlpha = S.layers.fond && S.bgs[fid] && S.bgs[fid].img ? roomVeil() : 1; ctx.fill(); ctx.globalAlpha = 1;
     }
     for (const r of rooms) if (r.parquet === false) tiles(r.pts);
-    if (showCal) drawCalepinage(fid, rooms);
+    calShown = !!showCal; if (showCal) drawCalepinage(fid, rooms);
     for (const z of shapes) if (z.kind === 'plafond') drawZone(z);
     // zones et escaliers
     for (const s of shapes) if (s.kind === 'exclusion' || s.kind === 'escalier' || s.kind === 'poteau') drawObstacle(s);
@@ -265,6 +265,20 @@
     if (pc.rest > 0) parts.push(lk && lk.role === 'source' ? `garder la chute ${lk.code} (${Math.round(pc.rest)} mm) pour la n° ${lk.other}${lk.otherRow ? ' (rang ' + lk.otherRow + ')' : ''}` : `chute de ${Math.round(pc.rest)} mm à garder (pas réemployée dans ce calepinage)`);
     return parts.join(' · ');
   };
+
+  // lames d'une zone (embrasure de porte) redessinées par-dessus la trouée du mur
+  let calShown = false;
+  function calPatch(region) {
+    const cal = App.calepinage(); if (!cal || !cal.P || !cal.P.doorMid) return; const links = S.calLinks !== false, LC = PL.layout.LINK_COLORS, z = S.view.z;
+    const rb = G.bbox(region);
+    for (const id in cal.results) {
+      const res = cal.results[id], polys = (cal.polys && cal.polys[id]) || []; if (!polys.length) continue;
+      const ow = res.outer.map((p) => G.rot(p, res.ang)), ob = G.bbox(ow); if (ob.x1 < rb.x0 || ob.x0 > rb.x1 || ob.y1 < rb.y0 || ob.y0 > rb.y1) continue;
+      ctx.save(); path(region); ctx.clip(); path(ow); ctx.clip();
+      for (const b of polys) { path(b.poly); ctx.fillStyle = b.src === 'chute' ? C.oakReuse : C.oak; ctx.fill(); if (links && b.link) { ctx.globalAlpha = b.link.role === 'use' ? 0.42 : 0.26; ctx.fillStyle = LC[b.link.ci]; ctx.fill(); ctx.globalAlpha = 1; } if (z > 0.012) { ctx.strokeStyle = C.oakLine; ctx.lineWidth = Math.max(0.5, Math.min(1.4, z * 40)); ctx.stroke(); } }
+      ctx.restore();
+    }
+  }
 
   function drawCalepinage(fid, rooms) {
     const cal = App.calepinage(fid); const z = S.view.z; const P = cal.P; const links = S.calLinks !== false, LC = PL.layout.LINK_COLORS;
@@ -538,6 +552,7 @@
       const { p0, p1, nin } = it.g; const out = G.mul(nin, -1); const e = it.T + (it.o.link ? 0.5 / z : 4);
       const gap = [G.add(p0, G.mul(nin, 2 / z)), G.add(p1, G.mul(nin, 2 / z)), G.add(p1, G.mul(out, e)), G.add(p0, G.mul(out, e))];
       path(gap); ctx.fillStyle = C.paper; ctx.fill();
+      if (calShown && it.o.link) calPatch(gap); // seuil centré : les lames qui entrent dans l'embrasure restent visibles
       if (it.isSel) { path(gap); ctx.fillStyle = C.red; ctx.globalAlpha = 0.14; ctx.fill(); ctx.globalAlpha = 1; }
     }
     // 2. tableaux et symboles
