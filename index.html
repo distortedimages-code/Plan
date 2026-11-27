@@ -2197,6 +2197,7 @@ details[open] summary::after{content:"–"}
 (function () {
   const PL = (globalThis.PL = globalThis.PL || {});
   const F = (id, cat, name, w, d, extra = {}) => ({ id, cat, name, w, d, ...extra });
+  const SOHO_REF = 'Cedam · 2 tiroirs · dessus à 90 cm · caisson et vasque estimés';
   const furniture = [
     F('lit90', 'Lits', 'Lit 90 × 200', 97, 209), F('lit140', 'Lits', 'Lit 140 × 200 (type Malm)', 156, 209), F('lit160', 'Lits', 'Lit 160 × 200 (type Malm)', 176, 209),
     F('lit180', 'Lits', 'Lit 180 × 200', 196, 209), F('litbebe', 'Lits', 'Lit bébé 60 × 120', 66, 124),
@@ -2262,6 +2263,11 @@ details[open] summary::after{content:"–"}
     F('vasque120d', 'Meubles vasque', 'Meuble double vasque 120 (type Godmorgon)', 123, 49, { m: 'vasque2' }), F('vasque140d', 'Meubles vasque', 'Meuble double vasque 140 (type Godmorgon)', 143, 49, { m: 'vasque2' }),
     F('vasqueG100', 'Meubles vasque', 'Vasque à gauche 100 (type Tolken)', 102, 49, { m: 'vasqueG' }), F('vasqueD100', 'Meubles vasque', 'Vasque à droite 100 (type Tolken)', 102, 49, { m: 'vasqueD' }),
     F('vasqueG120', 'Meubles vasque', 'Vasque à gauche 120', 122, 49, { m: 'vasqueG' }), F('vasqueD120', 'Meubles vasque', 'Vasque à droite 120', 122, 49, { m: 'vasqueD' }),
+    // Cedam Soho 120 : L. 120 × P. 46 cm, 2 tiroirs (un petit en haut, un grand en bas), dessus à 90 cm (pose conseillée par Cedam)
+    F('soho120c', 'Meubles vasque', 'Cedam Soho 120 · vasque centrée', 120, 46, { short: 'Soho 120', m: 'soho', so: 'c', ref: SOHO_REF }),
+    F('soho120g', 'Meubles vasque', 'Cedam Soho 120 · vasque à gauche', 120, 46, { short: 'Soho 120 G', m: 'soho', so: 'g', ref: SOHO_REF }),
+    F('soho120d', 'Meubles vasque', 'Cedam Soho 120 · vasque à droite', 120, 46, { short: 'Soho 120 D', m: 'soho', so: 'd', ref: SOHO_REF }),
+    F('soho120l', 'Meubles vasque', 'Cedam Soho 120 · vasque large', 120, 46, { short: 'Soho 120 large', m: 'soho', so: 'l', ref: SOHO_REF }),
     F('miroir60', 'Meubles vasque', 'Armoire de toilette 60 (type Godmorgon)', 60, 14, { m: 'miroir' }), F('miroir80', 'Meubles vasque', 'Armoire de toilette 80 (type Godmorgon)', 80, 14, { m: 'miroir' }),
     F('colonnesdb', 'Meubles vasque', 'Colonne 40 (type Godmorgon)', 40, 32, { m: 'colonnesdb' }),
     F('baignoire', 'Salle de bain', 'Baignoire 170 × 70', 170, 70, { noParquet: true }), F('douche90', 'Salle de bain', 'Douche 90 × 90', 90, 90, { noParquet: true }), F('douche120', 'Salle de bain', 'Douche 120 × 90', 120, 90, { noParquet: true }),
@@ -2431,6 +2437,7 @@ details[open] summary::after{content:"–"}
     vasque2: (w, d, M) => vanity(w, d, M, [w / 4, (3 * w) / 4], false),
     vasqueG: (w, d, M) => vanity(w, d, M, [Math.min(w / 2, 280)], true),
     vasqueD: (w, d, M) => vanity(w, d, M, [Math.max(w / 2, w - 280)], true),
+    soho: (w, d, M, it) => soho(w, d, M, it.so || 'c'),
     miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
     colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
     colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
@@ -2724,6 +2731,18 @@ details[open] summary::after{content:"–"}
       if (vessel) { const r = Math.min(220, d * 0.44); const b = ell(cu, d * 0.48, r, r, 24); M.plan.push({ pts: b }, { pts: ell(cu, d * 0.48, r - 30, r - 30, 24) }); M.solids.push({ pts: b, z0: zt, z1: zt + 140, round: true }); tap(cu, d - 30, zt, M); continue; }
       const ru = Math.min(n > 1 ? w * 0.17 : w * 0.32, 230), rv = Math.min(d * 0.3, 160); const b = ell(cu, d * 0.44, ru, rv); M.plan.push({ pts: b }); M.lines.push(...ring3(b, zt + 1)); tap(cu, d - 45, zt, M);
     }
+  }
+  // Cedam Soho : caisson suspendu 2 tiroirs (grand en bas, petit en haut), plan vasque céramique 2 cm, dessus à 90 cm
+  // vasque intégrée de 50 cm centrée, à gauche ou à droite (à 8 cm du bord), ou vasque large de 100 cm ; mitigeur derrière la vasque
+  function soho(w, d, M, pos) {
+    const zt = 900, zc = zt - 20, z0 = zc - 520; M.h = zt;
+    block(M, 0, w, 8, d, z0, zc, [{ rows: [['t', 2], ['t', 1]] }]);
+    M.solids.push({ pts: rect(0, 0, w, d), z0: zc, z1: zt });
+    const bw = pos === 'l' ? Math.min(1000, w - 200) : Math.min(500, w - 160), cu = pos === 'g' ? 80 + bw / 2 : pos === 'd' ? w - 80 - bw / 2 : w / 2;
+    const v0 = 60, v1 = Math.max(v0 + 150, d - 120), rim = rrect(cu - bw / 2, v0, cu + bw / 2, v1, 70), cuve = rrect(cu - bw / 2 + 25, v0 + 25, cu + bw / 2 - 25, v1 - 25, 50);
+    M.plan.push({ pts: rim }, { pts: cuve }, { pts: ell(cu, (v0 + v1) / 2 + 30, 20, 20, 12) });
+    M.lines.push(...ring3(rim, zt + 1), ...ring3(cuve, zt + 1));
+    tap(cu, d - 55, zt, M);
   }
   // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
   function shelf(w, d, M, H, grid, t, tin, back, posts) {
