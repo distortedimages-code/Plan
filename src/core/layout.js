@@ -3,7 +3,7 @@
   const PL = (globalThis.PL = globalThis.PL || {});
   const G = PL.geom;
 
-  const DEFAULTS = { doorMid: true, L: 1200, W: 190, T: 14, gap: 10, gapMode: 'auto', gapMin: 8, gapPerM: 1.5, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
+  const DEFAULTS = { doorMid: true, doorJoint: 20, L: 1200, W: 190, T: 14, gap: 10, gapMode: 'auto', gapMin: 8, gapPerM: 1.5, minPiece: 300, minStagger: 300, minRow: 50, pattern: 'anglaise', lay: 'flottante', perBox: 8, m2Box: 0, waste: 7, maxAlong: 10000, maxAcross: 8000, name: 'Contrecollé chêne 1200 × 190' };
 
   const rotAll = (pts, a) => pts.map((p) => G.rot(p, a));
   const swap = (pts) => pts.map((p) => ({ x: p.y, y: p.x }));
@@ -131,7 +131,10 @@
       const c = G.add(a, G.mul(d, pos + w / 2));
       const other = (o.to && allRooms.find((r) => r.id === o.to)) ? [allRooms.find((r) => r.id === o.to)] : allRooms.filter((r) => r !== room);
       const t = wallDepth(c, nOut, other.length ? other : allRooms.filter((r) => r !== room)); if (!t) continue; // porte vers l'extérieur : rien à prolonger
-      (byWall[o.wall] = byWall[o.wall] || []).push({ pos, w, h: t / 2, d, nOut, a });
+      // le joint au seuil reste étroit (20 mm au total par défaut) même si le jeu le long des murs est plus large :
+      // la langue avance d'autant au-delà du milieu, le retrait du jeu la ramène à un demi-joint du milieu
+      const j = Math.min(P.doorJoint || 20, 2 * P.gap), h = Math.min(t, t / 2 + Math.max(0, P.gap - j / 2));
+      (byWall[o.wall] = byWall[o.wall] || []).push({ pos, w, h, d, nOut, a });
     }
     if (!Object.keys(byWall).length) return room.pts;
     const out = [];
@@ -384,7 +387,7 @@
       const other = ctx.byId[d.to];
       const sameGroup = other && ctx.groupOf(other) === ctx.groupOf(room) && ctx.groupOf(room);
       const nm = other ? other.name : 'pièce voisine';
-      const mid = P.doorMid && other, where = mid ? 'centré au milieu de l\'embrasure (le parquet de chaque pièce va jusqu\'à la moitié du mur)' : 'à l\'aplomb du vantail fermé';
+      const jt = Math.round(P.doorJoint || 20), mid = P.doorMid && other, where = mid ? `centré au milieu de l'embrasure (le parquet de chaque pièce va jusqu'à la moitié du mur, joint de ${jt} mm au plus sous le seuil)` : 'à l\'aplomb du vantail fermé';
       if (sameGroup) A.push({ t: 'jonction', s: `Passage vers ${nm} : rangs alignés de part et d'autre${mid ? ', joint ' + where : ''}. Recouper le bas des huisseries à l'épaisseur du parquet + sous-couche pour glisser les lames dessous.` });
       else if (other && other.parquet === false) A.push({ t: 'jonction', s: `Passage vers ${nm} : profilé de transition (changement de revêtement) ${where}.` });
       else A.push({ t: 'jonction', s: `Passage vers ${nm} : ${P.lay === 'flottante' ? 'joint de fractionnement + barre de seuil' : 'barre de seuil'} ${where}. Recouper le bas des huisseries.` });
