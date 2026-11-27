@@ -22,14 +22,25 @@
     F('cf-armoire3', 'Rangement', 'Meuble 3 portes 60 × 90 (Conforama)', 60, 29.5, { short: 'Meuble 3 portes', m: 'cab', cab: { H: 90, leg: 2, socle: true, rows: [['p', 1], ['p', 1], ['p', 1]] }, ref: 'conforama.fr · code J45696588' }),
     F('besta', 'Rangement', 'Meuble TV (type Bestå)', 180, 42),
     // miroirs muraux (cotes IKEA ; ronds génériques) : hauteur de pose et sens réglables dans la fiche
+    // miroirs muraux génériques : carrés, rectangulaires (debout ou couchés), ronds ; largeur dans Dimensions, hauteur dans la fiche
+    F('mircar50', 'Miroirs', 'Miroir carré 50 × 50', 50, 3, { short: 'Miroir carré', m: 'mir', mi: { H: 50, shape: 'rect', fr: 20 } }),
+    F('mircar60', 'Miroirs', 'Miroir carré 60 × 60', 60, 3, { short: 'Miroir carré', m: 'mir', mi: { H: 60, shape: 'rect', fr: 20 } }),
+    F('mircar70', 'Miroirs', 'Miroir carré 70 × 70', 70, 3, { short: 'Miroir carré', m: 'mir', mi: { H: 70, shape: 'rect', fr: 20 } }),
+    F('mirrect4060', 'Miroirs', 'Miroir rectangulaire 40 × 60', 40, 3, { short: 'Miroir', m: 'mir', mi: { H: 60, shape: 'rect', fr: 20 } }),
+    F('mirrect5070', 'Miroirs', 'Miroir rectangulaire 50 × 70', 50, 3, { short: 'Miroir', m: 'mir', mi: { H: 70, shape: 'rect', fr: 20 } }),
+    F('mirrect6080', 'Miroirs', 'Miroir rectangulaire 60 × 80', 60, 3, { short: 'Miroir', m: 'mir', mi: { H: 80, shape: 'rect', fr: 20 } }),
+    F('mirrect6090', 'Miroirs', 'Miroir rectangulaire 60 × 90', 60, 3, { short: 'Miroir', m: 'mir', mi: { H: 90, shape: 'rect', fr: 20 } }),
+    F('mirrect50150', 'Miroirs', 'Miroir rectangulaire 50 × 150 (en pied)', 50, 3, { short: 'Miroir en pied', m: 'mir', mi: { H: 150, shape: 'rect', fr: 20 } }),
+    F('mirond50', 'Miroirs', 'Miroir rond Ø 50', 50, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 50, shape: 'round', fr: 15 } }),
+    F('mirond60', 'Miroirs', 'Miroir rond Ø 60', 60, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 60, shape: 'round', fr: 15 } }),
+    F('mirond70', 'Miroirs', 'Miroir rond Ø 70', 70, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 70, shape: 'round', fr: 15 } }),
+    F('mirond80', 'Miroirs', 'Miroir rond Ø 80', 80, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 80, shape: 'round', fr: 15 } }),
     F('nissedal40', 'Miroirs', 'Miroir Nissedal 40 × 150 (IKEA)', 40, 3, { short: 'Nissedal', m: 'mir', mi: { H: 150, shape: 'rect', fr: 30 } }),
     F('nissedal65', 'Miroirs', 'Miroir Nissedal 65 × 150 (IKEA)', 65, 3, { short: 'Nissedal', m: 'mir', mi: { H: 150, shape: 'rect', fr: 30 } }),
     F('nissedal65c', 'Miroirs', 'Miroir Nissedal 65 × 65 (IKEA)', 65, 3, { short: 'Nissedal', m: 'mir', mi: { H: 65, shape: 'rect', fr: 30 } }),
     F('lindbyn60', 'Miroirs', 'Miroir Lindbyn 60 × 120, angles arrondis (IKEA)', 60, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 120, shape: 'rrect', r: 90, fr: 10 } }),
     F('lindbyn40', 'Miroirs', 'Miroir Lindbyn 40 × 130, bouts ronds (IKEA)', 40, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 130, shape: 'pill', fr: 10 } }),
     F('larbro', 'Miroirs', 'Miroir Lärbro 48 × 120 (IKEA)', 48, 3, { short: 'Lärbro', m: 'mir', mi: { H: 120, shape: 'rect', fr: 35 } }),
-    F('mirond60', 'Miroirs', 'Miroir rond Ø 60', 60, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 60, shape: 'round', fr: 15 } }),
-    F('mirond80', 'Miroirs', 'Miroir rond Ø 80', 80, 3, { short: 'Miroir rond', m: 'mir', mi: { H: 80, shape: 'round', fr: 15 } }),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('basseverre', 'Tables', 'Table basse chêne et verre 80 × 80', 80, 80, { short: 'Table basse', m: 'basseverre' }), F('chaise', 'Tables', 'Chaise', 45, 52),
     // bureaux IKEA (cotes des fiches produit)
@@ -545,7 +556,11 @@
   PL.deskHeight = (it, sh) => { const k = it.dk; return k.Hs && sh && k.Hs.includes(+sh.dh) ? +sh.dh : k.H; };
   // miroir : debout (largeur × hauteur du catalogue) ou couché ; bas du miroir à 30 cm pour un grand, sinon centré à 155 cm
   PL.mirrorHang = (it, sh) => (sh && sh.hang) || 'v';
-  PL.mirrorH = (it, sh) => (PL.mirrorHang(it, sh) === 'h' ? it.w : it.mi.H) * 10;
+  PL.mirrorH = (it, sh) => {
+    if (it.mi.shape === 'round') return sh && sh.pts && sh.pts.length > 1 ? Math.hypot(sh.pts[1].x - sh.pts[0].x, sh.pts[1].y - sh.pts[0].y) : it.w * 10; // rond : toujours aussi haut que large
+    if (sh && +sh.mh > 0) return +sh.mh * 10;
+    return (PL.mirrorHang(it, sh) === 'h' ? it.w : it.mi.H) * 10;
+  };
   PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));

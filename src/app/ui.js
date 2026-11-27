@@ -778,6 +778,7 @@
     if (c === 'tier') { const v = num(val), i = +t.dataset.i; if (!(v >= 45 && v <= 136)) { App.toast('Hauteur d\'étage entre 45 et 136 cm'); ui.refresh(true); return; } App.mutate(() => { const T = PL.jaspersTiers(s).slice(); T[i] = v; s.tiers = T; }); return; }
     if (c === 'pqDoorMid') { S.pqOpen = true; App.mutate((P) => { P.parquet.doorMid = !!val; }); return; }
     if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
+    if (c === 'mh') { const v = num(val); if (!(v >= 10 && v <= 260)) { App.toast('Hauteur entre 10 et 260 cm'); ui.refresh(true); return; } App.mutate(() => { s.mh = v; }); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
     if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }
