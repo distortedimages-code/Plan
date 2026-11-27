@@ -713,6 +713,8 @@
       case 'mzq': App.mutate(() => { s.mz = +v; }); break;
       case 'vside': App.mutate(() => { s.vside = v; }); break;
       case 'vlq': App.mutate(() => { s.vl = +v; }); break;
+      case 'vbar': App.mutate(() => { s.vbar = +v; }); break;
+      case 'vitlen': { const f = App.stack.frame(s); if (!f) break; const W = +v * 10, P = s.pts; App.mutate(() => { s.pts = PL.walkinSide(s) === 'd' ? [G.sub(P[1], G.mul(f.U, W)), P[1], P[2], G.sub(P[2], G.mul(f.U, W))] : [P[0], G.add(P[0], G.mul(f.U, W)), G.add(P[3], G.mul(f.U, W)), P[3]]; }); break; }
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
       case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
