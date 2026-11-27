@@ -711,6 +711,8 @@
       case 'dhq': App.mutate(() => { s.dh = +v; }); break;
       case 'hangq': App.mutate(() => App.stack.hang(s, v)); break;
       case 'mzq': App.mutate(() => { s.mz = +v; }); break;
+      case 'vside': App.mutate(() => { s.vside = v; }); break;
+      case 'vlq': App.mutate(() => { s.vl = +v; }); break;
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
       case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
@@ -779,6 +781,7 @@
     if (c === 'pqDoorMid') { S.pqOpen = true; App.mutate((P) => { P.parquet.doorMid = !!val; }); return; }
     if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
     if (c === 'mh') { const v = num(val); if (!(v >= 10 && v <= 260)) { App.toast('Hauteur entre 10 et 260 cm'); ui.refresh(true); return; } App.mutate(() => { s.mh = v; }); return; }
+    if (c === 'vl') { const v = num(val); if (!(v >= 30 && v <= 200)) { App.toast('Longueur entre 30 et 200 cm'); ui.refresh(true); return; } App.mutate(() => { s.vl = v; }); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
     if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }

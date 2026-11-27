@@ -2271,6 +2271,7 @@ details[open] summary::after{content:"–"}
     F('miroir60', 'Meubles vasque', 'Armoire de toilette 60 (type Godmorgon)', 60, 14, { m: 'miroir' }), F('miroir80', 'Meubles vasque', 'Armoire de toilette 80 (type Godmorgon)', 80, 14, { m: 'miroir' }),
     F('colonnesdb', 'Meubles vasque', 'Colonne 40 (type Godmorgon)', 40, 32, { m: 'colonnesdb' }),
     F('baignoire', 'Salle de bain', 'Baignoire 170 × 70', 170, 70, { noParquet: true }), F('douche90', 'Salle de bain', 'Douche 90 × 90', 90, 90, { noParquet: true }), F('douche120', 'Salle de bain', 'Douche 120 × 90', 120, 90, { noParquet: true }),
+    F('douche120it', 'Salle de bain', 'Douche à l\'italienne 120 × 90 · vitre 70', 120, 90, { short: 'Douche 120 × 90', m: 'walkin', wi: { glass: 70 }, noParquet: true, ref: 'receveur encastré à fleur du carrelage · vitre fixe 2 m' }),
     F('lavelinge', 'Salle de bain', 'Lave-linge', 60, 60), F('sechelinge', 'Salle de bain', 'Sèche-linge', 60, 60), F('colonnelavage', 'Salle de bain', 'Lave-linge + sèche-linge superposés', 60, 60, { m: 'colonnelavage' }),
     F('secheserv', 'Salle de bain', 'Sèche-serviettes 50', 50, 10, { m: 'secheserv' }),
     // WC (cotes courantes du commerce)
@@ -2438,6 +2439,7 @@ details[open] summary::after{content:"–"}
     vasqueG: (w, d, M) => vanity(w, d, M, [Math.min(w / 2, 280)], true),
     vasqueD: (w, d, M) => vanity(w, d, M, [Math.max(w / 2, w - 280)], true),
     soho: (w, d, M, it) => soho(w, d, M, it.so || 'c'),
+    walkin: (w, d, M, it, sh) => walkin(w, d, M, it, sh),
     miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
     colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
     colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
@@ -2744,6 +2746,22 @@ details[open] summary::after{content:"–"}
     M.lines.push(...ring3(rim, zt + 1), ...ring3(cuve, zt + 1));
     tap(cu, d - 55, zt, M);
   }
+  // douche à l'italienne : receveur extra-plat encastré à fleur du carrelage (pentes vers la bonde centrée),
+  // vitre fixe de 8 mm et 2 m de haut le long de la façade, profilé contre le mur de côté, barre de maintien vers le mur du fond
+  function walkin(w, d, M, it, sh) {
+    const H = 2000, L = PL.walkinGlass(it, sh, w), side = PL.walkinSide(sh); M.h = H;
+    M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 3 });
+    const g = 60, cu = w / 2, cv = d / 2, grille = rect(cu - g, cv - g, cu + g, cv + g);
+    M.plan.push({ pts: grille });
+    for (const [u, v, su, sv] of [[0, 0, -1, -1], [w, 0, 1, -1], [w, d, 1, 1], [0, d, -1, 1]]) { M.plan.push({ pts: [[u, v], [cu + su * g, cv + sv * g]], open: true, dash: true }); M.lines.push([[u, v, 4], [cu + su * g, cv + sv * g, 4]]); }
+    M.lines.push(...ring3(grille, 4)); for (let k = 1; k < 6; k++) M.lines.push([[cu - g + 10, cv - g + (2 * g * k) / 6, 4], [cu + g - 10, cv - g + (2 * g * k) / 6, 4]]);
+    const v = 30, u0 = side === 'g' ? 0 : w - L, u1 = side === 'g' ? L : w, uw = side === 'g' ? 0 : w - 20, ub = side === 'g' ? u1 - 80 : u0 + 80, ue = side === 'g' ? u1 : u0;
+    M.plan.push({ pts: rect(u0, v - 5, u1, v + 5) }, { pts: [[ub, v + 5], [ub, d]], open: true, dash: true });
+    for (const t of [v - 4, v + 4]) M.lines.push([[u0, t, 10], [u1, t, 10]], [[ue, t, 10], [ue, t, H]], [[u0, t, H], [u1, t, H]]);
+    M.lines.push([[ue, v - 4, 10], [ue, v + 4, 10]], [[ue, v - 4, H], [ue, v + 4, H]]);
+    for (const [a, b, z0, z1] of [[0.22, 0.42, 950, 1350], [0.3, 0.44, 950, 1180]]) M.lines.push([[u0 + (u1 - u0) * a, v - 5, z0], [u0 + (u1 - u0) * b, v - 5, z1]]); // reflets
+    M.solids.push({ pts: rect(uw, v - 12, uw + 20, v + 12), z0: 0, z1: H }, { pts: rect(ub - 8, v + 5, ub + 8, d), z0: H - 90, z1: H - 74 });
+  }
   // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
   function shelf(w, d, M, H, grid, t, tin, back, posts) {
     const [cols, rows] = grid; M.h = H; const T = t || tin;
@@ -2776,6 +2794,9 @@ details[open] summary::after{content:"–"}
     return (PL.mirrorHang(it, sh) === 'h' ? it.w : it.mi.H) * 10;
   };
   PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
+  // douche à l'italienne : longueur de la vitre (mm, du catalogue ou réglée) et côté (g : vitre à gauche, accès à droite)
+  PL.walkinGlass = (it, sh, w) => { const L = ((sh && +sh.vl) || (it.wi && it.wi.glass) || 70) * 10; return Math.max(300, Math.min(w || it.w * 10, L)); };
+  PL.walkinSide = (sh) => (sh && sh.vside === 'd' ? 'd' : 'g');
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
@@ -4906,6 +4927,8 @@ details[open] summary::after{content:"–"}
       case 'dhq': App.mutate(() => { s.dh = +v; }); break;
       case 'hangq': App.mutate(() => App.stack.hang(s, v)); break;
       case 'mzq': App.mutate(() => { s.mz = +v; }); break;
+      case 'vside': App.mutate(() => { s.vside = v; }); break;
+      case 'vlq': App.mutate(() => { s.vl = +v; }); break;
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
       case 'stpied': { let p = null; App.mutate(() => { p = App.stack.onStand(s); }); if (p) App.toast(`Sur un pied : tweeter à ${PL.earHeight(p)} cm, hauteur d'oreille assis`); ui.refresh(); break; }
@@ -4974,6 +4997,7 @@ details[open] summary::after{content:"–"}
     if (c === 'pqDoorMid') { S.pqOpen = true; App.mutate((P) => { P.parquet.doorMid = !!val; }); return; }
     if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
     if (c === 'mh') { const v = num(val); if (!(v >= 10 && v <= 260)) { App.toast('Hauteur entre 10 et 260 cm'); ui.refresh(true); return; } App.mutate(() => { s.mh = v; }); return; }
+    if (c === 'vl') { const v = num(val); if (!(v >= 30 && v <= 200)) { App.toast('Longueur entre 30 et 200 cm'); ui.refresh(true); return; } App.mutate(() => { s.vl = v; }); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
     if (c === 'ear') { const v = num(val); if (!(v >= 80 && v <= 180)) { App.toast('Hauteur d\'oreille entre 80 et 180 cm'); ui.refresh(true); return; } App.mutate(() => { s.ear = v; }); return; }
@@ -6527,6 +6551,8 @@ details[open] summary::after{content:"–"}
       h += `<h3>Kallax ${g[0]} × ${g[1]}</h3>${sq ? '' : `<div class="chips">${[['h', 'Couché', PL.kallaxSize(Math.max(...it.grid)), PL.kallaxSize(Math.min(...it.grid))], ['v', 'Debout', PL.kallaxSize(Math.min(...it.grid)), PL.kallaxSize(Math.max(...it.grid))]].map(([v, l, a, b]) => `<button data-a="kxo" data-v="${v}" aria-pressed="${o === v}">${l} · ${fmt(a)} × ${fmt(b)}</button>`).join('')}</div>`}<p>${fmt(W)} cm de large × ${fmt(H)} cm de haut · dessus à <b>${fmt(H)} cm</b> · ${g[0] * g[1]} cases de 33,5 × 33,5 cm.</p><p class="hint2">Glissez une machine sur le Kallax : elle se pose sur le dessus. Pour la ranger dans une case, choisissez la case dans la fiche de la machine.</p>`; } }
     { const it = lib(s);
       if (it && it.m === 'desk' && it.dk.Hs) { const z = PL.deskHeight(it, s); h += `<h3>Hauteur du plateau</h3><div class="chips">${it.dk.Hs.map((v) => `<button data-a="dhq" data-v="${v}" aria-pressed="${z === v}">${v} cm</button>`).join('')}</div><p class="hint2">Réglable avec les boutons des pieds ; les objets posés dessus suivent.</p>`; }
+      if (it && it.m === 'walkin') { const f = frame(s), W = f ? f.w : it.w * 10, L = PL.walkinGlass(it, s, W), side = PL.walkinSide(s);
+        h += `<h3>Vitre de douche</h3><div class="chips">${[['g', 'Vitre à gauche'], ['d', 'Vitre à droite']].map(([v, l]) => `<button data-a="vside" data-v="${v}" aria-pressed="${side === v}">${l}</button>`).join('')}</div><div class="field"><label>Longueur de la vitre</label><div class="unit"><input data-c="vl" inputmode="decimal" value="${fmt(L)}"><span>cm</span></div></div><div class="chips sm">${[60, 70, 80, 90, 100].filter((v) => v * 10 <= W).map((v) => `<button data-a="vlq" data-v="${v}" aria-pressed="${Math.abs(L - v * 10) < 5}">${v}</button>`).join('')}</div><p class="hint2">Accès de ${fmt(W - L)} cm de l'autre côté · vitre fixe de 2 m de haut · receveur encastré à fleur du carrelage, bonde centrée. « Dos au mur » met la vitre côté pièce.</p>`; }
       if (it && it.m === 'mir') { const f = frame(s), Wm = f ? f.w : it.w * 10, Hm = PL.mirrorH(it, s), z0 = PL.mirrorZ(it, s), round = it.mi.shape === 'round', sq = round || Math.abs(Hm - Wm) < 5, o = Hm >= Wm - 1 ? 'v' : 'h', lo = Math.min(Wm, Hm), hi = Math.max(Wm, Hm);
         h += `<h3>Pose du miroir</h3>${sq ? '' : `<div class="chips">${[['v', 'Debout', lo, hi], ['h', 'Couché', hi, lo]].map(([v, l, a, b]) => `<button data-a="hangq" data-v="${v}" aria-pressed="${o === v}">${l} · ${fmt(a)} × ${fmt(b)}</button>`).join('')}</div>`}${round ? `<p class="hint2">Rond Ø ${fmt(Wm)} cm : changez le diamètre avec la largeur, dans Dimensions.</p>` : `<div class="field"><label>Hauteur du miroir</label><div class="unit"><input data-c="mh" inputmode="decimal" value="${fmt(Hm)}"><span>cm</span></div></div><p class="hint2">La largeur se règle dans Dimensions.</p>`}<div class="field"><label>Bas du miroir à</label><div class="unit"><input data-c="mz" inputmode="decimal" value="${fmt(z0)}"><span>cm</span></div></div><div class="chips sm">${[[3, 'au sol'], [30, '30'], [90, '90'], [110, '110'], [Math.round(155 - Hm / 20), 'centré 155']].map(([v, l]) => `<button data-a="mzq" data-v="${v}" aria-pressed="${Math.abs(z0 - v * 10) < 5}">${l}</button>`).join('')}</div><p class="hint2">Haut du miroir à ${fmt(z0 + Hm)} cm. « Dos au mur » le plaque contre le mur le plus proche.</p>`; } }
     if (s.lib === 'please') { const z = PL.chairSeat(s); h += `<h3>Réglages</h3><div class="field"><label>Hauteur d'assise</label><div class="unit"><input data-c="seat" inputmode="decimal" value="${z}"><span>cm</span></div></div><div class="chips sm">${[42, 44, 46, 48, 50, 52].map((v) => `<button data-a="seatq" data-v="${v}" aria-pressed="${z === v}">${v}</button>`).join('')}</div><div class="chips">${[[0, 'Sans têtière'], [1, 'Avec têtière']].map(([v, l]) => `<button data-a="headq" data-v="${v}" aria-pressed="${!!s.head === !!v}">${l}</button>`).join('')}</div><p class="hint2">66 × 64 cm, ${fmt(z * 10 + 650 + (s.head ? 120 : 0))} cm de haut. Tournez-le face au bureau avec Pivoter.</p>`; }

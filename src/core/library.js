@@ -76,6 +76,7 @@
     F('miroir60', 'Meubles vasque', 'Armoire de toilette 60 (type Godmorgon)', 60, 14, { m: 'miroir' }), F('miroir80', 'Meubles vasque', 'Armoire de toilette 80 (type Godmorgon)', 80, 14, { m: 'miroir' }),
     F('colonnesdb', 'Meubles vasque', 'Colonne 40 (type Godmorgon)', 40, 32, { m: 'colonnesdb' }),
     F('baignoire', 'Salle de bain', 'Baignoire 170 × 70', 170, 70, { noParquet: true }), F('douche90', 'Salle de bain', 'Douche 90 × 90', 90, 90, { noParquet: true }), F('douche120', 'Salle de bain', 'Douche 120 × 90', 120, 90, { noParquet: true }),
+    F('douche120it', 'Salle de bain', 'Douche à l\'italienne 120 × 90 · vitre 70', 120, 90, { short: 'Douche 120 × 90', m: 'walkin', wi: { glass: 70 }, noParquet: true, ref: 'receveur encastré à fleur du carrelage · vitre fixe 2 m' }),
     F('lavelinge', 'Salle de bain', 'Lave-linge', 60, 60), F('sechelinge', 'Salle de bain', 'Sèche-linge', 60, 60), F('colonnelavage', 'Salle de bain', 'Lave-linge + sèche-linge superposés', 60, 60, { m: 'colonnelavage' }),
     F('secheserv', 'Salle de bain', 'Sèche-serviettes 50', 50, 10, { m: 'secheserv' }),
     // WC (cotes courantes du commerce)
@@ -243,6 +244,7 @@
     vasqueG: (w, d, M) => vanity(w, d, M, [Math.min(w / 2, 280)], true),
     vasqueD: (w, d, M) => vanity(w, d, M, [Math.max(w / 2, w - 280)], true),
     soho: (w, d, M, it) => soho(w, d, M, it.so || 'c'),
+    walkin: (w, d, M, it, sh) => walkin(w, d, M, it, sh),
     miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
     colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
     colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
@@ -549,6 +551,22 @@
     M.lines.push(...ring3(rim, zt + 1), ...ring3(cuve, zt + 1));
     tap(cu, d - 55, zt, M);
   }
+  // douche à l'italienne : receveur extra-plat encastré à fleur du carrelage (pentes vers la bonde centrée),
+  // vitre fixe de 8 mm et 2 m de haut le long de la façade, profilé contre le mur de côté, barre de maintien vers le mur du fond
+  function walkin(w, d, M, it, sh) {
+    const H = 2000, L = PL.walkinGlass(it, sh, w), side = PL.walkinSide(sh); M.h = H;
+    M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 3 });
+    const g = 60, cu = w / 2, cv = d / 2, grille = rect(cu - g, cv - g, cu + g, cv + g);
+    M.plan.push({ pts: grille });
+    for (const [u, v, su, sv] of [[0, 0, -1, -1], [w, 0, 1, -1], [w, d, 1, 1], [0, d, -1, 1]]) { M.plan.push({ pts: [[u, v], [cu + su * g, cv + sv * g]], open: true, dash: true }); M.lines.push([[u, v, 4], [cu + su * g, cv + sv * g, 4]]); }
+    M.lines.push(...ring3(grille, 4)); for (let k = 1; k < 6; k++) M.lines.push([[cu - g + 10, cv - g + (2 * g * k) / 6, 4], [cu + g - 10, cv - g + (2 * g * k) / 6, 4]]);
+    const v = 30, u0 = side === 'g' ? 0 : w - L, u1 = side === 'g' ? L : w, uw = side === 'g' ? 0 : w - 20, ub = side === 'g' ? u1 - 80 : u0 + 80, ue = side === 'g' ? u1 : u0;
+    M.plan.push({ pts: rect(u0, v - 5, u1, v + 5) }, { pts: [[ub, v + 5], [ub, d]], open: true, dash: true });
+    for (const t of [v - 4, v + 4]) M.lines.push([[u0, t, 10], [u1, t, 10]], [[ue, t, 10], [ue, t, H]], [[u0, t, H], [u1, t, H]]);
+    M.lines.push([[ue, v - 4, 10], [ue, v + 4, 10]], [[ue, v - 4, H], [ue, v + 4, H]]);
+    for (const [a, b, z0, z1] of [[0.22, 0.42, 950, 1350], [0.3, 0.44, 950, 1180]]) M.lines.push([[u0 + (u1 - u0) * a, v - 5, z0], [u0 + (u1 - u0) * b, v - 5, z1]]); // reflets
+    M.solids.push({ pts: rect(uw, v - 12, uw + 20, v + 12), z0: 0, z1: H }, { pts: rect(ub - 8, v + 5, ub + 8, d), z0: H - 90, z1: H - 74 });
+  }
   // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
   function shelf(w, d, M, H, grid, t, tin, back, posts) {
     const [cols, rows] = grid; M.h = H; const T = t || tin;
@@ -581,6 +599,9 @@
     return (PL.mirrorHang(it, sh) === 'h' ? it.w : it.mi.H) * 10;
   };
   PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
+  // douche à l'italienne : longueur de la vitre (mm, du catalogue ou réglée) et côté (g : vitre à gauche, accès à droite)
+  PL.walkinGlass = (it, sh, w) => { const L = ((sh && +sh.vl) || (it.wi && it.wi.glass) || 70) * 10; return Math.max(300, Math.min(w || it.w * 10, L)); };
+  PL.walkinSide = (sh) => (sh && sh.vside === 'd' ? 'd' : 'g');
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
   PL.deskTop = (sh) => Math.max(63, Math.min(127, (sh && +sh.top) || 72));
 
