@@ -180,7 +180,7 @@
   };
 
   const buildStair = (B, m, Hc, rooms) => {
-    const { s, pieces, risers, top, base, down, Hf } = m, P = s.pts, COL = st.col.stair;
+    const { s, pieces, risers, top, base, down, Hf } = m, P = s.pts, COL = st.C.stair;
     for (const pc of pieces) fill(B, pc.poly, [], () => top(pc.k), [0, 1, 0], COL);
     for (const r of risers) { const y0 = base + r.k * m.rise, y1 = top(r.k); quad(B, P3(r.a, y0), P3(r.b, y0), P3(r.b, y1), P3(r.a, y1), H3(r.back), COL); ln(P3(r.a, y1), P3(r.b, y1)); ln(P3(r.a, y0), P3(r.b, y0)); }
     // côtés : découpés aux extrémités des marches
@@ -192,7 +192,7 @@
       for (let j = 0; j < us.length - 1; j++) { const mid = G.sub(G.add(a, G.mul(d, (us[j] + us[j + 1]) / 2)), G.mul(o, 4)); ks.push(m.kOf(mid)); }
       for (let j = 0; j < us.length - 1; j++) {
         const k = ks[j]; if (k == null) continue; const pa = G.add(a, G.mul(d, us[j])), pb = G.add(a, G.mul(d, us[j + 1])), h = top(k);
-        if (down) quad(B, P3(pa, base), P3(pb, base), P3(pb, 0), P3(pa, 0), H3(o, -1), st.col.wall);
+        if (down) quad(B, P3(pa, base), P3(pb, base), P3(pb, 0), P3(pa, 0), H3(o, -1), st.C.wall);
         else quad(B, P3(pa, 0), P3(pb, 0), P3(pb, h), P3(pa, h), H3(o), COL);
         ln(P3(pa, h), P3(pb, h));
         const hn = j + 1 < ks.length && ks[j + 1] != null ? top(ks[j + 1]) : 0; ln(P3(pb, h), P3(pb, hn));
@@ -200,7 +200,7 @@
       }
       if (!down) ln(P3(a, 0), P3(b, 0));
       // trémie : puits au-dessus (monte) ou garde-corps (descend)
-      if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), H3(o, -1), st.col.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
+      if (!down) { quad(B, P3(a, Hc), P3(b, Hc), P3(b, Hf + 2500), P3(a, Hf + 2500), H3(o, -1), st.C.wall); ln(P3(a, Hf), P3(b, Hf)); ln(P3(a, Hc), P3(a, Hf + 2500)); }
       else { ln(P3(a, base), P3(b, base)); ln(P3(a, base), P3(a, 0)); }
     }
     // garde-corps de la trémie, sur les bords qui ne longent pas un mur
@@ -208,14 +208,14 @@
       const gd = App.stairs.guard(s), H = gd.h;
       for (const e of App.stairs.openEdges(s)) {
         const a = e.a, b = e.b, el = G.dist(a, b), d = G.norm(G.sub(b, a)), o = outward(P, a, b), ins = G.mul(o, -1);
-        if (gd.type === 'plein') { const q = [a, b, G.add(b, G.mul(ins, gd.th)), G.add(a, G.mul(ins, gd.th))]; prism(B, q, -SLAB, H, st.col.wall); }
+        if (gd.type === 'plein') { const q = [a, b, G.add(b, G.mul(ins, gd.th)), G.add(a, G.mul(ins, gd.th))]; prism(B, q, -SLAB, H, st.C.wall); }
         else if (gd.type === 'vitre') { const nb = Math.max(1, Math.ceil(el / 1100)); for (const y of [H, H - 40, 100]) ln(P3(a, y), P3(b, y)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, 0), P3(q, H)); } const t = G.mul(ins, 25); for (let j = 0; j < nb; j++) { const q0 = G.add(G.lerp(a, b, j / nb), t), q1 = G.add(G.lerp(a, b, (j + 1) / nb), t); ln(P3(G.lerp(q0, q1, 0.12), 180), P3(G.lerp(q0, q1, 0.32), H - 120)); } }
         else if (gd.type === 'ajoure') { ln(P3(a, H), P3(b, H)); ln(P3(a, H - 40), P3(b, H - 40)); ln(P3(a, 80), P3(b, 80)); const nb = Math.max(1, Math.round(el / 120)); for (let j = 0; j <= nb; j++) { const q = G.lerp(a, b, j / nb); ln(P3(q, j === 0 || j === nb ? 0 : 80), P3(q, H)); } }
         if (gd.type !== 'aucun') st.rail.push([a, b]);
       }
     }
-    if (!down) fill(B, P, [], () => Hf + 2500, [0, -1, 0], st.col.ceil);
-    else fill(B, P, [], () => base, [0, 1, 0], st.col.floor);
+    if (!down) fill(B, P, [], () => Hf + 2500, [0, -1, 0], st.C.ceil);
+    else fill(B, P, [], () => base, [0, 1, 0], st.C.floor);
   };
 
   /* ---------- plafonds rampants (zones « sous 1,80 m ») ---------- */
@@ -246,7 +246,7 @@
   };
 
   const buildOpening = (B, r, I, W, nin) => {
-    const { o, g, sill, top, depth, tw, lib } = I, out = G.mul(nin, -1), p0 = g.p0, p1 = g.p1, WALL = st.col.wall;
+    const { o, g, sill, top, depth, tw, lib } = I, out = G.mul(nin, -1), p0 = g.p0, p1 = g.p1, WALL = PH ? paintCol(r) : st.C.wall;
     ln(P3(p0, sill), P3(p0, top)); ln(P3(p1, sill), P3(p1, top)); if (top < App.feat.ceiling(r) * 10 - 1) ln(P3(p0, top), P3(p1, top)); if (sill > 0) ln(P3(p0, sill), P3(p1, sill));
     const mine = !tw || String(o.oid) < String(tw.o.oid);
     if (mine && depth > 5) {
@@ -254,7 +254,7 @@
       quad(B, P3(p0, sill), P3(q0, sill), P3(q0, top), P3(p0, top), H3(W.d), WALL);
       quad(B, P3(p1, sill), P3(q1, sill), P3(q1, top), P3(p1, top), H3(W.d, -1), WALL);
       quad(B, P3(p0, top), P3(p1, top), P3(q1, top), P3(q0, top), [0, -1, 0], WALL);
-      quad(B, P3(p0, sill), P3(p1, sill), P3(q1, sill), P3(q0, sill), [0, 1, 0], sill > 0 ? WALL : st.col.sill);
+      quad(B, P3(p0, sill), P3(p1, sill), P3(q1, sill), P3(q0, sill), [0, 1, 0], sill > 0 ? WALL : st.C.sill);
       for (const h of sill > 0 ? [sill, top] : [top]) { ln(P3(p0, h), P3(q0, h)); ln(P3(p1, h), P3(q1, h)); }
       if (!tw) { ln(P3(q0, sill), P3(q0, top)); ln(P3(q1, sill), P3(q1, top)); ln(P3(q0, top), P3(q1, top)); if (sill > 0) ln(P3(q0, sill), P3(q1, sill)); }
       // dormant et montants de la fenêtre
@@ -270,8 +270,8 @@
     if (o.type === 'sautdeloup' && !tw) {
       const e = depth > 5 ? depth : 0, dw = o.well || lib.well || 500, sx = 100, zb = Math.max(0, sill - 160), zt = top + 320;
       const a0 = G.add(G.add(p0, G.mul(out, e)), G.mul(W.d, -sx)), a1 = G.add(G.add(p1, G.mul(out, e)), G.mul(W.d, sx)), b0 = G.add(a0, G.mul(out, dw)), b1 = G.add(a1, G.mul(out, dw));
-      quad(B, P3(a0, zb), P3(a1, zb), P3(b1, zb), P3(b0, zb), [0, 1, 0], st.col.sill);
-      const CW = st.col.well || WALL; quad(B, P3(a0, zb), P3(b0, zb), P3(b0, zt), P3(a0, zt), H3(W.d), CW); quad(B, P3(a1, zb), P3(b1, zb), P3(b1, zt), P3(a1, zt), H3(W.d, -1), CW); quad(B, P3(b0, zb), P3(b1, zb), P3(b1, zt), P3(b0, zt), H3(nin), CW);
+      quad(B, P3(a0, zb), P3(a1, zb), P3(b1, zb), P3(b0, zb), [0, 1, 0], st.C.sill);
+      const CW = st.C.well || WALL; quad(B, P3(a0, zb), P3(b0, zb), P3(b0, zt), P3(a0, zt), H3(W.d), CW); quad(B, P3(a1, zb), P3(b1, zb), P3(b1, zt), P3(a1, zt), H3(W.d, -1), CW); quad(B, P3(b0, zb), P3(b1, zb), P3(b1, zt), P3(b0, zt), H3(nin), CW);
       for (let z = zb + 250; z < zt; z += 250) { ln(P3(G.add(b0, G.mul(nin, 2)), z), P3(G.add(b1, G.mul(nin, 2)), z)); ln(P3(a0, z), P3(b0, z)); ln(P3(a1, z), P3(b1, z)); } // joints de coffrage
       for (const [p, q] of [[a0, b0], [a1, b1], [b0, b1]]) { ln(P3(p, zb), P3(q, zb)); ln(P3(p, zt), P3(q, zt)); } ln(P3(b0, zb), P3(b0, zt)); ln(P3(b1, zb), P3(b1, zt));
       for (let k = 1; k < 8; k++) { const t = k / 8; ln(P3(G.lerp(a0, a1, t), zb + 2), P3(G.lerp(b0, b1, t), zb + 2)); }
@@ -283,12 +283,12 @@
         const cd = G.mul(g.d, sg), od = G.mul(g.nin, side), // même convention que le plan
  a = 1.38, dir = G.add(G.mul(cd, Math.cos(a)), G.mul(od, Math.sin(a))), pr = G.sub(G.mul(cd, Math.sin(a)), G.mul(od, Math.cos(a)));
         const h0 = G.add(h, G.mul(od, 10)), poly = [h0, G.add(h0, G.mul(dir, lw - 20)), G.add(G.add(h0, G.mul(dir, lw - 20)), G.mul(pr, 40)), G.add(h0, G.mul(pr, 40))];
-        prism(B, poly, 8, top - 8, PH ? hexLin('#efede8') : st.col.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
+        prism(B, poly, 8, top - 8, st.C.acc); st.leaves.push([h0, G.add(h0, G.mul(dir, lw - 20))]);
       }
     } else if (o.sw !== 0 && o.type === 'coulissante') {
       const side = o.out ? -1 : 1, from = o.hinge === 'd' ? p1 : p0, to = o.hinge === 'd' ? p0 : p1, off = G.mul(g.nin, side * 30), back = G.sub(from, to);
       const a = G.add(from, off), b = G.add(G.add(from, back), off), poly = [a, b, G.add(b, G.mul(g.nin, side * 35)), G.add(a, G.mul(g.nin, side * 35))];
-      prism(B, poly, 8, top - 8, PH ? hexLin('#efede8') : st.col.acc);
+      prism(B, poly, 8, top - 8, st.C.acc);
     }
   };
 
@@ -319,26 +319,92 @@
     return tex;
   };
 
-  /* ---------- photo réaliste : couleurs (linéaires), parquet planche par planche ---------- */
-  let PH = false, BM = null; // BM : verre des miroirs, à part en mode photo
+  /* ---------- mode Rendu : couleurs (linéaires), peinture par pièce, parquet planche par planche ---------- */
+  let PH = false, BM = null; // PH : scène construite en mode Rendu ; BM : verre des miroirs, à part
   const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
   const hexLin = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return [0.85, 0.85, 0.85]; const n = parseInt(m[1], 16); return [lin(((n >> 16) & 255) / 255), lin(((n >> 8) & 255) / 255), lin((n & 255) / 255)]; };
+  const hexRgb = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = m ? parseInt(m[1], 16) : 0xb98b5a; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   V.PAINT0 = '#f1eee8';
-  const paintCol = (r) => hexLin((r.paint && r.paint.hex) || V.PAINT0);
+  V.PAINTS = [['Blanc cassé', '#f1eee8'], ['Blanc pur', '#f7f7f4'], ['Lin', '#e7dece'], ['Grège', '#cdc2b2'], ['Gris perle', '#d5d5d0'], ['Gris galet', '#b4b0a7'], ['Vert sauge', '#b3bca5'], ['Vert de gris', '#8f9e92'], ['Bleu brume', '#b7c6cf'], ['Bleu pétrole', '#3e5d66'], ['Rose poudré', '#e2c3b9'], ['Terracotta', '#c27a5a'], ['Ocre', '#d2a35a'], ['Anthracite', '#4a4c4e']];
+  V.WOODS = [['Chêne clair', '#cfae80'], ['Chêne naturel', '#b98b5a'], ['Chêne miel', '#a87442'], ['Chêne fumé', '#7d5a3e'], ['Noyer', '#5f4130'], ['Gris cendré', '#a39d93']];
+  V.wood = () => (S.p.render && S.p.render.wood) || '#b98b5a';
+  const nameOf = (list, hex) => { const f = list.find((x) => x[1].toLowerCase() === String(hex || '').toLowerCase()); return f ? f[0] : null; };
+  const paintHex = (r) => (r && r.paint && r.paint.hex) || V.PAINT0;
+  const paintCol = (r) => hexLin(paintHex(r));
   const furnCol = (s) => {
     const id = s.lib || '', it = PL.lib.furniture.find((x) => x.id === id) || {};
     if (s.kind !== 'meuble') return hexLin('#e6e3dd');
     if (id === 'persan') return hexLin('#7a2b23');
+    if (it.m === 'pendel3') return hexLin('#b8734a');
+    if (it.m === 'vitre') return hexLin('#b9bcbf');
     if (/^(please|pied|jaspers)$/.test(id) || it.m === 'gear' || /^knarrevik/.test(id)) return hexLin('#2d2d30');
     if (/hemnes|noah|olderdalen|idanas|basseverre|piano|banquette/.test(id)) return hexLin('#c09a6e');
     if (/^lit|canape|lindakra|fauteuil|angle/.test(id)) return hexLin('#d8d2c8');
     return hexLin('#ecebe7');
   };
+  const renderPalette = () => ({ wall: hexLin(V.PAINT0), ceil: hexLin('#f5f4f1'), fp: hexLin('#f2f1ee'), well: hexLin('#b9b5ad'), furn: hexLin('#ecebe7'), stair: hexLin(V.wood()), sill: hexLin('#dcd7cf'), floor: hexLin('#d8d4cc'), ground: hexLin('#7b8a5f'), acc: hexLin('#f1efea') });
+  const rnd = (k) => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  /* sol du mode Rendu : lames du calepinage teintées une à une (veinage, joints), carrelage 60 × 60, ombres de contact au pied des murs et des meubles */
+  const floorTextureRender = (fid, rooms, bb, cal) => {
+    const MAX = Math.min(matchMedia('(pointer:coarse)').matches ? 2048 : 4096, st.R.capabilities.maxTextureSize || 2048);
+    const W = bb.x1 - bb.x0, H = bb.y1 - bb.y0, k = Math.min(MAX / W, MAX / H, 0.5); const cw = Math.max(16, Math.ceil(W * k)), ch = Math.max(16, Math.ceil(H * k));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+    const tp = (p) => [(p.x - bb.x0) * k, (p.y - bb.y0) * k];
+    const path = (pts) => { x.beginPath(); pts.forEach((p, i) => { const [a, b] = tp(p); i ? x.lineTo(a, b) : x.moveTo(a, b); }); x.closePath(); };
+    const wood = hexRgb(V.wood()), tone = (rgb, f, dr) => `rgb(${Math.round(Math.max(0, Math.min(255, rgb[0] * f + dr)))},${Math.round(Math.max(0, Math.min(255, rgb[1] * f)))},${Math.round(Math.max(0, Math.min(255, rgb[2] * f - dr * 0.6)))})`;
+    const plank = (poly, i) => {
+      x.fillStyle = tone(wood, 0.9 + rnd(i) * 0.17, (rnd(i + 7.3) - 0.5) * 12); path(poly); x.fill();
+      let a = poly[0], b = poly[1], L = 0; for (let j = 0; j < poly.length; j++) { const p = poly[j], q = poly[(j + 1) % poly.length], l = G.dist(p, q); if (l > L) { L = l; a = p; b = q; } }
+      const d = G.norm(G.sub(b, a)), nr = { x: -d.y, y: d.x }, ws = poly.map((p) => G.dot(G.sub(p, a), nr)), w0 = Math.min(...ws), w1 = Math.max(...ws);
+      x.save(); path(poly); x.clip(); x.lineWidth = Math.max(0.7, 2.2 * k);
+      for (let g = 0; g < 6; g++) { const o = G.add(a, G.mul(nr, w0 + (w1 - w0) * rnd(i * 13.7 + g))), e = G.add(G.add(o, G.mul(d, L)), G.mul(nr, (rnd(i * 5.1 + g) - 0.5) * 8)); x.strokeStyle = rnd(i * 3.3 + g) > 0.5 ? 'rgba(255,238,215,0.10)' : 'rgba(55,32,14,0.11)'; x.beginPath(); x.moveTo(...tp(o)); x.lineTo(...tp(e)); x.stroke(); }
+      x.restore(); x.strokeStyle = 'rgba(48,30,16,0.45)'; x.lineWidth = Math.max(0.7, 1.2 * k); path(poly); x.stroke();
+    };
+    x.fillStyle = '#cfcac2'; x.fillRect(0, 0, cw, ch);
+    let n = 0;
+    for (const r of rooms) {
+      x.save(); path(r.pts); x.clip();
+      const th = OR.angleOf(r.pts), fr = OR.frame(th), q = r.pts.map(fr.to), X0 = Math.min(...q.map((p) => p.x)), X1 = Math.max(...q.map((p) => p.x)), Y0 = Math.min(...q.map((p) => p.y)), Y1 = Math.max(...q.map((p) => p.y));
+      if (r.parquet === false) { // carrelage 60 × 60 : carreaux à peine nuancés, joints gris
+        for (let u = X0; u < X1; u += 600) for (let v = Y0; v < Y1; v += 600) { const f = 0.97 + rnd(u * 0.013 + v * 0.007) * 0.06; x.fillStyle = tone([222, 218, 211], f, 0); path([fr.from({ x: u, y: v }), fr.from({ x: u + 600, y: v }), fr.from({ x: u + 600, y: v + 600 }), fr.from({ x: u, y: v + 600 })]); x.fill(); }
+        x.strokeStyle = '#bdb6ab'; x.lineWidth = Math.max(1, 3 * k); x.beginPath();
+        for (let u = X0; u <= X1; u += 600) { x.moveTo(...tp(fr.from({ x: u, y: Y0 }))); x.lineTo(...tp(fr.from({ x: u, y: Y1 }))); }
+        for (let v = Y0; v <= Y1; v += 600) { x.moveTo(...tp(fr.from({ x: X0, y: v }))); x.lineTo(...tp(fr.from({ x: X1, y: v }))); } x.stroke();
+      } else {
+        const polys = cal && cal.results[r.id] ? (cal.polys = cal.polys || {}, cal.polys[r.id] = cal.polys[r.id] || PL.layout.boardPolys(cal.results[r.id])) : null;
+        if (polys && polys.length) for (const b of polys) plank(b.poly, n++);
+        else for (let v = Y0; v < Y1; v += 190) { let u = X0 - rnd(v * 0.01) * 1400; while (u < X1) { const l = 900 + rnd(n * 3.1) * 900; plank([fr.from({ x: u, y: v }), fr.from({ x: u + l, y: v }), fr.from({ x: u + l, y: v + 190 }), fr.from({ x: u, y: v + 190 })], n++); u += l; } } // pas encore de calepinage : lames de 19 cm à coupes perdues
+      }
+      x.save(); x.shadowColor = 'rgba(0,0,0,0.30)'; x.shadowBlur = 220 * k; x.shadowOffsetX = 20000; x.lineWidth = 110 * k; x.translate(-20000, 0); path(r.pts); x.strokeStyle = '#000'; x.stroke(); x.restore();
+      x.restore();
+    }
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.30)'; x.shadowBlur = 150 * k; x.shadowOffsetX = 20000; x.translate(-20000, 0); x.fillStyle = '#000';
+    for (const s of App.shapesOn(fid)) if (!(App.stack && App.stack.ceil(s)) && (['meuble', 'poteau', 'forme'].includes(s.kind) || (s.kind === 'exclusion' && s.lib !== 'tremie') || (s.kind === 'escalier' && !(s.stair && s.stair.dir === 'descend')))) { path(s.pts); x.fill(); }
+    x.restore();
+    const tex = new T.CanvasTexture(c); tex.flipY = false; tex.encoding = T.sRGBEncoding; tex.anisotropy = st.R.capabilities.getMaxAnisotropy ? st.R.capabilities.getMaxAnisotropy() : 1; tex.minFilter = T.LinearMipmapLinearFilter;
+    return tex;
+  };
+  /* ciel du mode Rendu (fond) et environnement lumineux (ciel bleu, horizon clair, sol chaud) pour l'éclairage d'ambiance et les reflets */
+  const skyTex = () => {
+    if (st.sky) return st.sky; const c = document.createElement('canvas'); c.width = 4; c.height = 256; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, '#7ea8d4'); g.addColorStop(0.5, '#cadced'); g.addColorStop(0.6, '#e6ecef'); g.addColorStop(1, '#e6ecef'); x.fillStyle = g; x.fillRect(0, 0, 4, 256);
+    st.sky = new T.CanvasTexture(c); st.sky.encoding = T.sRGBEncoding; return st.sky;
+  };
+  const envMap = () => {
+    if (st.env) return st.env;
+    const sc = new T.Scene(), g = new T.SphereGeometry(40, 48, 24), pos = g.attributes.position, cols = [], sky = [0.5, 0.64, 0.86], hor = [1.0, 0.98, 0.95], gnd = [0.66, 0.61, 0.55]; // sol clair et chaud : la lumière renvoyée par le sol éclaire les plafonds
+    const mix = (a, b, t) => a.map((v, j) => v + (b[j] - v) * t);
+    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) / 40; cols.push(...(y >= 0 ? mix(hor, sky, Math.pow(y, 0.55)) : mix(hor, gnd, Math.min(1, -y * 4)))); }
+    g.setAttribute('color', new T.Float32BufferAttribute(cols, 3)); sc.add(new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
+    const pm = new T.PMREMGenerator(st.R); st.envRT = pm.fromScene(sc, 0.03); st.env = st.envRT.texture; pm.dispose(); g.dispose();
+    return st.env;
+  };
 
   const build = () => {
+    PH = st.mode === 'rendu'; st.C = PH ? renderPalette() : st.col;
     const fid = st.fid, f = S.p.floors.find((x) => x.id === fid) || App.floor(); const rooms = App.rooms(fid), shapes = App.shapesOn(fid);
     const Hf = (f.ceiling || 250) * 10 + SLAB, Hc0 = (f.ceiling || 250) * 10;
-    const B = mk(), FL = mk(), BF = PH ? mk() : B, OC = PH ? mk() : null; BM = PH ? mk() : null; st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
+    const B = mk(), FL = mk(), BF = PH ? mk() : B, OC = mk(); BM = PH ? mk() : null; /* OC : caches d'ombre au-dessus des plafonds et sous les sols (le soleil ne fuit plus par la jonction mur-plafond) */ st.L = []; st.segs = []; st.leaves = []; st.rail = []; st.doors = []; st.slopes = {};
     const all = shapes.flatMap((s) => s.pts || []); if (!all.length) return false;
     const bb = { x0: Math.min(...all.map((p) => p.x)) - 200, y0: Math.min(...all.map((p) => p.y)) - 200, x1: Math.max(...all.map((p) => p.x)) + 200, y1: Math.max(...all.map((p) => p.y)) + 200 };
     st.bb = bb; st.rooms = rooms; st.Hf = Hf;
@@ -347,16 +413,16 @@
     const uvf = (p) => [(p.x - bb.x0) / (bb.x1 - bb.x0), (p.y - bb.y0) / (bb.y1 - bb.y0)];
     const fps0 = shapes.filter((z) => z.kind === 'plafond' && z.drop > 0);
     for (const r of rooms) {
-      const Hc = App.feat.ceiling(r) * 10, n = r.pts.length, wc = PH ? paintCol(r) : st.col.wall;
+      const Hc = App.feat.ceiling(r) * 10, n = r.pts.length, wc = PH ? paintCol(r) : st.C.wall;
       if (OC) { const big = G.offset(r.pts, G.area(r.pts) > 0 ? -260 : 260); if (big && big.length > 2) { prism(OC, big, Hc, Hc + 320, [0.5, 0.5, 0.5]); prism(OC, big, -320, -2, [0.5, 0.5, 0.5]); } }
       for (const part of minus(r.pts, downs)) fill(FL, part.outer, part.holes, () => 0, [0, 1, 0], null, uvf);
-      for (const part of minus(r.pts, ups)) fill(B, part.outer, part.holes, () => Hc, [0, -1, 0], st.col.ceil);
+      for (const part of minus(r.pts, ups)) fill(B, part.outer, part.holes, () => Hc, [0, -1, 0], st.C.ceil);
       const sl = slopesOf(r, Hc); st.slopes[r.id] = sl;
-      for (const z of sl) { fill(B, z.poly, [], z.hAt, [0, -1, 0], st.col.ceil); for (let i = 0; i < z.poly.length; i++) { const a = z.poly[i], b = z.poly[(i + 1) % z.poly.length]; ln(P3(a, z.hAt(a)), P3(b, z.hAt(b))); } }
+      for (const z of sl) { fill(B, z.poly, [], z.hAt, [0, -1, 0], st.C.ceil); for (let i = 0; i < z.poly.length; i++) { const a = z.poly[i], b = z.poly[(i + 1) % z.poly.length]; ln(P3(a, z.hAt(a)), P3(b, z.hAt(b))); } }
       // faux plafonds : plafond abaissé de l'épaisseur, avec les côtés du coffrage là où il ne touche pas un mur
       for (const z of fps0.filter((x) => x.drop > 0)) for (const Z of inter(r.pts, z.pts)) {
         const h = Hc - z.drop * 10; if (h <= 300) continue;
-        fill(B, Z, [], () => h, [0, -1, 0], st.col.fp);
+        fill(B, Z, [], () => h, [0, -1, 0], st.C.fp);
         for (let i = 0; i < Z.length; i++) { const a = Z[i], b = Z[(i + 1) % Z.length]; ln(P3(a, h), P3(b, h)); if (G.distPointPoly(G.lerp(a, b, 0.5), r.pts) < 40) continue; const dd = G.norm(G.sub(b, a)), nout = { x: dd.y, y: -dd.x }; quad(B, P3(a, h), P3(b, h), P3(b, Hc), P3(a, Hc), H3(nout), wc); }
       }
       for (let i = 0; i < n; i++) {
@@ -387,25 +453,29 @@
     }
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
-      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(BF, s, home ? App.feat.ceiling(home) * 10 : Hc0, PH ? furnCol(s) : st.col.furn); ZO = 0;
+      const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(BF, s, home ? App.feat.ceiling(home) * 10 : Hc0, PH ? furnCol(s) : st.C.furn); ZO = 0;
       if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '') && !(App.stack && App.stack.ceil(s))) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
     st.segs.push(...st.leaves);
     // dehors : un sol à perte de vue
     const lvl = f.level || 0, gy = lvl > 0 ? -lvl * Hf - 150 : -150, cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, E = 90000;
-    quad(B, P3({ x: cx - E, y: cy - E }, gy), P3({ x: cx + E, y: cy - E }, gy), P3({ x: cx + E, y: cy + E }, gy), P3({ x: cx - E, y: cy + E }, gy), [0, 1, 0], PH ? hexLin('#6d7a58') : st.col.ground);
+    quad(B, P3({ x: cx - E, y: cy - E }, gy), P3({ x: cx + E, y: cy - E }, gy), P3({ x: cx + E, y: cy + E }, gy), P3({ x: cx - E, y: cy + E }, gy), [0, 1, 0], PH ? hexLin('#6d7a58') : st.C.ground);
     // maillages
     const geo = (A, withUv) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(A.n, 3)); if (A.c.length) g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3)); if (withUv) g.setAttribute('uv', new T.Float32BufferAttribute(A.uv, 2)); return g; };
     const matOpts = { specular: 0x000000, shininess: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: T.FrontSide, shadowSide: T.DoubleSide };
-    if (PH) { st.phData = { shell: B, floor: FL, furn: BF, occ: OC, mirror: BM, fid, rooms, bb }; return true; } // photo : tampons bruts, chaque moteur fait ses maillages
-    const main = new T.Mesh(geo(B), new T.MeshPhongMaterial(Object.assign({ vertexColors: true }, matOpts)));
-    const tex = floorTexture(fid, rooms, bb, App.calepinage(fid));
-    const floor = new T.Mesh(geo(FL, true), new T.MeshPhongMaterial(Object.assign({ map: tex }, matOpts)));
+    let meshes;
+    if (PH) { // mode Rendu : matériaux mats physiques, éclairés par le soleil et le ciel
+      const std = (o) => new T.MeshStandardMaterial(Object.assign({ roughness: 0.92, metalness: 0, envMapIntensity: 0.7, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: T.FrontSide, shadowSide: T.DoubleSide }, o));
+      meshes = [new T.Mesh(geo(B), std({ vertexColors: true })), new T.Mesh(geo(BF), std({ vertexColors: true, roughness: 0.62, envMapIntensity: 0.85 })), new T.Mesh(geo(FL, true), std({ map: floorTextureRender(fid, rooms, bb, App.calepinage(fid)), roughness: 0.5, envMapIntensity: 0.9 }))];
+      if (BM.p.length) meshes.push(new T.Mesh(geo(BM), std({ color: 0xe9eef1, metalness: 1, roughness: 0.04, envMapIntensity: 1.3 })));
+    } else meshes = [new T.Mesh(geo(B), new T.MeshPhongMaterial(Object.assign({ vertexColors: true }, matOpts))), new T.Mesh(geo(FL, true), new T.MeshPhongMaterial(Object.assign({ map: floorTexture(fid, rooms, bb, App.calepinage(fid)) }, matOpts)))];
     const lg = new T.BufferGeometry(); lg.setAttribute('position', new T.Float32BufferAttribute(st.L, 3));
-    const lines = new T.LineSegments(lg, new T.LineBasicMaterial({ color: 0x000000 }));
-    for (const o of [main, floor]) { o.castShadow = true; o.receiveShadow = true; }
-    const grp = new T.Group(); grp.add(main, floor, lines); st.scene.add(grp); st.grp = grp;
+    const lines = new T.LineSegments(lg, PH ? new T.LineBasicMaterial({ color: 0x24221f, transparent: true, opacity: 0.22, depthWrite: false }) : new T.LineBasicMaterial({ color: 0x000000 }));
+    lines.visible = !PH || st.edges; st.lines = lines;
+    for (const o of meshes) { o.castShadow = true; o.receiveShadow = true; }
+    const occ = new T.Mesh(geo(OC), new T.MeshBasicMaterial({ colorWrite: false, depthWrite: false })); occ.castShadow = true; // invisible : il ne fait que de l'ombre
+    const grp = new T.Group(); grp.add(...meshes, lines, occ); st.scene.add(grp); st.grp = grp;
     placeSun(); return true;
   };
 
@@ -419,7 +489,7 @@
     }
     const az = st.sunBase + st.sunStep * (Math.PI / 4), el = 0.56;
     const L = st.sun; L.position.set(cx + Math.cos(az) * Math.cos(el) * 40, Math.sin(el) * 40, cz - Math.sin(az) * Math.cos(el) * 40); L.target.position.set(cx, 0, cz); L.target.updateMatrixWorld();
-    const cam = L.shadow.camera; cam.left = -R0; cam.right = R0; cam.top = R0; cam.bottom = -R0; cam.near = 1; cam.far = 90; cam.updateProjectionMatrix();
+    const cam = L.shadow.camera; cam.left = -R0; cam.right = R0; cam.top = R0; cam.bottom = -R0; cam.near = st.mode === 'rendu' ? 40 - R0 - 2 : 1; cam.far = st.mode === 'rendu' ? 40 + R0 + 2 : 90; cam.updateProjectionMatrix(); // Rendu : profondeur serrée, biais au millimètre (pas de fuite de soleil sous les plafonds)
     st.fill.position.set(cx + Math.cos(az + 1.9) * 30, 25, cz - Math.sin(az + 1.9) * 30); st.fill.target.position.set(cx, 0, cz); st.fill.target.updateMatrixWorld();
     st.R.shadowMap.needsUpdate = true; st.dirty = true;
   };
@@ -440,7 +510,7 @@
     // regarder vers la plus grande fenêtre, sinon vers le centre de la pièce
     let tgt = null, bw = 0; for (const o of r.openings || []) { const g = App.ops.geo(r, o); if (g && !App.ops.twin(r, o) && g.w > bw) { bw = g.w; tgt = g.mid; } }
     if (!tgt || G.dist(tgt, p) < 400) { let far = 0; for (const q of r.pts) { const d = G.dist(q, p); if (d > far) { far = d; tgt = G.lerp(p, q, 0.7); } } }
-    st.pos = { x: p.x, y: p.y }; const d = G.sub(tgt, p); st.yaw = Math.atan2(-d.x, d.y); st.pitch = -0.05; st.eye = Math.min(EYE, ceilingAt(st.pos) - 140);
+    st.pos = { x: p.x, y: p.y }; const d = G.sub(tgt, p); st.yaw = Math.atan2(-d.x, d.y); st.pitch = -0.05; st.eye = Math.min(st.eyeH, ceilingAt(st.pos) - 140);
   };
 
   /* ---------- trame : 8 × 8 de Bayer, encre / papier / accent ---------- */
@@ -457,6 +527,96 @@
       gl_FragColor = vec4(l < t ? uInk : uPaper, 1.0);
     }`;
 
+  /* ---------- mode Rendu : occlusion ambiante en demi-résolution (positions et normales tirées de la profondeur) ---------- */
+  const AO_N = 12;
+  const AO_F = `precision highp sampler2D; uniform sampler2D tDepth; uniform sampler2D tNorm; uniform mat4 uProj; uniform mat4 uInvProj; uniform vec3 uK[${AO_N}]; uniform float uRad; varying vec2 vUv;
+    vec3 vpos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }
+    void main(){
+      if (texture2D(tDepth, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+      vec3 P = vpos(vUv), N = normalize(texture2D(tNorm, vUv).xyz * 2.0 - 1.0); // normales d'une passe dédiée : la profondeur seule les fausse (plafonds rayés)
+      vec2 cc = mod(floor(gl_FragCoord.xy), 4.0); // rotation tramée 4 × 4 (Bayer) : le flou 4 × 4 de la composition l'efface sans motif
+      float bb = mod(cc.x, 2.0) * 2.0 + mod(cc.y, 2.0) * 3.0 - 4.0 * mod(cc.x, 2.0) * mod(cc.y, 2.0) + mod(floor(cc.x / 2.0), 2.0) * 0.5 + mod(floor(cc.y / 2.0), 2.0) * 0.75 - mod(floor(cc.x / 2.0), 2.0) * mod(floor(cc.y / 2.0), 2.0);
+      float a = 6.2831853 * (bb + 0.5) / 4.0;
+      vec3 r = vec3(cos(a), sin(a), 0.0), Tg = normalize(r - N * dot(r, N)), Bt = cross(N, Tg); mat3 M = mat3(Tg, Bt, N);
+      float occ = 0.0;
+      for (int i = 0; i < ${AO_N}; i++) {
+        vec3 Q = P + M * uK[i] * uRad; vec4 o = uProj * vec4(Q, 1.0); vec2 suv = o.xy / o.w * 0.5 + 0.5;
+        float sz = vpos(suv).z; occ += (sz >= Q.z + 0.015 + 0.004 * abs(P.z) ? 1.0 : 0.0) * smoothstep(0.0, 1.0, uRad / max(0.001, abs(P.z - sz)));
+      }
+      gl_FragColor = vec4(vec3(1.0 - occ / float(${AO_N})), 1.0);
+    }`;
+  const COMP_F = `precision highp sampler2D; uniform sampler2D tColor; uniform sampler2D tAO; uniform sampler2D tDepth; uniform vec2 uPx; uniform vec2 uAOpx; uniform float uNear; uniform float uFar; uniform float uAOk; uniform float uHasAO; varying vec2 vUv;
+    float vz(vec2 uv){ float z = texture2D(tDepth, uv).x * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
+    vec3 fxaa(vec2 uv){
+      vec3 nw = texture2D(tColor, uv + vec2(-1.0, -1.0) * uPx).rgb, ne = texture2D(tColor, uv + vec2(1.0, -1.0) * uPx).rgb, sw = texture2D(tColor, uv + vec2(-1.0, 1.0) * uPx).rgb, se = texture2D(tColor, uv + vec2(1.0, 1.0) * uPx).rgb, m = texture2D(tColor, uv).rgb;
+      vec3 L = vec3(0.299, 0.587, 0.114); float a = dot(nw, L), b = dot(ne, L), c = dot(sw, L), d = dot(se, L), e = dot(m, L);
+      float lo = min(e, min(min(a, b), min(c, d))), hi = max(e, max(max(a, b), max(c, d)));
+      vec2 dir = vec2(-((a + b) - (c + d)), (a + c) - (b + d)); float red = max((a + b + c + d) * 0.03125, 0.0078125);
+      dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + red), -8.0, 8.0) * uPx;
+      vec3 A = 0.5 * (texture2D(tColor, uv - dir / 6.0).rgb + texture2D(tColor, uv + dir / 6.0).rgb);
+      vec3 B = A * 0.5 + 0.25 * (texture2D(tColor, uv - dir * 0.5).rgb + texture2D(tColor, uv + dir * 0.5).rgb);
+      float lb = dot(B, L); return (lb < lo || lb > hi) ? A : B;
+    }
+    void main(){
+      vec3 c = pow(fxaa(vUv), vec3(2.2)); float ao = 1.0;
+      if (uHasAO > 0.5) { float z0 = vz(vUv), s = 0.0, w = 0.0;
+        for (int x = -2; x <= 1; x++) for (int y = -2; y <= 1; y++) { vec2 uv = vUv + (vec2(float(x), float(y)) + 0.5) * uAOpx; float wi = 1.0 - smoothstep(0.02, 0.07, abs(vz(uv) - z0) / z0); s += texture2D(tAO, uv).r * wi; w += wi; }
+        ao = w > 0.0 ? s / w : 1.0; }
+      c *= mix(1.0, ao, uAOk); vec2 q = vUv - 0.5; c *= 1.0 - 0.28 * dot(q, q) * 1.6;
+      float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5; // grain d'un demi-niveau : pas de paliers dans les dégradés
+      gl_FragColor = vec4(pow(c, vec3(1.0 / 2.2)) + n / 255.0, 1.0);
+    }`;
+  const aoKernel = () => { const o = []; for (let i = 0; i < AO_N; i++) { const v = new T.Vector3(rnd(i * 1.7 + 0.3) * 2 - 1, rnd(i * 2.9 + 1.1) * 2 - 1, 0.35 + rnd(i * 4.3 + 2.7) * 0.65).normalize(); const t = (i + 1) / AO_N; o.push(v.multiplyScalar(0.25 + 0.75 * t * t)); } return o; };
+  const ensureR = () => {
+    if (st.rtR) return; const R = st.R;
+    st.aoOK = !!(R.capabilities.isWebGL2 || R.extensions.get('WEBGL_depth_texture'));
+    st.rtR = new T.WebGLRenderTarget(4, 4, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: true }); st.rtR.texture.encoding = T.sRGBEncoding;
+    if (st.aoOK) { st.rtR.depthTexture = new T.DepthTexture(4, 4); st.rtR.depthTexture.type = T.UnsignedIntType; }
+    st.rtAO = new T.WebGLRenderTarget(4, 4, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false });
+    st.rtN = new T.WebGLRenderTarget(4, 4, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: true }); st.normMat = new T.MeshNormalMaterial();
+    const dep = st.aoOK ? st.rtR.depthTexture : st.rtR.texture;
+    st.aoMat = new T.ShaderMaterial({ vertexShader: POST_V, fragmentShader: AO_F, depthTest: false, depthWrite: false, uniforms: { tDepth: { value: dep }, uProj: { value: new T.Matrix4() }, uInvProj: { value: new T.Matrix4() }, tNorm: { value: st.rtN.texture }, uK: { value: aoKernel() }, uRad: { value: 0.42 } } });
+    st.compMat = new T.ShaderMaterial({ vertexShader: POST_V, fragmentShader: COMP_F, depthTest: false, depthWrite: false, uniforms: { tColor: { value: st.rtR.texture }, tAO: { value: st.rtAO.texture }, tDepth: { value: dep }, uPx: { value: new T.Vector2() }, uAOpx: { value: new T.Vector2() }, uNear: { value: 0.05 }, uFar: { value: 300 }, uAOk: { value: 0.95 }, uHasAO: { value: st.aoOK ? 1 : 0 } } });
+  };
+  /* une image : trame encre / papier, ou rendu couleur (scène → occlusion → composition), vers l'écran ou vers une cible (photo) */
+  const renderFrame = (target = null) => {
+    const R = st.R;
+    if (st.mode !== 'rendu') { R.setRenderTarget(st.rt); R.render(st.scene, st.cam); st.quad.material = st.post; R.setRenderTarget(target); R.render(st.pScene, st.pCam); return; }
+    R.setRenderTarget(st.rtR); R.render(st.scene, st.cam);
+    if (st.aoOK) { // passe des normales (sans ciel ni traits), puis occlusion en demi-résolution
+      const bg = st.scene.background, lv = st.lines ? st.lines.visible : false; st.scene.background = null; st.scene.overrideMaterial = st.normMat; if (st.lines) st.lines.visible = false;
+      R.setRenderTarget(st.rtN); R.setClearColor(0x8080ff, 1); R.clear(); R.render(st.scene, st.cam); R.setClearColor(0xffffff, 1);
+      st.scene.overrideMaterial = null; st.scene.background = bg; if (st.lines) st.lines.visible = lv;
+      const u = st.aoMat.uniforms; u.uProj.value.copy(st.cam.projectionMatrix); u.uInvProj.value.copy(st.cam.projectionMatrixInverse); st.quad.material = st.aoMat; R.setRenderTarget(st.rtAO); R.render(st.pScene, st.pCam); }
+    const c = st.compMat.uniforms; c.uNear.value = st.cam.near; c.uFar.value = st.cam.far; c.uPx.value.set(1 / st.rtR.width, 1 / st.rtR.height); c.uAOpx.value.set(1 / st.rtAO.width, 1 / st.rtAO.height);
+    st.quad.material = st.compMat; R.setRenderTarget(target); R.render(st.pScene, st.pCam);
+  };
+  /* caméra : position, visée ; « verticales droites » : visée horizontale et image décentrée (comme un objectif à bascule) */
+  const setCam = () => {
+    const c = st.cam; c.position.set(st.pos.x / 1000, st.eye / 1000, -st.pos.y / 1000);
+    if (st.vert) { const p = Math.max(-0.7, Math.min(0.7, st.pitch)), t = Math.tan(p) / Math.tan((c.fov * Math.PI) / 360), H = 1000, W = H * c.aspect; c.rotation.set(0, st.yaw, 0); c.setViewOffset(W, H, 0, (-t * H) / 2, W, H); }
+    else { if (c.view && c.view.enabled) c.clearViewOffset(); c.rotation.set(st.pitch, st.yaw, 0); }
+    c.updateMatrixWorld();
+  };
+  const vfov = (w, h) => (2 * Math.atan((w < h ? 18 : 12) / st.focal) * 180) / Math.PI; // focale « plein format » : 24 × 36 mm
+  const hfovDeg = () => Math.round((2 * Math.atan(18 / st.focal) * 180) / Math.PI);
+  const applyFov = () => { st.cam.fov = vfov(window.innerWidth, window.innerHeight); st.cam.updateProjectionMatrix(); st.dirty = true; };
+  /* lumières et rendu selon le mode */
+  const applyLook = () => {
+    const R = st.R, rd = st.mode === 'rendu';
+    R.toneMapping = rd ? T.ACESFilmicToneMapping : T.NoToneMapping; R.toneMappingExposure = rd ? Math.pow(2, st.expo) : 1;
+    R.shadowMap.type = rd ? T.PCFSoftShadowMap : T.PCFShadowMap; R.shadowMap.needsUpdate = true;
+    st.amb.intensity = rd ? 0.05 : 0.62; st.hemi.intensity = rd ? 0.16 : 0.22; st.hemi.color.set(rd ? 0xdfe8f2 : 0xffffff); st.hemi.groundColor.set(rd ? 0xd9ccb8 : 0xbbbbbb);
+    st.sun.intensity = rd ? 2.7 : 1.0; st.sun.shadow.bias = rd ? -0.0002 : -0.0004; st.sun.shadow.normalBias = rd ? 0.012 : 0.02; st.sun.color.set(rd ? 0xfff0dc : 0xffffff); st.fill.intensity = rd ? 0 : 0.24;
+    st.scene.environment = rd ? envMap() : null; st.scene.background = rd ? skyTex() : null; st.cam.near = rd ? 0.1 : 0.05; st.cam.updateProjectionMatrix();
+    st.el.classList.toggle('rendu', rd); st.el.querySelectorAll('[data-f=mode]').forEach((b) => b.setAttribute('aria-pressed', rd));
+    st.dirty = true;
+  };
+  const PREF = 'calepin:fps';
+  const savePrefs = () => { try { localStorage.setItem(PREF, JSON.stringify({ mode: st.mode, focal: st.focal, eyeH: st.eyeH, vert: st.vert, expo: st.expo, edges: st.edges })); } catch (e) { /* stockage plein ou interdit */ } };
+  const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(PREF) || '{}') || {}; } catch (e) { return {}; } };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
   /* ---------- ouverture / fermeture ---------- */
   V.open = async (opts = {}) => {
     if (st) return;
@@ -468,10 +628,11 @@
     catch (e) { host.remove(); App.toast && App.toast(V.lostOnce ? 'La 3D est bloquée après une saturation de la mémoire graphique : rechargez la page pour la réactiver.' : 'La 3D n\'est pas disponible sur cet appareil.'); return; }
     host.querySelector('canvas').addEventListener('webglcontextlost', (e) => { e.preventDefault(); V.lostOnce = true; if (st) { App.toast && App.toast('La 3D a perdu la main (mémoire graphique saturée). Fermez la visite ; si elle ne revient pas, rechargez la page.'); } });
     st = { el: host, R, keys: {}, sunStep: 0, sunBase: null, scale: 1, dirty: true, fid: opts.floor || S.p.floorId, ptr: new Map() };
+    const pf = loadPrefs(); st.mode = pf.mode === 'rendu' ? 'rendu' : 'trait'; st.focal = clamp(+pf.focal || 20, 12, 50); st.eyeH = clamp(+pf.eyeH || EYE, 800, 2000); st.vert = !!pf.vert; st.expo = clamp(+pf.expo || 0, -1.5, 1.5); st.edges = pf.edges !== false;
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFShadowMap; R.shadowMap.autoUpdate = false; R.setClearColor(0xffffff, 1);
     st.col = { wall: [0.97, 0.97, 0.97], ceil: [0.96, 0.96, 0.96], fp: [0.86, 0.86, 0.86], well: [0.8, 0.8, 0.8], furn: [0.97, 0.97, 0.97], stair: [0.95, 0.95, 0.95], sill: [0.93, 0.93, 0.93], floor: [0.9, 0.9, 0.9], ground: [0.9, 0.9, 0.9], acc: [0.9, 0, 0] };
     st.scene = new T.Scene(); st.cam = new T.PerspectiveCamera(70, 1, 0.05, 300); st.cam.rotation.order = 'YXZ';
-    st.scene.add(new T.AmbientLight(0xffffff, 0.62)); st.scene.add(new T.HemisphereLight(0xffffff, 0xbbbbbb, 0.22));
+    st.amb = new T.AmbientLight(0xffffff, 0.62); st.hemi = new T.HemisphereLight(0xffffff, 0xbbbbbb, 0.22); st.scene.add(st.amb, st.hemi);
     const sun = new T.DirectionalLight(0xffffff, 1.0); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; st.scene.add(sun, sun.target); st.sun = sun;
     st.fill = new T.DirectionalLight(0xffffff, 0.24); st.scene.add(st.fill, st.fill.target);
     // passe de trame
@@ -479,15 +640,15 @@
     const bt = new T.DataTexture(data, 8, 8, T.RGBAFormat); bt.wrapS = bt.wrapT = T.RepeatWrapping; bt.minFilter = bt.magFilter = T.NearestFilter; bt.needsUpdate = true;
     st.rt = new T.WebGLRenderTarget(4, 4, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: true });
     st.post = new T.ShaderMaterial({ vertexShader: POST_V, fragmentShader: POST_F, depthTest: false, depthWrite: false, uniforms: { tScene: { value: st.rt.texture }, tBayer: { value: bt }, uInk: { value: css('--ink') }, uPaper: { value: css('--paper') }, uAcc: { value: css('--red') } } });
-    st.pScene = new T.Scene(); st.pCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1); st.pScene.add(new T.Mesh(new T.PlaneGeometry(2, 2), st.post));
-    hud(); setFloor(st.fid, opts.room);
+    st.pScene = new T.Scene(); st.pCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1); st.quad = new T.Mesh(new T.PlaneGeometry(2, 2), st.post); st.pScene.add(st.quad);
+    hud(); applyLook(); setFloor(st.fid, opts.room);
     window.addEventListener('resize', resize); window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey); window.addEventListener('blur', clearKeys);
     resize(); st.raf = requestAnimationFrame(tick);
   };
   V.close = () => {
     if (!st) return; cancelAnimationFrame(st.raf);
     window.removeEventListener('resize', resize); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', clearKeys);
-    dispose(); st.rt.dispose(); st.R.dispose(); if (st.R.forceContextLoss) st.R.forceContextLoss(); st.el.remove(); st = null;
+    dispose(); st.rt.dispose(); for (const k of ['rtR', 'rtAO', 'rtN', 'envRT', 'normMat']) if (st[k]) st[k].dispose(); if (st.rtR && st.rtR.depthTexture) st.rtR.depthTexture.dispose(); if (st.sky) st.sky.dispose(); if (st.shotUrl) URL.revokeObjectURL(st.shotUrl); st.R.dispose(); if (st.R.forceContextLoss) st.R.forceContextLoss(); st.el.remove(); st = null;
   };
   V.active = () => !!st;
   V.debug = () => st;
@@ -498,7 +659,7 @@
     if (!build()) { st.rooms = []; st.segs = []; label(); App.toast && App.toast('Aucune pièce à visiter sur cet étage.'); return; }
     const sel = roomId ? st.rooms.find((r) => r.id === roomId) : null;
     const keep = !sel && prev && walkable(prev) && clearance(prev) > RAD ? prev : null;
-    if (keep) { st.pos = keep; st.eye = Math.min(EYE, ceilingAt(keep) - 140); }
+    if (keep) { st.pos = keep; st.eye = Math.min(st.eyeH, ceilingAt(keep) - 140); }
     else spawnIn(sel || st.rooms.slice().sort((a, b) => Math.abs(G.area(b.pts)) - Math.abs(G.area(a.pts)))[0]);
     st.el.querySelectorAll('[data-fl]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.fl === fid));
     const ld = st.el.querySelector('.fps-load'); if (ld) ld.remove();
@@ -512,15 +673,40 @@
       <div class="fps-tl"><button class="fps-x" data-f="close" aria-label="Quitter la visite">✕</button><div class="fps-room"><b></b></div></div>
       <div class="fps-tr"><canvas class="fps-map" aria-label="Plan de situation"></canvas></div>
       <div class="fps-br">${fl.length > 1 ? `<div class="fps-seg">${fl.map((f) => `<button data-fl="${f.id}">${App.esc ? App.esc(f.name) : f.name}</button>`).join('')}</div>` : ''}
-        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div></div>
+        <div class="fps-seg"><button data-f="sun">Soleil</button><button data-f="grain" aria-pressed="false">Gros grain</button></div>
+        <div class="fps-seg"><button data-f="mode" aria-pressed="false" title="Couleurs, ombres douces, lumière du jour">Rendu</button><button data-f="panel" aria-expanded="false">Réglages</button><button data-f="shot" title="Image haute définition à enregistrer">Photo</button></div></div>
+      <div class="fps-panel" hidden></div>
       <div class="fps-hint">${touch ? 'Pouce gauche : marcher · glisser à droite : regarder' : 'ZQSD ou flèches : marcher · glisser : regarder · Maj : presser le pas'}</div>
       <div class="fps-joy"><i></i></div>`);
     st.el.addEventListener('click', (e) => {
-      const b = e.target.closest('button'); if (!b) return;
+      const b = e.target.closest('button'); if (!b) return; const f = b.dataset.f, v = b.dataset.v;
       if (b.dataset.fl) { setFloor(b.dataset.fl); return; }
-      if (b.dataset.f === 'close') V.close();
-      else if (b.dataset.f === 'sun') { st.sunStep = (st.sunStep + 1) % 8; placeSun(); }
-      else if (b.dataset.f === 'grain') { st.scale = st.scale === 1 ? 0.5 : 1; b.setAttribute('aria-pressed', st.scale < 1); resize(); }
+      if (f === 'close') V.close();
+      else if (f === 'sun') { st.sunStep = (st.sunStep + 1) % 8; placeSun(); }
+      else if (f === 'grain') { st.scale = st.scale === 1 ? 0.5 : 1; b.setAttribute('aria-pressed', st.scale < 1); resize(); }
+      else if (f === 'mode') setMode(st.mode === 'rendu' ? 'trait' : 'rendu');
+      else if (f === 'panel') togglePanel();
+      else if (f === 'shot') takeShot();
+      else if (f === 'save') saveShot();
+      else if (f === 'prompt') copyPrompt();
+      else if (f === 'shotx') closeShot();
+      else if (f === 'focal') { st.focal = +v; savePrefs(); applyFov(); syncPanel(); }
+      else if (f === 'eye') { st.eyeH = +v * 10; savePrefs(); st.dirty = true; syncPanel(); }
+      else if (f === 'paint') setPaint(v);
+      else if (f === 'wood') setWood(v);
+    });
+    st.el.addEventListener('input', (e) => {
+      const t = e.target, r = t.dataset && t.dataset.r; if (!r) return;
+      if (r === 'focal') { st.focal = clamp(+t.value, 12, 50); applyFov(); }
+      else if (r === 'eye') { st.eyeH = clamp(+t.value * 10, 800, 2000); st.dirty = true; }
+      else if (r === 'expo') { st.expo = clamp(+t.value, -1.5, 1.5); st.R.toneMappingExposure = Math.pow(2, st.expo); st.dirty = true; }
+      else return;
+      syncPanel(); clearTimeout(st.prefT); st.prefT = setTimeout(savePrefs, 400);
+    });
+    st.el.addEventListener('change', (e) => {
+      const t = e.target; if (t.dataset.r === 'paint') { setPaint(t.value); return; }
+      if (t.dataset.k === 'vert') { st.vert = t.checked; st.dirty = true; savePrefs(); }
+      else if (t.dataset.k === 'edges') { st.edges = t.checked; if (st.lines) st.lines.visible = st.mode !== 'rendu' || st.edges; st.dirty = true; savePrefs(); }
     });
     const cv = st.el.querySelector('canvas.view');
     cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp); cv.addEventListener('lostpointercapture', onUp);
@@ -528,15 +714,97 @@
     const mp = st.el.querySelector('.fps-map'); mp.addEventListener('pointerdown', (e) => { e.preventDefault(); const p = mapToWorld(e); if (p && walkable(p) && clearance(p) > RAD + 20) { st.pos = p; st.dirty = true; label(); } });
     setTimeout(() => { const h = st && st.el.querySelector('.fps-hint'); if (h) h.style.opacity = '0'; }, 6000);
   };
+  /* ---------- réglages : vue (focale, hauteur, verticales) et rendu (exposition, arêtes, peinture, parquet) ---------- */
+  const esc = (t) => (App.esc ? App.esc(t) : String(t));
+  const panelHTML = () => {
+    const rd = st.mode === 'rendu', r = st.pos && roomAt(st.pos), ph = paintHex(r).toLowerCase(), wd = V.wood().toLowerCase(), eye = Math.round(st.eyeH / 10);
+    const chip = (f, v, l, on) => `<button data-f="${f}" data-v="${v}" aria-pressed="${!!on}">${l}</button>`, sw = (f, n, h, on) => `<button data-f="${f}" data-v="${h}" title="${n}" aria-label="${n}" aria-pressed="${!!on}" style="background:${h}"></button>`;
+    return `<div class="fps-ph"><b>Réglages de la vue</b><button data-f="panel" aria-label="Fermer les réglages">✕</button></div>
+      <label class="fps-lab" for="fps-focal">Focale <output data-o="focal">${Math.round(st.focal)} mm · ${hfovDeg()}°</output></label>
+      <input id="fps-focal" type="range" min="12" max="50" step="1" value="${Math.round(st.focal)}" data-r="focal">
+      <div class="fps-chips">${[14, 18, 20, 24, 28, 35].map((v) => chip('focal', v, v + ' mm', Math.round(st.focal) === v)).join('')}</div>
+      <label class="fps-lab" for="fps-eye">Hauteur des yeux <output data-o="eye">${eye} cm</output></label>
+      <input id="fps-eye" type="range" min="80" max="200" step="1" value="${eye}" data-r="eye">
+      <div class="fps-chips">${[[115, 'Assis'], [162, 'Debout'], [180, 'Haut']].map(([v, l]) => chip('eye', v, l, eye === v)).join('')}</div>
+      <label class="fps-chk"><input type="checkbox" data-k="vert"${st.vert ? ' checked' : ''}> Verticales droites <small>cadrage d'architecte</small></label>
+      ${rd ? `<label class="fps-lab" for="fps-expo">Exposition <output data-o="expo">${st.expo > 0 ? '+' : ''}${st.expo.toFixed(1).replace('.', ',')}</output></label>
+      <input id="fps-expo" type="range" min="-1.5" max="1.5" step="0.1" value="${st.expo}" data-r="expo">
+      <label class="fps-chk"><input type="checkbox" data-k="edges"${st.edges ? ' checked' : ''}> Arêtes au crayon</label>
+      <h4>Murs${r ? ' · ' + esc(r.name || 'pièce') : ''}</h4>
+      ${r ? `<div class="fps-sw">${V.PAINTS.map(([n, h]) => sw('paint', n, h, ph === h)).join('')}<label class="fps-pick" title="Autre couleur"><input type="color" data-r="paint" value="${ph}" aria-label="Autre couleur"><span>+</span></label></div><p class="fps-note">${esc(nameOf(V.PAINTS, ph) || 'Couleur libre')} · ${ph}</p>` : `<p class="fps-note">Placez-vous dans une pièce pour choisir sa peinture.</p>`}
+      <h4>Parquet</h4><div class="fps-sw">${V.WOODS.map(([n, h]) => sw('wood', n, h, wd === h)).join('')}</div><p class="fps-note">${esc(nameOf(V.WOODS, wd) || 'Teinte libre')} · lames du calepinage</p>` : `<p class="fps-note">Le mode Rendu ajoute les couleurs des murs, le parquet, les ombres douces et l'exposition.</p>`}`;
+  };
+  const panelEl = () => st.el.querySelector('.fps-panel');
+  const refreshPanel = () => { const el = panelEl(); st.panelRoom = (st.pos && roomAt(st.pos) || {}).id; if (!el || el.hidden) return; const top = el.scrollTop; el.innerHTML = panelHTML(); el.scrollTop = top; };
+  const syncPanel = () => { // pendant un glissé : textes et puces seulement, sans reconstruire le panneau
+    const el = panelEl(); if (!el || el.hidden) return; const o = (k) => el.querySelector(`[data-o=${k}]`), eye = Math.round(st.eyeH / 10);
+    if (o('focal')) o('focal').textContent = `${Math.round(st.focal)} mm · ${hfovDeg()}°`; if (o('eye')) o('eye').textContent = `${eye} cm`; if (o('expo')) o('expo').textContent = `${st.expo > 0 ? '+' : ''}${st.expo.toFixed(1).replace('.', ',')}`;
+    const set = (sel, v) => { const i = el.querySelector(sel); if (i && document.activeElement !== i) i.value = v; }; set('[data-r=focal]', Math.round(st.focal)); set('[data-r=eye]', eye);
+    el.querySelectorAll('[data-f=focal]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === Math.round(st.focal))); el.querySelectorAll('[data-f=eye]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === eye));
+  };
+  const togglePanel = (force) => { const el = panelEl(); const open = force != null ? force : el.hidden; el.hidden = !open; st.el.querySelectorAll('[data-f=panel]').forEach((b) => b.hasAttribute('aria-expanded') && b.setAttribute('aria-expanded', open)); if (open) refreshPanel(); };
+  const closeOverlays = () => { if (st.el.querySelector('.fps-shot')) { closeShot(); return true; } const el = panelEl(); if (el && !el.hidden) { togglePanel(false); return true; } return false; };
+  const rebuild = () => { dispose(); build(); st.dirty = true; };
+  const setMode = (m) => { st.mode = m; savePrefs(); applyLook(); resize(); rebuild(); refreshPanel(); };
+  const setPaint = (hex) => { const r = st.pos && roomAt(st.pos); if (!r || !/^#[0-9a-f]{6}$/i.test(hex)) return; App.mutate(() => { r.paint = { hex: hex.toLowerCase() }; }); rebuild(); refreshPanel(); };
+  const setWood = (hex) => { App.mutate((P) => { P.render = Object.assign({}, P.render, { wood: hex }); }); rebuild(); refreshPanel(); };
+
+  /* ---------- photo : image de 2560 px dans le mode courant, aperçu, enregistrement, prompt pour l'IA ---------- */
+  const capture = () => {
+    const w = window.innerWidth, h = window.innerHeight, k = 2560 / Math.max(w, h), W = Math.round(w * k), H = Math.round(h * k), R = st.R;
+    const out = new T.WebGLRenderTarget(W, H, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false }); st.cap = true;
+    try {
+      sizeTargets(W, H); setCam(); renderFrame(out);
+      const px = new Uint8Array(W * H * 4); R.readRenderTargetPixels(out, 0, 0, W, H, px);
+      const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), img = x.createImageData(W, H);
+      for (let y = 0; y < H; y++) img.data.set(px.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
+      x.putImageData(img, 0, 0); return c;
+    } finally { out.dispose(); st.cap = false; resize(); st.dirty = true; }
+  };
+  const takeShot = () => {
+    if (!st.pos) return; let c; try { c = capture(); } catch (e) { App.toast && App.toast('La photo n\'a pas pu être prise sur cet appareil.'); return; }
+    const rd = st.mode === 'rendu';
+    c.toBlob((blob) => {
+      if (!blob || !st) return; st.shot = blob; if (st.shotUrl) URL.revokeObjectURL(st.shotUrl); st.shotUrl = URL.createObjectURL(blob);
+      st.el.insertAdjacentHTML('beforeend', `<div class="fps-shot" role="dialog" aria-label="Photo de la vue"><div class="fps-shotin"><img alt="Photo de la vue" src="${st.shotUrl}"><p class="fps-note">${c.width} × ${c.height} px${rd ? '' : ' · passez en mode Rendu pour une image en couleurs'}</p>
+        <div class="fps-row"><button class="pri" data-f="save">Enregistrer l'image</button><button data-f="prompt">Copier le prompt pour l'IA</button><button data-f="shotx">Fermer</button></div>
+        <p class="fps-note">Donnez l'image et le prompt à l'IA de votre choix : le prompt lui demande de garder le cadrage, les murs et les meubles tels quels.</p></div></div>`);
+    }, rd ? 'image/jpeg' : 'image/png', 0.93);
+  };
+  const closeShot = () => { const d = st.el.querySelector('.fps-shot'); if (d) d.remove(); };
+  const saveShot = async () => {
+    const blob = st.shot; if (!blob) return; const r = st.pos && roomAt(st.pos), d = new Date(), pad = (n) => String(n).padStart(2, '0');
+    const name = `calepin-${String((r && r.name) || 'vue').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${blob.type === 'image/png' ? 'png' : 'jpg'}`;
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Vue Calepin' }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    const a = document.createElement('a'); a.href = st.shotUrl; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  };
+  V.prompt = () => { // prompt d'image fidèle à la capture : géométrie figée, matériaux et lumière décrits
+    const r = st.pos && roomAt(st.pos), ph = paintHex(r), pn = nameOf(V.PAINTS, ph), wn = nameOf(V.WOODS, V.wood());
+    const sol = r && r.parquet === false ? 'carrelage clair 60 × 60 cm' : `parquet en lames, teinte ${(wn || 'chêne naturel').toLowerCase()}`;
+    return [`Transforme cette image 3D en photographie d'intérieur réaliste${r && r.name ? ` (${r.name.toLowerCase()})` : ''}.`,
+      "Garde exactement le même cadrage, la même perspective et la même géométrie : murs, plafond, portes, fenêtres, escalier et meubles restent à leur place, avec leurs proportions. N'ajoute et ne retire aucun meuble ni aucune ouverture.",
+      `Matériaux : murs en peinture mate${pn ? ' ' + pn.toLowerCase() : ''} (${ph}), plafond blanc, sol en ${sol}, menuiseries blanches. Les meubles gardent leurs formes ; tu peux leur donner des matières crédibles (bois, tissu, métal) dans des teintes proches de l'image.`,
+      "Lumière : jour naturel qui entre par les fenêtres, ombres douces placées comme sur l'image, couleurs fidèles, sans surexposition.",
+      `Style : photo d'architecte, objectif ${Math.round(st.focal)} mm${st.vert ? ', verticales bien droites' : ''}, netteté naturelle, aucun texte ni filigrane.`].join('\n');
+  };
+  const copyPrompt = async () => {
+    const t = V.prompt(); let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; st.el.appendChild(ta); ta.select(); try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } ta.remove(); }
+    App.toast && App.toast(ok ? 'Prompt copié : collez-le avec l\'image dans l\'IA.' : 'Copie impossible ici.');
+  };
+
   const label = () => { const r = st.pos && roomAt(st.pos); const b = st.el.querySelector('.fps-room b'); const t = r ? r.name || 'Pièce' : 'Passage'; if (b.textContent !== t) b.textContent = t; };
   const resize = () => {
-    if (!st) return; const w = window.innerWidth, h = window.innerHeight; st.R.setPixelRatio(st.scale); st.R.setSize(w, h, true);
-    const W = Math.max(1, Math.round(w * st.scale)), H = Math.max(1, Math.round(h * st.scale)); st.rt.setSize(W, H); st.cam.aspect = w / h; st.cam.fov = w < h ? 78 : 66; st.cam.updateProjectionMatrix();
+    if (!st || st.cap) return; const w = window.innerWidth, h = window.innerHeight, pr = st.mode === 'rendu' ? Math.min(window.devicePixelRatio || 1, 1.5) : st.scale; st.R.setPixelRatio(pr); st.R.setSize(w, h, true);
+    sizeTargets(Math.max(1, Math.round(w * pr)), Math.max(1, Math.round(h * pr))); st.cam.aspect = w / h; applyFov();
     const mp = st.el.querySelector('.fps-map'); const d = Math.min(3, window.devicePixelRatio || 1); mp.width = mp.clientWidth * d; mp.height = mp.clientHeight * d; st.dirty = true;
   };
+  const sizeTargets = (W, H) => { if (st.mode === 'rendu') { ensureR(); st.rtR.setSize(W, H); st.rtAO.setSize(Math.max(1, W >> 1), Math.max(1, H >> 1)); st.rtN.setSize(W, H); /* pleine résolution : normale et profondeur lues au même texel, pas de liseré aux arêtes */ } else st.rt.setSize(W, H); };
   const clearKeys = () => { st && (st.keys = {}); };
   const onKey = (e) => {
-    if (!st) return; if (e.key === 'Escape' && e.type === 'keydown') { V.close(); return; }
+    if (!st) return; if (e.target && e.target.closest && e.target.closest('.fps-panel, .fps-shot')) { if (e.key === 'Escape' && e.type === 'keydown') closeOverlays(); return; }
+    if (e.key === 'Escape' && e.type === 'keydown') { if (closeOverlays()) return; V.close(); return; }
     const k = e.code; if (/^(Key[WASDQZ]|Arrow|Shift)/.test(k)) { st.keys[k] = e.type === 'keydown'; e.preventDefault(); }
   };
   const onDown = (e) => {
@@ -581,10 +849,9 @@
       const old = st.pos, p = collide({ x: old.x + (f.x * fwd + r.x * side) * sp, y: old.y + (f.y * fwd + r.y * side) * sp });
       if (walkable(p)) st.pos = p; st.dirty = true; label();
     }
-    if (st.pos) { const target = Math.max(900, Math.min(EYE, ceilingAt(st.pos) - 140)); if (Math.abs(target - st.eye) > 1) { st.eye += (target - st.eye) * Math.min(1, dt * 6); st.dirty = true; } }
+    if (st.pos) { const target = Math.max(700, Math.min(st.eyeH, ceilingAt(st.pos) - 140)); if (Math.abs(target - st.eye) > 1) { st.eye += (target - st.eye) * Math.min(1, dt * 6); st.dirty = true; } }
     if (!st.dirty || !st.pos) return; st.dirty = false;
-    st.cam.position.set(st.pos.x / 1000, st.eye / 1000, -st.pos.y / 1000); st.cam.rotation.set(st.pitch, st.yaw, 0);
-    st.R.setRenderTarget(st.rt); st.R.render(st.scene, st.cam); st.R.setRenderTarget(null); st.R.render(st.pScene, st.pCam);
-    drawMap();
+    setCam(); renderFrame(null); drawMap();
+    if (st.panelRoom !== (roomAt(st.pos) || {}).id) refreshPanel(); // les teintes du panneau suivent la pièce où l'on est
   };
 })();
