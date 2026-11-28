@@ -86,7 +86,7 @@
     if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
-    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) - (App.stack.under(x) ? 1 : 0) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
+    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.layer(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
     // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
     for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes
@@ -536,7 +536,8 @@
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();
     }
     ctx.restore();
-    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
+    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); if (App.stack && App.stack.ceil(s)) c.y -= Math.max(G.dist(s.pts[0], s.pts[3]), G.dist(s.pts[0], s.pts[1]) * 0.3) * S.view.z / 2 + 9; // luminaire : nom au-dessus du symbole, pour ne pas couvrir celui de la table
+ const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
   }
 
   function drawOpenings(rooms, selOp) {

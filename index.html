@@ -2237,6 +2237,8 @@ details[open] summary::after{content:"–"}
     F('lindbyn60', 'Miroirs', 'Miroir Lindbyn 60 × 120, angles arrondis (IKEA)', 60, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 120, shape: 'rrect', r: 90, fr: 10 } }),
     F('lindbyn40', 'Miroirs', 'Miroir Lindbyn 40 × 130, bouts ronds (IKEA)', 40, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 130, shape: 'pill', fr: 10 } }),
     F('larbro', 'Miroirs', 'Miroir Lärbro 48 × 120 (IKEA)', 48, 3, { short: 'Lärbro', m: 'mir', mi: { H: 120, shape: 'rect', fr: 35 } }),
+    // suspension LED cuivre (étiquette Braun, mod. 4012248400685) : 3 abat-jour Ø 16 alignés sur 72 cm, 2 m au plus du plafond au bas des abat-jour (Comfort Lift)
+    F('susp3cuivre', 'Luminaires', 'Suspension LED 3 lumières cuivre 72 × 16', 72, 16, { short: 'Suspension', m: 'pendel3', ceil: true, ref: 'mod. 4012248400685 · Ø 16 · 2 m au plus · hauteur réglable' }),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('basseverre', 'Tables', 'Table basse chêne et verre 80 × 80', 80, 80, { short: 'Table basse', m: 'basseverre' }), F('chaise', 'Tables', 'Chaise', 45, 52),
     // bureaux IKEA (cotes des fiches produit)
@@ -2443,6 +2445,7 @@ details[open] summary::after{content:"–"}
     soho: (w, d, M, it) => soho(w, d, M, it.so || 'c'),
     walkin: (w, d, M, it, sh) => walkin(w, d, M, it, sh),
     vitre: (w, d, M, it, sh) => showerGlass(w, d, M, sh),
+    pendel3: (w, d, M, it, sh, env) => pendel3(w, d, M, sh, env),
     miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
     colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
     colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
@@ -2775,6 +2778,20 @@ details[open] summary::after{content:"–"}
     M.solids.push({ pts: rect(uw, 0, uw + 20, d), z0: 0, z1: H }); M.plan.push({ pts: rect(uw, 0, uw + 20, d) });
     if (bar) { const ub = side === 'g' ? w - 80 : 80; M.solids.push({ pts: rect(ub - 8, v + 4, ub + 8, v + bar), z0: H - 90, z1: H - 74 }); M.plan.push({ pts: [[ub, d], [ub, v + bar]], open: true, dash: true }); }
   }
+  // suspension 3 lumières : patère (baldaquin) cuivre au plafond, 3 câbles, abat-jour cylindre cuivre Ø 16 × 8 cm
+  // coiffé d'un verre clair (diffuseur blanc dedans) ; au plan, symbole de point lumineux (cercle barré) en traits fins
+  function pendel3(w, d, M, sh, env) {
+    const C = (env && env.ceil) || 2500, zb = PL.pendantBottom(sh, C), r = Math.min(d, w / 3) / 2, cv = d / 2; M.h = 0; M.fill = false; M.dash = true;
+    M.outline = rect(0, cv - 35, w, cv + 35);
+    M.solids.push({ pts: rect(0, cv - 35, w, cv + 35), z0: C - 40, z1: C });
+    for (const cu of [r, w / 2, w - r]) {
+      const cup = ell(cu, cv, r, r, 28), glass = ell(cu, cv, r * 0.8, r * 0.8, 24);
+      M.plan.push({ pts: cup }, { pts: [[cu - r * 0.7, cv - r * 0.7], [cu + r * 0.7, cv + r * 0.7]], open: true }, { pts: [[cu - r * 0.7, cv + r * 0.7], [cu + r * 0.7, cv - r * 0.7]], open: true });
+      M.solids.push({ pts: cup, z0: zb, z1: zb + 80, round: true }, { pts: ell(cu, cv, 20, 20, 12), z0: zb + 115, z1: zb + 130, round: true });
+      M.lines.push(...ring3(glass, zb + 115)); for (const k of [0, 6, 12, 18]) M.lines.push([[glass[k][0], glass[k][1], zb + 80], [glass[k][0], glass[k][1], zb + 115]]);
+      M.lines.push([[cu, cv, zb + 130], [cu, cv, C - 40]]);
+    }
+  }
   // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
   function shelf(w, d, M, H, grid, t, tin, back, posts) {
     const [cols, rows] = grid; M.h = H; const T = t || tin;
@@ -2786,9 +2803,9 @@ details[open] summary::after{content:"–"}
     if (back) M.solids.push({ pts: rect(T, d - 6, w - T, d), z0: 0, z1: H });
     if (!posts) M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
   }
-  PL.furnModel = (id, w, d, sh) => {
+  PL.furnModel = (id, w, d, sh, env) => { // env : { ceil } hauteur sous plafond (mm) de la pièce, pour les luminaires suspendus
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], slabs: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
+    const M = { outline: null, plan: [], solids: [], slabs: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh, env); return M;
   };
   /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
   PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
@@ -2809,6 +2826,10 @@ details[open] summary::after{content:"–"}
   PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
   // douche à l'italienne : longueur de la vitre (mm, du catalogue ou réglée) et côté (g : vitre à gauche, accès à droite)
   PL.walkinGlass = (it, sh, w) => { const L = ((sh && +sh.vl) || (it.wi && it.wi.glass) || 70) * 10; return Math.max(300, Math.min(w || it.w * 10, L)); };
+  // suspension : hauteur du bas des abat-jour au-dessus du sol (cm, 145 par défaut : 70 cm au-dessus d'une table de 75),
+  // bornée par le Comfort Lift (2 m au plus sous le plafond, 40 cm au moins) ; rendu en mm
+  PL.pendantRange = (C) => [Math.max(300, C - 2000), Math.max(300, C - 400)];
+  PL.pendantBottom = (sh, C = 2500) => { const [lo, hi] = PL.pendantRange(C); return Math.max(lo, Math.min(hi, ((sh && +sh.lz) || 145) * 10)); };
   PL.walkinSide = (sh) => (sh && sh.vside === 'd' ? 'd' : 'g');
   PL.glassBar = (sh) => Math.max(0, Math.min(2000, ((sh && +sh.vbar) || 0) * 10)); // barre de maintien (mm, 0 : sans)
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));
@@ -3234,7 +3255,7 @@ details[open] summary::after{content:"–"}
     if (S.mode === 'plan' && z > 0.03) for (const r of rooms) drawWallLocks(r);
     // formes libres et mobilier
     for (const s of shapes) if (s.kind === 'forme') drawFree(s);
-    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) - (App.stack.under(x) ? 1 : 0) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
+    if (S.layers.mobilier || S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.layer(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => a.z - b.z || a.i - b.i); for (const { x } of ms) drawFurniture(x, showCal && S.mode !== 'mobilier'); }
     // faux plafonds : élément en hauteur, contour et étiquette par-dessus le mobilier
     for (const zn of shapes) if (zn.kind === 'plafond' && zn.drop) drawZone(zn, true);
     // étiquettes
@@ -3684,7 +3705,8 @@ details[open] summary::after{content:"–"}
       const q1 = App.w2s(hd), q2 = App.w2s(hc); ctx.beginPath(); ctx.moveTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y); ctx.lineWidth = 0.8; ctx.stroke();
     }
     ctx.restore();
-    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
+    if (S.view.z > 0.035 && s.name) { const it = s.lib && PL.lib.furniture.find((x) => x.id === s.lib); const lbl = it && it.short != null && s.name === it.name ? it.short : s.name.replace(/ \(type .*\)/, ''); if (lbl) { const c = App.w2s(G.centroid(s.pts)); if (App.stack && App.stack.ceil(s)) c.y -= Math.max(G.dist(s.pts[0], s.pts[3]), G.dist(s.pts[0], s.pts[1]) * 0.3) * S.view.z / 2 + 9; // luminaire : nom au-dessus du symbole, pour ne pas couvrir celui de la table
+ const dk = s.on && App.stack ? App.stack.deck(s) : null; const two = dk && App.stack.decks(App.stack.support(s)).length > 1; const t2 = lbl + (two ? ' · ' + dk.name.replace('étage ', 'ét. ') : ''); ctx.font = font(500, 10); const small = it && it.put && !(S.sel && S.sel.id === s.id) && ctx.measureText(t2).width > Math.max(G.dist(App.w2s(s.pts[0]), App.w2s(s.pts[1])), G.dist(App.w2s(s.pts[1]), App.w2s(s.pts[2]))) + 6; if (!small) text(t2, c.x, c.y, 500, 10, C.ink2); } }
   }
 
   function drawOpenings(rooms, selOp) {
@@ -3987,7 +4009,7 @@ details[open] summary::after{content:"–"}
     const elecOn = S.layers.elec || S.mode === 'elec';
     if (S.mode === 'elec') for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     const shapes = App.shapesOn(fid);
-    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) - (App.stack.under(x) ? 1 : 0) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
+    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.layer(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
     const ho2 = ho || hitOpening(sp, w); if (ho2) return ho2;
     if (elecOn) for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     for (const m of App.measuresOn(fid)) { const a = App.w2s(m.a), b = App.w2s(m.b); if (G.distPointSeg(sp, a, b) < 10) { if (S.sel && S.sel.id === m.id) { if (G.dist(a, sp) < 14) return { t: 'mend', id: m.id, e: 'a' }; if (G.dist(b, sp) < 14) return { t: 'mend', id: m.id, e: 'b' }; } return { t: 'measure', id: m.id }; } }
@@ -4944,6 +4966,7 @@ details[open] summary::after{content:"–"}
       case 'vside': App.mutate(() => { s.vside = v; }); break;
       case 'vlq': App.mutate(() => { s.vl = +v; }); break;
       case 'vbar': App.mutate(() => { s.vbar = +v; }); break;
+      case 'lzq': App.mutate(() => { s.lz = +v; }); break;
       case 'vitlen': { const f = App.stack.frame(s); if (!f) break; const W = +v * 10, P = s.pts; App.mutate(() => { s.pts = PL.walkinSide(s) === 'd' ? [G.sub(P[1], G.mul(f.U, W)), P[1], P[2], G.sub(P[2], G.mul(f.U, W))] : [P[0], G.add(P[0], G.mul(f.U, W)), G.add(P[3], G.mul(f.U, W)), P[3]]; }); break; }
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
@@ -5013,6 +5036,7 @@ details[open] summary::after{content:"–"}
     if (c === 'pqDoorMid') { S.pqOpen = true; App.mutate((P) => { P.parquet.doorMid = !!val; }); return; }
     if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
     if (c === 'mh') { const v = num(val); if (!(v >= 10 && v <= 260)) { App.toast('Hauteur entre 10 et 260 cm'); ui.refresh(true); return; } App.mutate(() => { s.mh = v; }); return; }
+    if (c === 'lz') { const v = num(val); if (!(v >= 30 && v <= 400)) { App.toast('Hauteur entre 30 et 400 cm'); ui.refresh(true); return; } App.mutate(() => { s.lz = v; }); return; }
     if (c === 'vl') { const v = num(val); if (!(v >= 30 && v <= 200)) { App.toast('Longueur entre 30 et 200 cm'); ui.refresh(true); return; } App.mutate(() => { s.vl = v; }); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
@@ -6523,6 +6547,8 @@ details[open] summary::after{content:"–"}
     s.hang = o; s.mh = Math.round(f.w) / 10; const dw = (H - f.w) / 2, P = s.pts; s.pts = [G.add(P[0], G.mul(f.U, -dw)), G.add(P[1], G.mul(f.U, dw)), G.add(P[2], G.mul(f.U, dw)), G.add(P[3], G.mul(f.U, -dw))];
   };
   K.under = (s) => !!(lib(s) || {}).under; // tapis : dessous des autres meubles, au dessin comme au clic
+  K.ceil = (s) => !!(lib(s) || {}).ceil; // luminaire suspendu : au-dessus des autres meubles, au dessin comme au clic ; on passe dessous en visite
+  K.layer = (s) => K.zOf(s) - (K.under(s) ? 1 : 0) + (K.ceil(s) ? 1e6 : 0);
   K.resizeTo = (s, W, D) => { const f = frame(s); if (!f) return; const c = G.centroid(s.pts), at2 = (a, b) => G.add(G.add(c, G.mul(f.U, a)), G.mul(f.V, b)); s.pts = [at2(-W / 2, -D / 2), at2(W / 2, -D / 2), at2(W / 2, D / 2), at2(-W / 2, D / 2)]; };
   K.toFloor = (s) => { delete s.on; delete s.deck; delete s.onAt; };
 
@@ -6568,6 +6594,8 @@ details[open] summary::after{content:"–"}
     { const it = lib(s);
       if (it && it.m === 'desk' && it.dk.Hs) { const z = PL.deskHeight(it, s); h += `<h3>Hauteur du plateau</h3><div class="chips">${it.dk.Hs.map((v) => `<button data-a="dhq" data-v="${v}" aria-pressed="${z === v}">${v} cm</button>`).join('')}</div><p class="hint2">Réglable avec les boutons des pieds ; les objets posés dessus suivent.</p>`; }
       if (it && it.m === 'walkin' && !(it.wi && it.wi.glass)) h += `<p class="hint2">Receveur seul, à fleur du carrelage, bonde centrée. La taille se règle dans Dimensions ; ajoutez une « Vitre de douche fixe » à part et posez-la où vous voulez.</p>`;
+      if (it && it.m === 'pendel3') { const room = App.rooms().find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)), C = room ? App.feat.ceiling(room) * 10 : 2500, [lo, hi] = PL.pendantRange(C), zb = PL.pendantBottom(s, C);
+        h += `<h3>Hauteur de la suspension</h3><div class="field"><label>Bas des abat-jour au-dessus du sol</label><div class="unit"><input data-c="lz" inputmode="decimal" value="${fmt(zb)}"><span>cm</span></div></div><div class="chips sm">${[135, 140, 145, 150, 160, 180].filter((v) => v * 10 >= lo && v * 10 <= hi).map((v) => `<button data-a="lzq" data-v="${v}" aria-pressed="${Math.abs(zb - v * 10) < 5}">${v}</button>`).join('')}</div><p class="hint2">Plafond à ${fmt(C)} cm ici : le Comfort Lift règle de ${fmt(lo)} à ${fmt(hi)} cm. Au-dessus d'une table de 75 cm, on compte 60 à 70 cm d'écart (135 à 145 cm).</p>`; }
       if (it && it.m === 'vitre') { const f = frame(s), W = f ? f.w : it.w * 10, side = PL.walkinSide(s), bar = PL.glassBar(s);
         h += `<h3>Vitre de douche</h3><div class="chips sm">${[60, 70, 80, 90, 100, 120, 140].map((v) => `<button data-a="vitlen" data-v="${v}" aria-pressed="${Math.abs(W - v * 10) < 5}">${v}</button>`).join('')}</div><div class="chips">${[['g', 'Profilé mural à gauche'], ['d', 'Profilé mural à droite']].map(([v, l]) => `<button data-a="vside" data-v="${v}" aria-pressed="${side === v}">${l}</button>`).join('')}</div><div class="chips sm">${[[0, 'Sans barre'], [60, 'Barre 60'], [90, 'Barre 90'], [120, 'Barre 120']].map(([v, l]) => `<button data-a="vbar" data-v="${v}" aria-pressed="${Math.abs(bar - v * 10) < 5}">${l}</button>`).join('')}</div><p class="hint2">Vitre de ${fmt(W)} cm, 2 m de haut. La longueur se règle aussi dans Dimensions ; le bout du profilé ne bouge pas. La barre part vers l'arrière (pointillés sur le plan) : « Pivoter » deux fois la fait passer de l'autre côté.</p>`; }
       if (it && it.m === 'walkin' && it.wi && it.wi.glass) { const f = frame(s), W = f ? f.w : it.w * 10, L = PL.walkinGlass(it, s, W), side = PL.walkinSide(s);
@@ -7420,7 +7448,7 @@ details[open] summary::after{content:"–"}
     if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
-    const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
+    const M = PL.furnModel && PL.furnModel(id, w, d, s, { ceil: Hc }); // meubles modélisés (bibliothèque), luminaires accrochés au plafond de la pièce
     if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const q of M.slabs || []) slab(q.mat === 'mirror' && BM ? BM : B, f, q.face, q.v0, q.v1, q.mat === 'mirror' && BM ? [0.9, 0.9, 0.9] : col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
@@ -7686,7 +7714,7 @@ details[open] summary::after{content:"–"}
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
       const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(BF, s, home ? App.feat.ceiling(home) * 10 : Hc0, PH ? furnCol(s) : st.col.furn); ZO = 0;
-      if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '')) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
+      if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '') && !(App.stack && App.stack.ceil(s))) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
     st.segs.push(...st.leaves);

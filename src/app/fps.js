@@ -122,7 +122,7 @@
     if (sp) { prism(B, sp.seat, 0, 430, col); for (const q of sp.back) prism(B, q, 0, 820, col); for (const q of sp.arms) prism(B, q, 0, 620, col); return; }
     if (P.length !== 4) return prism(B, P, 0, HGT[id] || 800, col);
     const f = frameOf(P), w = f.w, d = f.d;
-    const M = PL.furnModel && PL.furnModel(id, w, d, s); // meubles modélisés (bibliothèque)
+    const M = PL.furnModel && PL.furnModel(id, w, d, s, { ceil: Hc }); // meubles modélisés (bibliothèque), luminaires accrochés au plafond de la pièce
     if (M) { for (const q of M.solids) prism(B, q.pts.map(([u, v]) => f.at(u, v)), q.z0, q.z1, col, q.round); for (const q of M.slabs || []) slab(q.mat === 'mirror' && BM ? BM : B, f, q.face, q.v0, q.v1, q.mat === 'mirror' && BM ? [0.9, 0.9, 0.9] : col, q.round); for (const [a, b] of M.lines) ln(P3(f.at(a[0], a[1]), a[2]), P3(f.at(b[0], b[1]), b[2])); return; }
     if (/^lit/.test(id) && id !== 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 280, col); prism(B, sub(f, 25, w - 25, 25, d - 70), 280, 480, col); prism(B, sub(f, 0, w, d - 60, d), 280, 950, col); return; }
     if (id === 'litbebe') { prism(B, sub(f, 0, w, 0, d), 0, 900, col); return; }
@@ -388,7 +388,7 @@
     for (const m of stairs) buildStair(B, m, Hc0, rooms);
     for (const s of shapes) if (['meuble', 'poteau', 'forme', 'exclusion'].includes(s.kind)) {
       const home = rooms.find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)); ZO = App.stack ? App.stack.zOf(s) : 0; furniture(BF, s, home ? App.feat.ceiling(home) * 10 : Hc0, PH ? furnCol(s) : st.col.furn); ZO = 0;
-      if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '')) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
+      if (!(s.kind === 'exclusion' && s.lib === 'tremie') && !/^douche/.test(s.lib || '') && !(App.stack && App.stack.ceil(s))) for (let i = 0; i < s.pts.length; i++) st.segs.push([s.pts[i], s.pts[(i + 1) % s.pts.length]]);
     }
     for (const m of stairs) for (let i = 0; i < m.s.pts.length; i++) st.segs.push([m.s.pts[i], m.s.pts[(i + 1) % m.s.pts.length]]);
     st.segs.push(...st.leaves);

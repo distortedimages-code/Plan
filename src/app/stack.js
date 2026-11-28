@@ -106,6 +106,8 @@
     s.hang = o; s.mh = Math.round(f.w) / 10; const dw = (H - f.w) / 2, P = s.pts; s.pts = [G.add(P[0], G.mul(f.U, -dw)), G.add(P[1], G.mul(f.U, dw)), G.add(P[2], G.mul(f.U, dw)), G.add(P[3], G.mul(f.U, -dw))];
   };
   K.under = (s) => !!(lib(s) || {}).under; // tapis : dessous des autres meubles, au dessin comme au clic
+  K.ceil = (s) => !!(lib(s) || {}).ceil; // luminaire suspendu : au-dessus des autres meubles, au dessin comme au clic ; on passe dessous en visite
+  K.layer = (s) => K.zOf(s) - (K.under(s) ? 1 : 0) + (K.ceil(s) ? 1e6 : 0);
   K.resizeTo = (s, W, D) => { const f = frame(s); if (!f) return; const c = G.centroid(s.pts), at2 = (a, b) => G.add(G.add(c, G.mul(f.U, a)), G.mul(f.V, b)); s.pts = [at2(-W / 2, -D / 2), at2(W / 2, -D / 2), at2(W / 2, D / 2), at2(-W / 2, D / 2)]; };
   K.toFloor = (s) => { delete s.on; delete s.deck; delete s.onAt; };
 
@@ -151,6 +153,8 @@
     { const it = lib(s);
       if (it && it.m === 'desk' && it.dk.Hs) { const z = PL.deskHeight(it, s); h += `<h3>Hauteur du plateau</h3><div class="chips">${it.dk.Hs.map((v) => `<button data-a="dhq" data-v="${v}" aria-pressed="${z === v}">${v} cm</button>`).join('')}</div><p class="hint2">Réglable avec les boutons des pieds ; les objets posés dessus suivent.</p>`; }
       if (it && it.m === 'walkin' && !(it.wi && it.wi.glass)) h += `<p class="hint2">Receveur seul, à fleur du carrelage, bonde centrée. La taille se règle dans Dimensions ; ajoutez une « Vitre de douche fixe » à part et posez-la où vous voulez.</p>`;
+      if (it && it.m === 'pendel3') { const room = App.rooms().find((r) => G.pointInPoly(G.centroid(s.pts), r.pts)), C = room ? App.feat.ceiling(room) * 10 : 2500, [lo, hi] = PL.pendantRange(C), zb = PL.pendantBottom(s, C);
+        h += `<h3>Hauteur de la suspension</h3><div class="field"><label>Bas des abat-jour au-dessus du sol</label><div class="unit"><input data-c="lz" inputmode="decimal" value="${fmt(zb)}"><span>cm</span></div></div><div class="chips sm">${[135, 140, 145, 150, 160, 180].filter((v) => v * 10 >= lo && v * 10 <= hi).map((v) => `<button data-a="lzq" data-v="${v}" aria-pressed="${Math.abs(zb - v * 10) < 5}">${v}</button>`).join('')}</div><p class="hint2">Plafond à ${fmt(C)} cm ici : le Comfort Lift règle de ${fmt(lo)} à ${fmt(hi)} cm. Au-dessus d'une table de 75 cm, on compte 60 à 70 cm d'écart (135 à 145 cm).</p>`; }
       if (it && it.m === 'vitre') { const f = frame(s), W = f ? f.w : it.w * 10, side = PL.walkinSide(s), bar = PL.glassBar(s);
         h += `<h3>Vitre de douche</h3><div class="chips sm">${[60, 70, 80, 90, 100, 120, 140].map((v) => `<button data-a="vitlen" data-v="${v}" aria-pressed="${Math.abs(W - v * 10) < 5}">${v}</button>`).join('')}</div><div class="chips">${[['g', 'Profilé mural à gauche'], ['d', 'Profilé mural à droite']].map(([v, l]) => `<button data-a="vside" data-v="${v}" aria-pressed="${side === v}">${l}</button>`).join('')}</div><div class="chips sm">${[[0, 'Sans barre'], [60, 'Barre 60'], [90, 'Barre 90'], [120, 'Barre 120']].map(([v, l]) => `<button data-a="vbar" data-v="${v}" aria-pressed="${Math.abs(bar - v * 10) < 5}">${l}</button>`).join('')}</div><p class="hint2">Vitre de ${fmt(W)} cm, 2 m de haut. La longueur se règle aussi dans Dimensions ; le bout du profilé ne bouge pas. La barre part vers l'arrière (pointillés sur le plan) : « Pivoter » deux fois la fait passer de l'autre côté.</p>`; }
       if (it && it.m === 'walkin' && it.wi && it.wi.glass) { const f = frame(s), W = f ? f.w : it.w * 10, L = PL.walkinGlass(it, s, W), side = PL.walkinSide(s);

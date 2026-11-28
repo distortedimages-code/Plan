@@ -42,6 +42,8 @@
     F('lindbyn60', 'Miroirs', 'Miroir Lindbyn 60 × 120, angles arrondis (IKEA)', 60, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 120, shape: 'rrect', r: 90, fr: 10 } }),
     F('lindbyn40', 'Miroirs', 'Miroir Lindbyn 40 × 130, bouts ronds (IKEA)', 40, 3, { short: 'Lindbyn', m: 'mir', mi: { H: 130, shape: 'pill', fr: 10 } }),
     F('larbro', 'Miroirs', 'Miroir Lärbro 48 × 120 (IKEA)', 48, 3, { short: 'Lärbro', m: 'mir', mi: { H: 120, shape: 'rect', fr: 35 } }),
+    // suspension LED cuivre (étiquette Braun, mod. 4012248400685) : 3 abat-jour Ø 16 alignés sur 72 cm, 2 m au plus du plafond au bas des abat-jour (Comfort Lift)
+    F('susp3cuivre', 'Luminaires', 'Suspension LED 3 lumières cuivre 72 × 16', 72, 16, { short: 'Suspension', m: 'pendel3', ceil: true, ref: 'mod. 4012248400685 · Ø 16 · 2 m au plus · hauteur réglable' }),
     F('table4', 'Tables', 'Table 4 pers. 140 × 78', 140, 78), F('table6', 'Tables', 'Table 6 pers. 180 × 90', 180, 90), F('table8', 'Tables', 'Table 8 pers. 235 × 100', 235, 100),
     F('tableronde', 'Tables', 'Table ronde Ø 110', 110, 110, { round: true }), F('basse', 'Tables', 'Table basse 90 × 55', 90, 55), F('basseverre', 'Tables', 'Table basse chêne et verre 80 × 80', 80, 80, { short: 'Table basse', m: 'basseverre' }), F('chaise', 'Tables', 'Chaise', 45, 52),
     // bureaux IKEA (cotes des fiches produit)
@@ -248,6 +250,7 @@
     soho: (w, d, M, it) => soho(w, d, M, it.so || 'c'),
     walkin: (w, d, M, it, sh) => walkin(w, d, M, it, sh),
     vitre: (w, d, M, it, sh) => showerGlass(w, d, M, sh),
+    pendel3: (w, d, M, it, sh, env) => pendel3(w, d, M, sh, env),
     miroir: (w, d, M) => { M.dash = true; M.h = 2110; M.solids.push({ pts: rect(0, 0, w, d), z0: 1150, z1: 2110 }); M.lines.push([[w / 2, 0, 1150], [w / 2, 0, 2110]]); M.plan.push({ pts: [[w / 2, 0], [w / 2, d]], open: true, dash: true }); },
     colonnesdb: (w, d, M) => { M.h = 1920; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1920 }); for (const z of [640, 1280]) M.lines.push([[0, 0, z], [w, 0, z]]); M.plan.push({ pts: [[0, 0], [w, d]], open: true }); },
     colonnelavage: (w, d, M) => { M.h = 1700; M.solids.push({ pts: rect(0, 0, w, d), z0: 0, z1: 1700 }); M.lines.push([[0, -1, 850], [w, -1, 850]]); for (const zc of [430, 1280]) { const c = ell(w / 2, zc, 160, 160, 20); c.forEach((p, k) => { const q = c[(k + 1) % c.length]; M.lines.push([[p[0], -1, p[1]], [q[0], -1, q[1]]]); }); } M.plan.push({ pts: [[0, 0], [w, d]], open: true }, { pts: [[w, 0], [0, d]], open: true }); },
@@ -580,6 +583,20 @@
     M.solids.push({ pts: rect(uw, 0, uw + 20, d), z0: 0, z1: H }); M.plan.push({ pts: rect(uw, 0, uw + 20, d) });
     if (bar) { const ub = side === 'g' ? w - 80 : 80; M.solids.push({ pts: rect(ub - 8, v + 4, ub + 8, v + bar), z0: H - 90, z1: H - 74 }); M.plan.push({ pts: [[ub, d], [ub, v + bar]], open: true, dash: true }); }
   }
+  // suspension 3 lumières : patère (baldaquin) cuivre au plafond, 3 câbles, abat-jour cylindre cuivre Ø 16 × 8 cm
+  // coiffé d'un verre clair (diffuseur blanc dedans) ; au plan, symbole de point lumineux (cercle barré) en traits fins
+  function pendel3(w, d, M, sh, env) {
+    const C = (env && env.ceil) || 2500, zb = PL.pendantBottom(sh, C), r = Math.min(d, w / 3) / 2, cv = d / 2; M.h = 0; M.fill = false; M.dash = true;
+    M.outline = rect(0, cv - 35, w, cv + 35);
+    M.solids.push({ pts: rect(0, cv - 35, w, cv + 35), z0: C - 40, z1: C });
+    for (const cu of [r, w / 2, w - r]) {
+      const cup = ell(cu, cv, r, r, 28), glass = ell(cu, cv, r * 0.8, r * 0.8, 24);
+      M.plan.push({ pts: cup }, { pts: [[cu - r * 0.7, cv - r * 0.7], [cu + r * 0.7, cv + r * 0.7]], open: true }, { pts: [[cu - r * 0.7, cv + r * 0.7], [cu + r * 0.7, cv - r * 0.7]], open: true });
+      M.solids.push({ pts: cup, z0: zb, z1: zb + 80, round: true }, { pts: ell(cu, cv, 20, 20, 12), z0: zb + 115, z1: zb + 130, round: true });
+      M.lines.push(...ring3(glass, zb + 115)); for (const k of [0, 6, 12, 18]) M.lines.push([[glass[k][0], glass[k][1], zb + 80], [glass[k][0], glass[k][1], zb + 115]]);
+      M.lines.push([[cu, cv, zb + 130], [cu, cv, C - 40]]);
+    }
+  }
   // étagère : montants (ou échelles d'angle), tablettes réparties ; grid [colonnes, rangées]
   function shelf(w, d, M, H, grid, t, tin, back, posts) {
     const [cols, rows] = grid; M.h = H; const T = t || tin;
@@ -591,9 +608,9 @@
     if (back) M.solids.push({ pts: rect(T, d - 6, w - T, d), z0: 0, z1: H });
     if (!posts) M.plan.push({ pts: [[T, 0], [w - T, 0]], open: true });
   }
-  PL.furnModel = (id, w, d, sh) => {
+  PL.furnModel = (id, w, d, sh, env) => { // env : { ceil } hauteur sous plafond (mm) de la pièce, pour les luminaires suspendus
     const it = furniture.find((x) => x.id === id); if (!it || !it.m || !MODELS[it.m]) return null;
-    const M = { outline: null, plan: [], solids: [], slabs: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh); return M;
+    const M = { outline: null, plan: [], solids: [], slabs: [], lines: [], dash: false, fill: true, h: 0, decks: null }; MODELS[it.m](w, d, M, it, sh, env); return M;
   };
   /* étages du stand Jaspers (cm, du bas vers le haut) et hauteur du bureau : réglages propres à chaque meuble posé */
   PL.jaspersTiers = (sh) => { const t = sh && Array.isArray(sh.tiers) && sh.tiers.length === 4 ? sh.tiers : [66, 88, 110, 132]; return t.map((v) => Math.max(45, Math.min(136, +v || 0))); };
@@ -614,6 +631,10 @@
   PL.mirrorZ = (it, sh) => { const H = PL.mirrorH(it, sh); const z = sh && sh.mz != null && sh.mz !== '' ? +sh.mz * 10 : H >= 1200 ? 300 : 1550 - H / 2; return Math.max(0, Math.min(2600 - H, z)); };
   // douche à l'italienne : longueur de la vitre (mm, du catalogue ou réglée) et côté (g : vitre à gauche, accès à droite)
   PL.walkinGlass = (it, sh, w) => { const L = ((sh && +sh.vl) || (it.wi && it.wi.glass) || 70) * 10; return Math.max(300, Math.min(w || it.w * 10, L)); };
+  // suspension : hauteur du bas des abat-jour au-dessus du sol (cm, 145 par défaut : 70 cm au-dessus d'une table de 75),
+  // bornée par le Comfort Lift (2 m au plus sous le plafond, 40 cm au moins) ; rendu en mm
+  PL.pendantRange = (C) => [Math.max(300, C - 2000), Math.max(300, C - 400)];
+  PL.pendantBottom = (sh, C = 2500) => { const [lo, hi] = PL.pendantRange(C); return Math.max(lo, Math.min(hi, ((sh && +sh.lz) || 145) * 10)); };
   PL.walkinSide = (sh) => (sh && sh.vside === 'd' ? 'd' : 'g');
   PL.glassBar = (sh) => Math.max(0, Math.min(2000, ((sh && +sh.vbar) || 0) * 10)); // barre de maintien (mm, 0 : sans)
   PL.chairSeat = (sh) => Math.max(42, Math.min(52, (sh && +sh.seat) || 46));

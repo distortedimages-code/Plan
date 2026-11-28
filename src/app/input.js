@@ -70,7 +70,7 @@
     const elecOn = S.layers.elec || S.mode === 'elec';
     if (S.mode === 'elec') for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     const shapes = App.shapesOn(fid);
-    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.zOf(x) - (App.stack.under(x) ? 1 : 0) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
+    if (S.mode === 'mobilier') { const ZZ = (x) => (App.stack ? App.stack.layer(x) : 0); const ms = shapes.filter((x) => x.kind === 'meuble').map((x, i) => ({ x, i, z: ZZ(x) })).sort((a, b) => b.z - a.z || b.i - a.i); for (const { x: s } of ms) if (G.pointInPoly(w, s.pts)) return { t: 'shape', id: s.id }; }
     const ho2 = ho || hitOpening(sp, w); if (ho2) return ho2;
     if (elecOn) for (const p of App.pointsOn(fid)) if (G.dist(App.w2s(p), sp) < 16) return { t: 'point', id: p.id };
     for (const m of App.measuresOn(fid)) { const a = App.w2s(m.a), b = App.w2s(m.b); if (G.distPointSeg(sp, a, b) < 10) { if (S.sel && S.sel.id === m.id) { if (G.dist(a, sp) < 14) return { t: 'mend', id: m.id, e: 'a' }; if (G.dist(b, sp) < 14) return { t: 'mend', id: m.id, e: 'b' }; } return { t: 'measure', id: m.id }; } }

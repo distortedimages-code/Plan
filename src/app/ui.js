@@ -714,6 +714,7 @@
       case 'vside': App.mutate(() => { s.vside = v; }); break;
       case 'vlq': App.mutate(() => { s.vl = +v; }); break;
       case 'vbar': App.mutate(() => { s.vbar = +v; }); break;
+      case 'lzq': App.mutate(() => { s.lz = +v; }); break;
       case 'vitlen': { const f = App.stack.frame(s); if (!f) break; const W = +v * 10, P = s.pts; App.mutate(() => { s.pts = PL.walkinSide(s) === 'd' ? [G.sub(P[1], G.mul(f.U, W)), P[1], P[2], G.sub(P[2], G.mul(f.U, W))] : [P[0], G.add(P[0], G.mul(f.U, W)), G.add(P[3], G.mul(f.U, W)), P[3]]; }); break; }
       case 'headq': App.mutate(() => { if (+v) s.head = true; else delete s.head; }); break;
       case 'rugsz': { const [a, b] = v.split('x').map(Number), f = App.stack.frame(s); if (f) App.mutate(() => { const port = f.d > f.w; App.stack.resizeTo(s, (port ? a : b) * 10, (port ? b : a) * 10); }); break; }
@@ -783,6 +784,7 @@
     if (c === 'pqDoorMid') { S.pqOpen = true; App.mutate((P) => { P.parquet.doorMid = !!val; }); return; }
     if (c === 'calLinks') { S.calLinks = !!t.checked; try { localStorage.setItem('calepin:callinks', S.calLinks ? '1' : '0'); } catch (e) { /* rien */ } App.render(); ui.refresh(true); return; }
     if (c === 'mh') { const v = num(val); if (!(v >= 10 && v <= 260)) { App.toast('Hauteur entre 10 et 260 cm'); ui.refresh(true); return; } App.mutate(() => { s.mh = v; }); return; }
+    if (c === 'lz') { const v = num(val); if (!(v >= 30 && v <= 400)) { App.toast('Hauteur entre 30 et 400 cm'); ui.refresh(true); return; } App.mutate(() => { s.lz = v; }); return; }
     if (c === 'vl') { const v = num(val); if (!(v >= 30 && v <= 200)) { App.toast('Longueur entre 30 et 200 cm'); ui.refresh(true); return; } App.mutate(() => { s.vl = v; }); return; }
     if (c === 'mz') { const v = num(val); if (!(v >= 0 && v <= 250)) { App.toast('Hauteur entre 0 et 250 cm'); ui.refresh(true); return; } App.mutate(() => { s.mz = v; }); return; }
     if (c === 'seat') { const v = num(val); if (!(v >= 42 && v <= 52)) { App.toast('Hauteur d\'assise entre 42 et 52 cm'); ui.refresh(true); return; } App.mutate(() => { s.seat = v; }); return; }
